@@ -1,0 +1,146 @@
+---
+title: "deseq2reports Analysis Report"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output:
+  html_document:
+    toc: false
+    theme: flatly
+    self_contained: true
+    mathjax: null
+params:
+  var: NULL
+  design_str: NULL
+  org: NULL
+  n_samples: NULL
+  n_genes: NULL
+  qc_out: NULL
+  distance_out: NULL
+  diffexp_out: NULL
+  gsea_out: NULL
+  wgcna_out: NULL
+  decoupler_out: NULL
+  alpha: 0.05
+  lfc_threshold: 0.5
+  run_args: NULL
+  package_version: NULL
+  current_page: "Index"
+  disabled_labels: !r character(0)
+  page_hrefs: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+```
+
+```{r nav, results='asis'}
+cat(deseq2reports::report_nav_links(
+  params$current_page,
+  disabled = params$disabled_labels,
+  hrefs = params$page_hrefs
+))
+```
+
+## Run summary
+
+```{r index-methods, results='asis'}
+deseq2reports::emit_code_block(
+  caption = "Key entry point for this multi-page report:",
+  "deseq2reports::run_deseq2_pipeline(",
+  "  dds, var = \"condition\",",
+  "  filter_method = \"cpm\", shrinkage = \"ashr\",",
+  "  collections = c(\"HALLMARK\", \"GOBP\", \"REACTOME\"),",
+  "  run_wgcna = TRUE, run_decoupler = TRUE",
+  ")"
+)
+```
+
+```{r summary-table}
+vdj_label <- if (!is.null(params$qc_out$remove_vdj) && length(params$qc_out$remove_vdj)) {
+  paste(params$qc_out$remove_vdj, collapse = "+")
+} else if (!is.null(params$run_args$remove_vdj) &&
+           !is.null(params$run_args$remove_vdj) &&
+           !isFALSE(params$run_args$remove_vdj) &&
+           !(is.character(params$run_args$remove_vdj) && !length(params$run_args$remove_vdj))) {
+  paste(as.character(params$run_args$remove_vdj), collapse = "+")
+} else {
+  "none"
+}
+
+summary_df <- data.frame(
+  Field = c("Grouping variable", "Design formula", "Organism", "Samples", "Genes (post-QC)",
+            "Significance threshold (alpha)", "LFC threshold", "VDJ gene removal",
+            "deseq2reports version"),
+  Value = c(paste(params$var, collapse = ", "), params$design_str, params$org,
+            as.character(params$n_samples), as.character(params$n_genes),
+            as.character(params$alpha), as.character(params$lfc_threshold),
+            vdj_label, as.character(params$package_version))
+)
+knitr::kable(summary_df)
+```
+
+```{r contrast-inventory, results='asis'}
+specs <- params$diffexp_out$contrast_specs
+if (!is.null(specs) && nrow(specs) > 0) {
+  cat("\n\n## Contrasts\n\n")
+  cat(nrow(specs), " contrast(s) in this run:\n\n", sep = "")
+  inv <- specs[, intersect(c("label", "class", "type", "stratum_level", "comparison"),
+                           colnames(specs)), drop = FALSE]
+  print(knitr::kable(inv, row.names = FALSE))
+  cat("\n\n")
+}
+```
+
+```{r run-args, results='asis'}
+if (!is.null(params$run_args) && length(params$run_args)) {
+  cat("\n\n## Pipeline arguments\n\n")
+  cat("Arguments passed to `run_deseq2_pipeline()` for this run:\n\n")
+  args <- params$run_args
+  fmt <- function(x) {
+    if (is.null(x)) return("NULL")
+    if (is.logical(x) && length(x) == 1) return(as.character(x))
+    if (is.numeric(x) && length(x) == 1) return(as.character(x))
+    if (is.character(x)) return(paste(x, collapse = ", "))
+    paste(deparse(x), collapse = " ")
+  }
+  args_df <- data.frame(
+    Argument = names(args),
+    Value = vapply(args, fmt, character(1)),
+    stringsAsFactors = FALSE
+  )
+  print(knitr::kable(args_df, row.names = FALSE))
+  cat("\n\n")
+}
+```
+
+## Report sections
+
+```{r section-links, results='asis'}
+hrefs <- params$page_hrefs
+if (is.null(hrefs)) hrefs <- deseq2reports::report_page_hrefs(params$current_page)
+cat("\n\nThis report is split across the following linked pages (each module's HTML ",
+    "lives in its own folder; every page is fully self-contained and viewable offline):\n\n", sep = "")
+cat("\n\n- [**QC**](", hrefs[["QC"]], ") -- library QC, PCA, and sample-similarity heatmap\n", sep = "")
+cat("- [**Differential expression**](", hrefs[["Differential expression"]],
+    ") -- per-comparison MA plot, volcano plot, and DEG table\n", sep = "")
+cat("- [**Pathway enrichment**](", hrefs[["Pathway enrichment"]],
+    ") -- per-comparison, per-collection GSEA barplot and results table\n", sep = "")
+if (!is.null(params$wgcna_out)) {
+  cat("- [**WGCNA**](", hrefs[["WGCNA"]],
+      ") -- co-expression modules, module-trait/eigengene heatmaps, per-module pathway enrichment\n", sep = "")
+} else {
+  cat("- WGCNA -- not run for this report (`wgcna_out = NULL`)\n")
+}
+if (!is.null(params$decoupler_out)) {
+  cat("- [**TF activity**](", hrefs[["TF activity"]],
+      ") -- CollecTRI network + ULM transcription-factor activities\n", sep = "")
+} else {
+  cat("- TF activity -- not run for this report (`decoupler_out = NULL`)\n")
+}
+cat("\n\n")
+```
+
+## Session info
+
+```{r session-info}
+utils::sessionInfo()
+```

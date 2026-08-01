@@ -1,0 +1,526 @@
+---
+title: "Introduction to deseq2reports"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to deseq2reports}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+# This vignette is illustrative pseudocode (it references placeholder objects
+# like `counts`/`coldata` that stand in for the reader's own data) rather
+# than a runnable end-to-end script -- eval = FALSE keeps it from executing
+# during knit, and purl = FALSE additionally excludes it from `R CMD check`'s
+# vignette-code-tangle step, which otherwise ignores per-chunk `eval` and
+# would try to run (and fail on) this placeholder code directly.
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE, purl = FALSE)
+```
+
+## Overview
+
+`deseq2reports` runs a complete RNA-seq differential expression analysis
+starting from a `DESeq2::DESeqDataSet` object: quality control, sample
+distance/PCA, differential expression across every pairwise and one-vs-rest
+group comparison, gene set enrichment analysis (GSEA) against MSigDB,
+optional WGCNA co-expression module detection, and a self-contained HTML
+report -- all through one function call, or through the standalone stage
+functions if you want to run/inspect a single step.
+
+## One-command usage
+
+```{r}
+library(deseq2reports)
+library(DESeq2)
+
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
+
+out <- run_deseq2_pipeline(
+  dds = dds,
+  var = "condition",
+  design = ~condition,
+  filter_method = "cpm",
+  cpm_percentile = 0.05,
+  batch = "batch",
+  batch_method = "limma",
+  export_counts = TRUE,
+  shrinkage = "ashr",
+  ranking = "pxfc",
+  collections = c("HALLMARK", "KEGG_MEDICUS"),
+  run_wgcna = TRUE,
+  save_dir = "results"
+)
+```
+
+Organism (human/mouse) is auto-detected from `rownames(dds)` via
+[detect_organism()] -- there is no `org` argument to set. Detection expects
+standard HGNC/MGI gene *symbols* as row names (not Ensembl/Entrez IDs, and
+not a mix of organisms); if it can't confidently tell which convention your
+gene names follow, it errors rather than guessing.
+
+This writes, under `results/`, one folder per module:
+
+* `qc/` -- `qc_filter_summary.csv`, `qc_steps_summary.csv`, library-size /
+  count-distribution PDFs, and `qc.html`
+* `distance/` -- PCA / sample-similarity plots and CSVs (shown on the QC page)
+* `counts/` -- `counts_raw.csv`, `counts_vst.csv`, `counts_rlog.csv`,
+  `counts_cpm.csv` (+ `counts_combat_seq.csv` if `batch` is set) -- see
+  [Count table exports](#count-table-exports)
+* `diffexp/<comparison>/` -- DE tables and MA/volcano PDFs, plus
+  `diffexp.html`
+* `pathway/<comparison>/gsea/` -- per-collection GSEA CSVs / barplot PDFs,
+  plus `pathway_enrichment.html` -- see
+  [Pathway enrichment: MSigDB collections](#pathway-enrichment-msigdb-collections)
+* `wgcna/` -- module artifacts and `wgcna.html` when `run_wgcna = TRUE`; see
+  [Co-expression modules: WGCNA](#co-expression-modules-wgcna)
+* `tf_activity/` -- CollecTRI / ULM artifacts and `tf_activity.html` when
+  `run_decoupler = TRUE`
+* `index.html` at the root -- run summary with relative links into each
+  module folder (see [The multi-page HTML report](#the-multi-page-html-report))
+* `logs/run_<timestamp>.log` and `.json` -- a reproducibility record of the
+  call, console output, and session info
+
+## Standalone modules
+
+Each stage can also be run independently:
+
+```{r}
+dds_qc <- run_qc(dds, var = "condition", filter_method = "cpm", cpm_percentile = 0.05)
+
+counts_out <- run_counts_export(dds_qc, batch = "batch", var = "condition")
+
+dist_out <- run_distance_pca(dds_qc, var = "condition", batch = "batch")
+
+de_out <- run_diffexp_pipeline(dds_qc, var = "condition",
+                                comparisons = c("Treated_vs_Control"))
+
+gsea_out <- run_gsea_pipeline(de_out$results, collections = "HALLMARK")
+
+wgcna_out <- run_wgcna_pipeline(dds_qc, var = "condition")
+
+render_report(dds_qc, var = "condition", distance_out = dist_out,
+              diffexp_out = de_out, gsea_out = gsea_out, wgcna_out = wgcna_out,
+              save_dir = "results")
+```
+
+## Gene filtering: `filter_method = NULL` / `"cpm"` / `"count"`
+
+By default, `run_qc()` applies **no low-expression filtering**
+(`filter_method = NULL`) -- only the optional mitochondrial/X/Y removal
+steps run, if requested. Two filtering strategies are available if you want
+to remove lowly-expressed genes, selected via `filter_method`:
+
+* **`"cpm"`**: rank genes by mean counts-per-million (CPM) across all
+  samples and remove the bottom `cpm_percentile` fraction (default `0.05`,
+  i.e. the lowest-expressed 5% of genes). This adapts automatically to
+  sequencing depth without requiring an absolute count threshold to be
+  chosen up front.
+* **`"count"`**: keep a gene if, in at least one level of `var`, at least
+  `min_samples_per_group` samples of that group (default: the size of your
+  smallest group) have a raw count `>= min_count` (default `10`). This is a
+  per-group, `edgeR::filterByExpr()`-style absolute threshold.
+
+Either way, `run_qc()` writes `qc_count_distribution.pdf`: a density plot of
+the per-gene statistic actually used for filtering (log2 mean CPM, or log2
+total count), coloured by whether each gene was retained, with a dashed
+line marking the cutoff (the `cpm_percentile` cutoff on the CPM path, or
+`min_count` as a reference point on the count path), so you can check the
+chosen threshold against the real shape of your data rather than trusting a
+default blindly. This plot -- and the removal table below -- are always
+generated (even when `filter_method = NULL`) and shown in the HTML report
+**before** any low-expression removal is applied, so you can see the
+pre-filtering distribution and decide whether filtering is warranted.
+
+`run_qc()` also tracks, at every filtering step (mitochondrial removal, X/Y
+removal, low-expression removal), how many genes went in, how many were
+removed, and the percent removed -- written to `qc_steps_summary.csv` and
+attached to the returned `dds` object
+(`S4Vectors::metadata(dds)$deseq2reports_qc`). When `render_report()` finds
+this metadata (i.e. `dds` was filtered via `run_qc()`), it adds a **Quality
+control** section to the HTML report showing this step-by-step removal
+table, the current low-expression threshold and how to adjust it, the
+count-distribution plot (with cutoff line) positioned before the
+low-expression-removal step, and the library-size plot.
+
+Optionally (`add_correlation_heatmap = TRUE`; default `FALSE`), `run_qc()`
+also computes a Pearson sample-correlation heatmap on the VST-transformed
+(or, with `correlation_transform = "rlog"`, rlog-transformed) expression
+matrix, with samples hierarchically clustered by `1 - correlation` distance
+and annotated by `var`. This is a quick offline diagnostic for outlier or
+mislabelled samples before moving on to PCA, and is written to
+`qc_sample_correlation_heatmap.pdf`/`qc_sample_correlation_matrix.csv`
+(it is not embedded in the HTML report itself -- the report's own "Sample
+QC" section shows the Spearman-based sample similarity heatmap from
+`run_distance_pca()`/`plot_sample_similarity()` instead). It can also be
+run standalone via `plot_sample_correlation()`.
+
+## Count table exports
+
+`run_counts_export()` (folded into the pipeline via `export_counts = TRUE`,
+the default) writes four count tables that are independent of the DESeq2
+model itself, for downstream/exploratory use: raw counts, VST-transformed
+counts, rlog-transformed counts, and counts-per-million (CPM). If `batch` is
+supplied, a fifth table, `counts_combat_seq.csv`, is also written --
+batch-corrected raw counts from `sva::ComBat_seq()`, using `var` to protect
+the biological groups of interest from the correction. **This table is for
+visualization/exploratory tools that expect batch-adjusted integer counts;
+it is not used by, and should not be fed into, the actual differential
+expression model** -- for the real DE test, put your batch variable directly
+in the `design` formula instead (see below).
+
+## Batch correction: visualization vs. the DE model
+
+`batch`/`batch_method` (passed to `run_distance_pca()`, or to the pipeline
+directly) apply `limma::removeBatchEffect()` or `sva::ComBat()` to the
+VST/rlog matrix used **only** for the PCA plot and sample-similarity heatmap.
+This is a visualization aid, not a correction applied to the actual
+differential-expression model -- DESeq2's negative-binomial fit needs the
+real count noise structure, so a genuine, recorded technical batch variable
+should instead be included as a term in the `design` formula (e.g.
+`~ batch + condition`) for the real test. Use `batch`/`batch_method` (and
+the `combat_seq` count export) only when you have such a variable and it
+isn't fully confounded with your biological groups; otherwise, skip it.
+When batch correction is applied, `run_distance_pca()` returns (and the
+HTML report shows) **both** the batch-corrected PCA plot, scree plot, and
+top-loadings plot, and their pre-correction counterparts
+(`pca_plot_uncorrected`, `scree_plot_uncorrected`,
+`top_loadings_plot_uncorrected`), so the effect of the correction can be
+inspected directly rather than taken on faith. The PCA plots are also
+returned as interactive `plotly` widgets (`pca_plot_interactive`,
+`pca_plot_uncorrected_interactive`) that show the sample name on hover.
+
+## PCA diagnostics: scree plot and top loadings
+
+Beyond the PCA scatterplot and sample-similarity heatmap,
+`run_distance_pca()` also returns (and the report shows) a **scree plot**
+(percent variance explained per PC, `n_scree_pcs` controls how many PCs are
+shown) and a **top-loadings plot** (the genes contributing most to each of
+the leading `n_loading_pcs` principal components, `n_top_genes` per PC).
+These help decide how many PCs are worth interpreting and which genes are
+driving the separation seen in the PCA scatterplot -- both are computed
+from base R's `prcomp()` on the VST matrix, with per-PC loadings and
+top-gene tables also written to `pca_loadings.csv` and
+`pca_top_genes_per_pc.csv`. When batch correction is applied, both are also
+computed on the pre-correction matrix (`pca_loadings_uncorrected.csv`,
+`pca_top_genes_per_pc_uncorrected.csv`) for comparison.
+
+## Interactive plots and tables in the HTML report
+
+The MA and volcano plots (`plot_ma()`, `plot_volcano()`) carry a hidden
+`text` aesthetic (gene name, log2 fold-change, adjusted p-value) that
+[make_interactive()] converts into a hoverable `plotly` widget -- the HTML
+report shows the interactive version of both plots for every comparison,
+so pointing at a dot reveals which gene it is. Both plots colour points by
+direction (red = up, blue = down, grey = not significant, using the `sig`
+column already computed by [run_diffexp()]) and annotate the number of
+up- and down-regulated genes directly on the plot. `plot_ma()` uses log2
+mean CPM (across all samples in the original, unfiltered dataset) on the
+x-axis rather than DESeq2's own `baseMean` -- CPM is comparable across
+comparisons, whereas `baseMean` is re-estimated per comparison under
+one-vs-rest contrasts and so isn't. The volcano plot itself is styled
+after the conventions popularised by the `EnhancedVolcano` package: grey/
+red/blue points by direction at a fixed alpha with a thin dark outline,
+dashed significance/LFC threshold lines, and a symmetric x-axis
+(`max(abs(xmin), abs(xmax))` on both sides).
+
+Rather than a static top-N table, the report's per-comparison DEG table is
+a full, unfiltered, sortable/searchable `DT::datatable()`
+(`make_deg_datatable()`), so every tested gene -- not just the top hits --
+can be found by column sort or text search.
+
+GSEA barplots (`plot_gsea_barplot()`) always show the top 10 up- and top
+10 down-regulated pathways by NES, **regardless of significance**, with
+black-outlined bars on a continuous red/blue NES scale that is symmetric
+about zero (matching a symmetric NES axis range, so up- and
+down-regulated bars carry equal visual weight), pathway names drawn
+in-plot rather than as axis labels, and significance stars
+(`*`/`**`/`***`) placed just beyond each bar's tip, hjust-ed away from the
+bar so they don't get clipped or overlap it. Alongside the barplot, the
+top/bottom-N pathway table (`gsea_top_bottom_table()`) is rendered as a
+sortable/searchable `DT::datatable()` (`make_gsea_datatable()`), styled
+the same way as the DEG table. In the HTML report, PCA is split into two
+tabs ("After batch correction" / "Before batch correction", the latter
+only meaningfully different when `batch` is set) each bundling the PCA
+scatter (with dotted zero-reference lines at PC1 = 0 / PC2 = 0), scree
+plot, and top-loadings plot together, the sample-similarity heatmap is
+shown on its own (the redundant Pearson `plot_sample_correlation()` tab
+from `run_qc()` was dropped from the report, though the function itself
+remains available standalone), and both the differential expression and
+GSEA sections are split into a "Pairwise" and a "One vs. all" subsection
+(per [classify_comparison_type()]'s reading of the `"+"` marker in each
+comparison name), with one tab per comparison inside each.
+
+## Pathway enrichment: MSigDB collections
+
+`collections` (passed to `run_gsea_pipeline()`, or to the pipeline
+directly) accepts one or more of `"HALLMARK"`, `"GOBP"`, `"GOCC"`,
+`"GOMF"`, `"KEGG_MEDICUS"`, `"KEGG_LEGACY"`, `"REACTOME"` -- GSEA runs
+independently for every requested collection, against every comparison,
+writing a separate `<comparison>/gsea/<collection>_gsea.csv` (and
+barplot) for each. `run_deseq2_pipeline()`'s own default is
+`c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME")`
+(`"HALLMARK"` remains available but is not forced on by default). In the
+HTML report, the "Pathway Enrichment" section nests a tab per collection
+inside each comparison's tab, and each barplot's title is just the
+comparison name (no collection suffix -- the tab itself already
+identifies the collection). Organism (human/mouse, needed to pick the
+right `msigdbr` species) is auto-detected from the gene symbols in the
+differential-expression results, not passed explicitly -- see
+[detect_organism()].
+
+## Co-expression modules: WGCNA
+
+Setting `run_wgcna = TRUE` on the pipeline (or calling
+`run_wgcna_pipeline()` directly on a QC'd `dds`) adds a weighted gene
+co-expression network analysis:
+
+```{r}
+wgcna_out <- run_wgcna_pipeline(
+  dds_qc,
+  var = "condition",
+  power = NULL, # NULL auto-selects via the scale-free-topology criterion
+  min_module_size = 30,
+  save_dir = "results/wgcna"
+)
+```
+
+This picks a soft-thresholding power (`pick_wgcna_power()`, plotted by
+`plot_soft_threshold()`), detects co-expression modules
+(`WGCNA::blockwiseModules()`), correlates each module's eigengene against
+the levels of `var` (`plot_module_trait_heatmap()`), identifies hub genes
+per module by eigengene-based connectivity (kME), and runs
+over-representation analysis on each real module's gene set against every
+requested `ora_collection` (default `c("GOBP", "GOCC", "GOMF",
+"KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME")`), plotted as a dot plot
+(`plot_module_ora_dotplot()`, x = gene-set size, colour = -log10(padj)).
+
+Modules are renamed from WGCNA's arbitrary colour labels to `"Module 1"`,
+`"Module 2"`, ... in descending order of gene count, so `"Module 1"` is
+always the largest module regardless of which colour WGCNA happened to
+assign it -- the underlying colour is still kept alongside (`module_color`
+column of `module_df`) for anyone who wants to cross-reference WGCNA's own
+plots. `"grey"`, WGCNA's catch-all label for genes it could not confidently
+assign to any real module, is renamed `"Unassigned"` and is **excluded**
+from over-representation analysis (it isn't a real co-expression module,
+so an enrichment test against it isn't meaningful) -- it still appears in
+`module_df`, the module-size bar chart, and the module-trait/eigengene
+heatmaps. The returned list's `module_df`, `MEs`, `module_trait_cor`, and
+`hub_genes` are all consistently keyed by this `"Module N"`/`"Unassigned"`
+naming; `ora_by_module` and `ora_plots_by_module` are keyed first by
+collection and then by module (`ora_by_module[[collection]][[module]]`),
+with `"Unassigned"` absent from both. In the HTML report, this becomes a
+"Co-expression modules (WGCNA)" section (shown only when `wgcna_out` is
+supplied to `render_report()`, on its own `wgcna.html` page -- see [The
+multi-page HTML report](#the-multi-page-html-report)) with the module-size
+bar chart, the condition-level module-trait correlation heatmap, and a
+sample-level module-eigengene heatmap (samples clustered hierarchically,
+so co-varying samples/modules are visually grouped), followed by two
+tabbed subsections:
+
+* **"Module genes"**, a top-level section tabbed by module (one tab per
+  entry in `hub_genes`, including `"Unassigned"`), listing each module's
+  hub genes. This is pulled out as its own section -- rather than nested
+  inside per-collection pathway-enrichment tabs, as it was previously --
+  since hub genes are a property of the module itself, independent of
+  which MSigDB collection (if any) is being tested against it.
+* **"Per-module pathway enrichment"**, tabbed **module first, then
+  collection nested within each module's tab**
+  (`module -> collection`, e.g. "Module 1" > "Collection: GOBP"),
+  matching the comparison-then-collection tab nesting used on the
+  pathway-enrichment page for differential-expression GSEA results (see
+  [The multi-page HTML report](#the-multi-page-html-report)) -- so both
+  pages group by the same top-level axis (module vs. comparison) with
+  collection as the nested dimension, rather than the WGCNA page using
+  the opposite (collection-first) order. `"Unassigned"` has no tab here,
+  since it has no coherent expression profile and pathway enrichment
+  against it would not be biologically meaningful.
+
+## The multi-page HTML report
+
+`render_report()` writes each section page into its module folder under
+`save_dir`, plus `index.html` at the root: `qc/qc.html` (library QC, PCA,
+sample-similarity heatmap), `diffexp/diffexp.html` (per-comparison MA /
+volcano / DEG table), `pathway/pathway_enrichment.html` (per-comparison,
+per-collection GSEA), and optionally `wgcna/wgcna.html` /
+`tf_activity/tf_activity.html`. Every page carries the same navigation bar
+at the top (current page shown in bold, the others as relative links;
+omitted modules are greyed out rather than removed), and every page is
+rendered with `self_contained = TRUE`, so each one opens standalone --
+offline, no server -- and the whole folder tree can be copied and still
+cross-link correctly. `render_report()` returns a named character vector of
+the rendered paths (`"index"`, `"qc"`, `"diffexp"`, `"pathway_enrichment"`,
+and, if rendered, `"wgcna"` / `"tf_activity"`).
+
+## Plot geometry: square data panels, axis padding, and the legend-aware plotly canvas
+
+Two related geometry conventions apply across the package's static
+(`ggplot2`) figures and the interactive (`plotly`) widgets built from a
+subset of them, driven by shared helpers in `R/plot_helpers.R` and
+`R/distance.R`.
+
+### Which plots are square, and which are exempt
+
+**Only a narrow, explicitly-scoped set of figures render their data panel
+as an exact square** via `ggplot2::theme(aspect.ratio = 1)`
+(`square_panel_theme()`): `plot_pca()`, `plot_pca_scree()`,
+`plot_pca_top_loadings()`, `plot_ma()`, `plot_volcano()`,
+`plot_library_size()`, `plot_count_distribution()`, and the
+sample-similarity/sample-correlation `pheatmap`s (squared via matching
+`cellwidth`/`cellheight`, since they're always square sample x sample
+matrices). Squaring these -- the PCA/QC/DE overview figures users tend to
+compare side-by-side, plus the two symmetric sample-by-sample matrices --
+keeps their proportions consistent across analyses and comparisons.
+
+**Every WGCNA `ggplot2` figure, and the GSEA barplot, are deliberately
+exempt** from square-panel theming: `plot_soft_threshold()`,
+`plot_module_sizes()`, `plot_module_trait_heatmap()`,
+`plot_module_ora_dotplot()`, and `plot_gsea_barplot()` all carry no
+`aspect.ratio` setting and render at `ggplot2`'s natural (data-driven)
+aspect ratio instead. The module-eigengene heatmap
+(`plot_module_eigengene_heatmap()`, a `pheatmap`) is exempt the same way:
+its `cellwidth`/`cellheight` are now sized independently per axis (via
+`pheatmap_cell_size()`, applied separately to the sample count and the
+module count) rather than solved jointly for a square overall panel --
+the helper that previously did that joint solve,
+`pheatmap_square_cell_size()`, has been removed. In every one of these
+cases the natural, often lopsided aspect ratio (many modules vs. few
+samples, or vice versa; a handful of gene sets vs. a long tail) is more
+informative than a forced square, and forcing one exaggerated or
+compressed the underlying spread.
+
+### Axis padding
+
+**Continuous axes carry zero data-padding by default**
+(`scale_x_continuous()`/`scale_y_continuous(expand = zero_expansion())`),
+so plotted data touches the panel edge with no blank margin -- this
+remains the default for most axes package-wide. **Three axes are the
+exception**, using `expansion(mult = c(0.1, 0.1))` (10% headroom on each
+side) instead of zero padding: `plot_pca()`'s y-axis, `plot_ma()`'s y-axis
+(log2FoldChange), and both axes of `plot_volcano()`. These are exactly the
+axes that carry corner- or edge-anchored annotations (the MA/volcano
+up/down count labels, and the new direction-arrow annotations described
+below) whose neighbouring data points would otherwise be crowded flush
+against the panel border; PCA's and MA's *other* axis (x, in both cases)
+keeps zero data-padding, since nothing is anchored near it. Wherever an
+annotation needs to sit at a fixed position regardless of the data range
+(count labels, direction arrows, the module-size/GSEA-barplot count/star
+labels), it's anchored at `x = Inf`/`y = -Inf` in npc space
+(expansion-independent by construction) rather than relying on axis
+expansion alone for clearance. **Discrete/categorical axes are left
+alone** for the same reason as before -- e.g. the per-sample x-axis on the
+library-size boxplot, or the module/pathway-name axis on the module-size
+bar chart and ORA dot plot.
+
+**Boundary-touching markers are not clipped.** Zero data-padding puts the
+outermost data value's *coordinate* exactly on the panel border, but a
+geom's *rendered extent* (a point marker's radius, an outlined bar's
+stroke) can reach beyond that coordinate; `ggplot2`'s default
+`coord_cartesian(clip = "on")` would hard-clip it. Every plotting function
+whose geoms have rendered extent beyond their data coordinate uses
+`unclipped_coord()` (or, after `coord_flip()`, `unclipped_coord_flip()`)
+to disable this clipping -- unaffected by the axis-padding changes above,
+since it's independent of whether padding is zero or 10%. Two functions
+deliberately keep the default `clip = "on"`: `plot_pca_top_loadings()` (a
+bare, unstroked `geom_col()`) and `plot_count_distribution()` (a
+`colour = NA` `geom_density()` fill with no outline) -- neither has any
+rendered extent beyond its data coordinate to protect.
+
+### Up/down direction annotations on MA and volcano plots
+
+`plot_ma()` and `plot_volcano()` each carry, in addition to their existing
+corner-anchored "Up: N"/"Down: N" gene-count labels, a pair of
+direction-arrow annotations naming which comparison level each direction
+corresponds to -- since "up"/"down" only has concrete meaning relative to
+which level is the numerator ("test") vs. denominator ("reference") of the
+`"<test>_vs_<reference>"` comparison string. On `plot_ma()` these sit on
+the **left side** of the panel (distinct from the right-anchored count
+labels): an upward arrow reading "Higher in `<test>`" near the top, a
+downward arrow reading "Higher in `<reference>`" near the bottom. On
+`plot_volcano()` they sit **just under the title, at the top of the
+panel**: a rightward arrow naming the test level, a leftward arrow naming
+the reference level. Both use the same `x = -Inf`/`y = Inf` (or
+`x = Inf`/`y = -Inf`) npc-space anchoring as the count labels, so their
+position is independent of the data range and cannot collide with the
+`ggrepel`-placed gene-symbol labels regardless of where those cluster.
+
+### The legend-aware plotly canvas (`make_interactive()`)
+
+[make_interactive()] converts a static `ggplot` into a hoverable `plotly`
+widget for the MA, volcano, and PCA plots. Getting a *square data panel*
+in the interactive version is not as simple as carrying over
+`theme(aspect.ratio = 1)`: `plotly::ggplotly()` silently drops it (no
+error -- the setting just never reaches the built widget), and the
+natural-looking substitute, `scaleanchor`/`scaleratio`, only locks the
+x/y axes to a 1:1 *data-unit* ratio (like `coord_equal()`), which
+reproduces a square *panel* only by coincidence when the x- and y-data
+ranges happen to match -- they generally don't for these plots. A second,
+easy-to-miss failure mode is the legend: even a canvas sized to be
+square, once a categorical legend (e.g. up/down/not-significant colour)
+is added, renders with a non-square *interior* data panel once the
+legend's real width is carved out of the canvas -- something plotly's own
+layout never budgets for server-side.
+
+`make_interactive()`'s `square = TRUE` (the default) solves both
+problems together (`.square_plotly_canvas()`): it renders the plot once
+without a legend to read back the resolved axis margins from
+`plotly::plotly_build()`, estimates the legend's rendered width from its
+title/entry text via font-metrics (`graphics::strwidth()`,
+`.estimate_legend_width_px()`), and then solves an explicit canvas
+width/height and an expanded right margin such that the *data panel* --
+the margin-subtracted paper area, excluding axis-label whitespace and the
+legend -- is an exact square, with the legend pinned just outside it at
+`legend.x > 1` (paper coordinates, sitting in that right margin). The
+returned widget always carries this solved size as an explicit fixed pixel
+`width`/`height`, together with `plotly::config(responsive = FALSE)`, so
+it does not rescale when the browser window is resized -- every plotly
+widget in the HTML report renders at a fixed pixel size regardless of
+viewport.
+
+## Download buttons in the report
+
+Every table and static figure in the report is paired with a "Download
+CSV" or "Download PDF" button (`download_table_button()`,
+`download_plot_button()` for `ggplot` figures, `download_grid_plot_button()`
+for non-`ggplot` grid-drawables like the sample-similarity `pheatmap`)
+positioned in the top-right corner of its figure/table via
+`wrap_with_corner_button()`, built on `downloadthis::download_this()`.
+Each button embeds its payload directly (`self_contained = TRUE`) so it
+works from each fully-offline HTML page this package produces -- no
+server or external file reference is involved, and any one of the 5 pages
+can be emailed or archived on its own with every underlying table/figure
+on it still individually downloadable.
+
+## Arguments people typically change per analysis
+
+| Argument | Where | Purpose |
+|---|---|---|
+| `var`, `design` | all stages | grouping column and DESeq2 model formula |
+| `comparisons` | diffexp | restrict to specific contrasts instead of all pairwise + one-vs-rest |
+| `filter_method`, `cpm_percentile`, `min_count`, `min_samples_per_group` | `run_qc()` | low-expression filtering strategy: none (default), CPM percentile, or per-group raw count |
+| `remove_mt`, `remove_xy` | `run_qc()` | gene exclusion (mitochondrial / sex chromosome) |
+| `export_counts` | pipeline / `run_counts_export()` | write raw/VST/rlog/CPM (+ ComBat_seq) count tables |
+| `batch`, `batch_method` | `run_distance_pca()` | visualization-only batch correction (`limma`/`combat`/`none`) |
+| `shrinkage` | `run_diffexp()`/`run_diffexp_pipeline()` | LFC shrinkage estimator: `ashr` (default, supports pooled contrasts), `apeglm` (pairwise only), `normal`, `none` |
+| `alpha`, `lfc_threshold` | diffexp | significance thresholds |
+| `ranking` | diffexp/GSEA | DEG/GSEA ranking metric: `pxfc`, `padj`, `log2FoldChange`, `stat` |
+| `collections` | GSEA | MSigDB collections: one or more of `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`, `"KEGG_MEDICUS"`, `"KEGG_LEGACY"`, `"REACTOME"` |
+| `run_wgcna`, `wgcna_power`, `wgcna_min_module_size` | pipeline / `run_wgcna_pipeline()` | enable co-expression module detection and tune its parameters |
+| `pals`, `shape_var` | PCA | plot aesthetics |
+
+## Comparison generation
+
+`generate_comparisons()` derives every pairwise contrast plus one-vs-rest
+("pooled") contrasts from the levels of your grouping variable:
+
+```{r}
+generate_comparisons(c("Control", "Low", "High"))
+# returns every pairwise contrast plus one-vs-rest contrasts, e.g.
+# "High_vs_Control", "Control_vs_Low", "High_vs_Low",
+# "Control_vs_High+Low", "High_vs_Control+Low", "Low_vs_Control+High"
+```
+
+Pooled comparisons merge factor levels by **exact match**, and the model
+matrix is checked for full column rank before fitting
+(`assert_full_rank_model_matrix()`) so a comparison that would make the
+design matrix singular fails immediately with a clear message rather than
+deep inside DESeq2.

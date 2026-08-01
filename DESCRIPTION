@@ -1,0 +1,65 @@
+Package: deseq2reports
+Title: Modular DESeq2 Pipeline with Automated HTML Reports
+Version: 0.1.0
+Authors@R: 
+    person(given = "Miu Shing", family = "Hung", email = "matthewhungms@gmail.com", role = c("aut", "cre"), comment = c(ORCID = "0009-0004-0412-4374"))
+Description: A self-contained, modular pipeline for RNA-seq differential expression
+    analysis built on DESeq2. Provides a single one-command entry point
+    (run_deseq2_pipeline()) that chains quality control, sample distance/PCA,
+    differential expression across all pairwise and one-vs-rest group comparisons,
+    gene set enrichment analysis (GSEA) against MSigDB collections, and a rendered
+    HTML report -- as well as standalone modular functions for each stage so that
+    individual steps can be run, inspected, or substituted independently. All
+    behaviour that analysts commonly need to change per-analysis (count filtering
+    thresholds, batch correction method, LFC shrinkage estimator, significance
+    thresholds, ranking metric, MSigDB collections, colour palettes) is exposed
+    as explicit function arguments with validated defaults.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+biocViews: Software
+VignetteBuilder: knitr
+Depends: 
+    R (>= 4.1)
+Imports:
+    DESeq2,
+    dplyr,
+    DT,
+    fgsea,
+    ggplot2,
+    ggrepel,
+    grDevices,
+    grid,
+    jsonlite,
+    limma,
+    MatrixGenerics,
+    methods,
+    msigdbr,
+    pheatmap,
+    plotly,
+    rlang,
+    rmarkdown,
+    S4Vectors,
+    stats,
+    SummarizedExperiment,
+    sva,
+    tidyr,
+    utils
+Suggests:
+    apeglm,
+    ashr,
+    clusterProfiler,
+    decoupleR,
+    downloadthis,
+    gridExtra,
+    htmltools,
+    knitr,
+    OmnipathR,
+    patchwork,
+    qvalue,
+    testthat (>= 3.0.0),
+    WGCNA,
+    withr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
+RoxygenNote: 7.3.3

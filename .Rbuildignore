@@ -1,0 +1,11 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^README\.Rmd$
+^data-raw$
+^\.Rprofile$
+^\.DS_Store$
+^example_run$
+^demo_run$
+^demo_run_outputs.*$
+^\.r-libs$

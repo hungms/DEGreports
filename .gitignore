@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.tar.gz
+example_run/
+.DS_Store
+.Renviron
+.r-libs/
+omnipathr-log/
+Rplots.pdf
+*.Rcheck/

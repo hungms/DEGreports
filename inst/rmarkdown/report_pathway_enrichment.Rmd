@@ -1,0 +1,175 @@
+---
+title: "deseq2reports Analysis Report -- Pathway Enrichment"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    df_print: paged
+    self_contained: true
+    mathjax: null
+params:
+  var: NULL
+  design_str: NULL
+  org: NULL
+  n_samples: NULL
+  n_genes: NULL
+  qc_out: NULL
+  distance_out: NULL
+  diffexp_out: NULL
+  gsea_out: NULL
+  wgcna_out: NULL
+  decoupler_out: NULL
+  alpha: 0.05
+  lfc_threshold: 0.5
+  run_args: NULL
+  package_version: NULL
+  current_page: "Pathway enrichment"
+  disabled_labels: !r character(0)
+  page_hrefs: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+```
+
+```{r nav, results='asis'}
+cat(deseq2reports::report_nav_links(
+  params$current_page,
+  disabled = params$disabled_labels,
+  hrefs = params$page_hrefs
+))
+```
+
+## Pathway Enrichment
+
+```{r gsea-methods, results='asis'}
+cat("\n\nGene-set enrichment on the DESeq2 ranked gene list for each contrast, ",
+    "run independently against every requested MSigDB collection.\n\n", sep = "")
+deseq2reports::emit_code_block(
+  caption = "Key functions used for pathway enrichment:",
+  "msigdbr::msigdbr(species = \"Homo sapiens\", collection = \"H\")",
+  "fgsea::fgsea(pathways, stats = ranked_genes, eps = 0)",
+  "fgsea::collapsePathways(fgsea_res, pathways, stats)  # optional redundancy filter",
+  "clusterProfiler::GSEA(geneList, TERM2GENE = ...)    # optional parallel run"
+)
+```
+
+```{r gsea-helpers, include=FALSE}
+emit_gsea_contrast <- function(comp, by_coll, by_coll_cp = NULL, coll_heading = "#####") {
+  cat(" {.tabset}\n\n", sep = "")
+  for (coll in names(by_coll)) {
+    cat("\n\n", coll_heading, " Collection: ", coll, "\n\n", sep = "")
+    gsea_df <- by_coll[[coll]]
+    if (is.null(gsea_df) || nrow(gsea_df) == 0) {
+      cat("\n\nNo pathways returned.\n\n")
+      next
+    }
+    p <- tryCatch(deseq2reports::plot_gsea_barplot(gsea_df, top_n = 10, title = comp),
+                  error = function(e) NULL)
+    if (!is.null(p)) {
+      sz <- attr(p, "plot_size")
+      if (is.null(sz)) sz <- list(width = 6.5, height = 5)
+      deseq2reports::emit_plot_with_download(
+        p, filename = paste(comp, coll, "gsea_barplot", sep = "_"),
+        width = sz$width, height = sz$height, dpi = 150
+      )
+    }
+
+    cat("\n\nTop 10 up- and top 10 down-regulated pathways by normalized enrichment score (NES), ",
+        "shown regardless of significance; ",
+        "significance stars: `*` qvalue < 0.05, `**` < 0.01, `***` < 0.001. ",
+        "`leadingEdge` lists the driving genes for each pathway. Sort by any column or search ",
+        "by pathway using the box below.\n\n", sep = "")
+    top_bottom_gsea <- deseq2reports::gsea_top_bottom_table(gsea_df, top_n = 10)
+    gsea_btn <- deseq2reports::download_table_button(gsea_df, filename = paste(comp, coll, "gsea_results", sep = "_"))
+    deseq2reports::emit_widget_with_download(deseq2reports::make_gsea_datatable(top_bottom_gsea), gsea_btn)
+
+    if (!is.null(by_coll_cp) && !is.null(by_coll_cp[[coll]])) {
+      cat("\n\nA parallel `clusterProfiler::GSEA()` run against the same ranked gene list ",
+          "and gene sets is also available (unfiltered `gseaResult` object and CSV export, ",
+          "written alongside the `fgsea`-based results above).\n\n", sep = "")
+    }
+    cat("\n\n")
+  }
+}
+
+specs <- params$diffexp_out$contrast_specs
+if (is.null(specs)) {
+  comps <- names(params$gsea_out$by_comparison)
+  specs <- data.frame(
+    label = comps,
+    class = "single",
+    type = deseq2reports::classify_comparison_type(comps),
+    stratum_var = NA_character_,
+    stratum_level = NA_character_,
+    stringsAsFactors = FALSE
+  )
+}
+# Keep only contrasts that have GSEA results
+specs <- specs[specs$label %in% names(params$gsea_out$by_comparison), , drop = FALSE]
+two_factor <- any(specs$class %in% c("within_A", "within_B", "interaction"))
+```
+
+```{r gsea-single, results='asis', eval=!two_factor}
+gsea_pairwise <- specs$label[specs$type == "pairwise"]
+gsea_one_vs_all <- specs$label[specs$type == "one_vs_all"]
+
+cat("\n\n### Pairwise {.tabset}\n\n")
+if (length(gsea_pairwise) > 0) {
+  for (comp in gsea_pairwise) {
+    cat("\n\n#### ", comp, sep = "")
+    emit_gsea_contrast(comp, params$gsea_out$by_comparison[[comp]],
+                       params$gsea_out$by_comparison_cp[[comp]])
+  }
+} else {
+  cat("\n\nNo pairwise comparisons.\n\n")
+}
+
+cat("\n\n### One vs. all {.tabset}\n\n")
+if (length(gsea_one_vs_all) > 0) {
+  for (comp in gsea_one_vs_all) {
+    cat("\n\n#### ", comp, sep = "")
+    emit_gsea_contrast(comp, params$gsea_out$by_comparison[[comp]],
+                       params$gsea_out$by_comparison_cp[[comp]])
+  }
+} else {
+  cat("\n\nNo one-vs-all comparisons.\n\n")
+}
+```
+
+```{r gsea-two-factor, results='asis', eval=two_factor}
+var <- params$var
+for (cls in c("within_A", "within_B", "interaction")) {
+  sub <- specs[specs$class == cls, , drop = FALSE]
+  if (nrow(sub) == 0) next
+  title <- deseq2reports::contrast_class_title(cls, var)
+  cat("\n\n### ", title, " {.tabset}\n\n", sep = "")
+
+  if (identical(cls, "interaction")) {
+    for (comp in sub$label) {
+      cat("\n\n#### ", comp, sep = "")
+      emit_gsea_contrast(comp, params$gsea_out$by_comparison[[comp]],
+                         params$gsea_out$by_comparison_cp[[comp]])
+    }
+    next
+  }
+
+  strata <- unique(sub$stratum_level)
+  for (st in strata) {
+    cat("\n\n#### ", st, " {.tabset}\n\n", sep = "")
+    st_sub <- sub[sub$stratum_level == st, , drop = FALSE]
+    # Flatten pairwise then one-vs-all under the stratum tabset (avoids
+    # heading depth > 6 for collection tabs).
+    ordered <- c(st_sub$label[st_sub$type == "pairwise"],
+                 st_sub$label[st_sub$type == "one_vs_all"])
+    for (comp in ordered) {
+      cat("\n\n##### ", comp, sep = "")
+      emit_gsea_contrast(comp, params$gsea_out$by_comparison[[comp]],
+                         params$gsea_out$by_comparison_cp[[comp]],
+                         coll_heading = "######")
+    }
+  }
+}
+```

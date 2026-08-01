@@ -1,0 +1,6 @@
+"metric","value"
+"genes_input","100"
+"genes_after_qc","95"
+"filter_method","cpm"
+"filter_criterion","bottom 5% by mean CPM removed"
+"samples","8"

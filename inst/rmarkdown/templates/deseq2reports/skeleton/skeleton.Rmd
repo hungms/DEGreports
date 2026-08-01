@@ -1,0 +1,24 @@
+---
+title: "My RNA-seq Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(deseq2reports)
+library(DESeq2)
+```
+
+```{r run-pipeline, eval=FALSE}
+# Build a DESeqDataSet from your count matrix and sample metadata, e.g.:
+# dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
+
+out <- run_deseq2_pipeline(
+  dds = dds,
+  var = "condition",
+  save_dir = "results"
+)
+```
+
+See `vignette("deseq2reports")` for the full argument reference.
+The pipeline writes per-module folders under `save_dir` (`qc/`, `distance/`,
+`diffexp/`, `pathway/`, optional `wgcna/` / `tf_activity/`) plus `index.html`.
