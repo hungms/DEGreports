@@ -10,3 +10,9 @@ example_run/
 omnipathr-log/
 Rplots.pdf
 *.Rcheck/
+
+# Accidental test working-directory spill under tests/testthat/
+tests/testthat/pca_*
+tests/testthat/qc_*
+tests/testthat/sample_similarity_*
+tests/testthat/Treated_vs_Control/
