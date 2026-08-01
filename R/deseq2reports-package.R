@@ -10,7 +10,7 @@
 "_PACKAGE"
 
 ## usethis namespace: start
-#' @importFrom stats model.matrix as.formula relevel prcomp dist hclust setNames p.adjust
+#' @importFrom stats model.matrix as.formula relevel prcomp dist hclust setNames
 #' @importFrom utils packageVersion write.csv sessionInfo capture.output
 #' @importFrom methods is
 #' @importFrom rlang .data

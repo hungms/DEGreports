@@ -8,15 +8,14 @@ plot_gsea_barplot(gsea_res, top_n = 10, signif_only = FALSE, title = NULL)
 }
 \arguments{
 \item{gsea_res}{A data frame as returned by \code{\link[=run_gsea]{run_gsea()}} (must contain
-\code{pathway}, \code{NES}, and \code{qvalue} -- or \code{padj} as a fallback).}
+\code{pathway}, \code{NES}, and \code{padj}).}
 
 \item{top_n}{Number of pathways \emph{per direction} (up/down by NES) to
 plot. Default \code{10}.}
 
-\item{signif_only}{Logical. If \code{TRUE}, restricts to \code{qvalue < 0.05}
-(falling back to \code{padj} if \code{qvalue} is absent) before selecting the
-top/bottom pathways. Default \code{FALSE} (shows top/bottom by NES
-regardless of significance).}
+\item{signif_only}{Logical. If \code{TRUE}, restricts to \code{padj < 0.05}
+before selecting the top/bottom pathways. Default \code{FALSE} (shows
+top/bottom by NES regardless of significance).}
 
 \item{title}{Optional plot title (e.g. the comparison name), shown bold
 and centred. Default \code{NULL} (no title).}
@@ -31,13 +30,13 @@ returned object carries \code{attr(,"plot_size")} with suggested
 \description{
 Shows the \code{top_n} most positive (up) and \code{top_n} most negative (down)
 pathways by NES, \strong{regardless of significance} -- i.e. not restricted
-to \code{qvalue < 0.05} by default -- with conventional significance stars
-(\code{*} qvalue < 0.05, \verb{**} < 0.01, \verb{***} < 0.001) annotated just beyond
-each bar's tip. Pass \code{signif_only = TRUE} to restrict to significant
-pathways first, as before. Bars are outlined in black and coloured on
-a continuous red-blue diverging scale by NES (red = positive/up, blue
-= negative/down). Pathway names are drawn as in-plot text labels
-hugging the zero line on the side opposite their bar (rather than
-conventional axis tick labels), matching common published GSEA-barplot
-conventions.
+to \code{padj < 0.05} by default -- with conventional significance stars
+(\code{*} padj < 0.05, \verb{**} < 0.01, \verb{***} < 0.001) from fgsea's BH-adjusted
+\code{padj} annotated just beyond each bar's tip. Pass \code{signif_only = TRUE}
+to restrict to significant pathways first, as before. Bars are outlined
+in black and coloured on a continuous red-blue diverging scale by NES
+(red = positive/up, blue = negative/down). Pathway names are drawn as
+in-plot text labels hugging the zero line on the side opposite their
+bar (rather than conventional axis tick labels), matching common
+published GSEA-barplot conventions.
 }

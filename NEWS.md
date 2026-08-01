@@ -24,9 +24,8 @@
   volcano x-axis uses a robust |log2FC| limit so a handful of extreme
   outliers no longer blow out the scale.
 * GSEA: added `PID` collection; barplot height/width scale with the number
-  of pathways shown; CSV / tables include Storey `qvalue` (via the
-  Suggests-only `qvalue` package, with BH fallback); barplot significance
-  stars use `qvalue`.
+  of pathways shown; CSV / tables / barplot stars use fgsea's native BH
+  `padj` (no separate Storey `qvalue` recalculation).
 * New `remove_vdj` argument on `run_qc()` / `run_deseq2_pipeline()`
   (`NULL`/`FALSE`, `TRUE`/`"both"`, or `"BCR"` / `"TCR"`) to drop
   immunoglobulin / T-cell receptor gene symbols. Index page now reports

@@ -200,26 +200,8 @@ run_gsea <- function(ranks, gene_sets, min_size = 15, max_size = 500, eps = 1e-1
     )
     res <- as.data.frame(res)
     res$leadingEdge <- vapply(res$leadingEdge, paste, character(1), collapse = ",")
-    # Storey q-values alongside BH padj (used for barplot stars / filtering).
-    if (nrow(res) > 0) {
-        res$qvalue <- .compute_qvalues(res$pval)
-    } else {
-        res$qvalue <- numeric(0)
-    }
+    # Keep fgsea's native `pval` / `padj` (BH); do not recompute FDR separately.
     res[order(res$pval), ]
-}
-
-#' Compute Storey q-values when the `qvalue` package is available; otherwise
-#' fall back to BH-adjusted p-values so a `qvalue` column is always present.
-#' @noRd
-.compute_qvalues <- function(pval) {
-    if (requireNamespace("qvalue", quietly = TRUE)) {
-        qv <- tryCatch(qvalue::qvalue(pval)$qvalues, error = function(e) NULL)
-        if (!is.null(qv)) {
-            return(as.numeric(qv))
-        }
-    }
-    stats::p.adjust(pval, method = "BH")
 }
 
 #' Figure size (inches) for a GSEA NES barplot given the number of pathways shown
@@ -409,8 +391,8 @@ run_gsea_pipeline <- function(
     out
 }
 
-#' Convert significance values (padj or qvalue) to conventional stars
-#' @param x Numeric vector of adjusted p- / q-values (may contain `NA`).
+#' Convert BH-adjusted p-values to conventional significance stars
+#' @param x Numeric vector of `padj` values (may contain `NA`).
 #' @return Character vector: `"***"` (< 0.001), `"**"` (< 0.01), `"*"`
 #'   (< 0.05), or `""` otherwise (including `NA`).
 #' @noRd
@@ -426,24 +408,23 @@ padj_to_stars <- function(x) {
 #'
 #' Shows the `top_n` most positive (up) and `top_n` most negative (down)
 #' pathways by NES, **regardless of significance** -- i.e. not restricted
-#' to `qvalue < 0.05` by default -- with conventional significance stars
-#' (`*` qvalue < 0.05, `**` < 0.01, `***` < 0.001) annotated just beyond
-#' each bar's tip. Pass `signif_only = TRUE` to restrict to significant
-#' pathways first, as before. Bars are outlined in black and coloured on
-#' a continuous red-blue diverging scale by NES (red = positive/up, blue
-#' = negative/down). Pathway names are drawn as in-plot text labels
-#' hugging the zero line on the side opposite their bar (rather than
-#' conventional axis tick labels), matching common published GSEA-barplot
-#' conventions.
+#' to `padj < 0.05` by default -- with conventional significance stars
+#' (`*` padj < 0.05, `**` < 0.01, `***` < 0.001) from fgsea's BH-adjusted
+#' `padj` annotated just beyond each bar's tip. Pass `signif_only = TRUE`
+#' to restrict to significant pathways first, as before. Bars are outlined
+#' in black and coloured on a continuous red-blue diverging scale by NES
+#' (red = positive/up, blue = negative/down). Pathway names are drawn as
+#' in-plot text labels hugging the zero line on the side opposite their
+#' bar (rather than conventional axis tick labels), matching common
+#' published GSEA-barplot conventions.
 #'
 #' @param gsea_res A data frame as returned by [run_gsea()] (must contain
-#'   `pathway`, `NES`, and `qvalue` -- or `padj` as a fallback).
+#'   `pathway`, `NES`, and `padj`).
 #' @param top_n Number of pathways *per direction* (up/down by NES) to
 #'   plot. Default `10`.
-#' @param signif_only Logical. If `TRUE`, restricts to `qvalue < 0.05`
-#'   (falling back to `padj` if `qvalue` is absent) before selecting the
-#'   top/bottom pathways. Default `FALSE` (shows top/bottom by NES
-#'   regardless of significance).
+#' @param signif_only Logical. If `TRUE`, restricts to `padj < 0.05`
+#'   before selecting the top/bottom pathways. Default `FALSE` (shows
+#'   top/bottom by NES regardless of significance).
 #' @param title Optional plot title (e.g. the comparison name), shown bold
 #'   and centred. Default `NULL` (no title).
 #' @return A `ggplot` object: horizontal barplot of NES, ordered by NES,
@@ -454,8 +435,11 @@ padj_to_stars <- function(x) {
 #' @export
 plot_gsea_barplot <- function(gsea_res, top_n = 10, signif_only = FALSE, title = NULL) {
     df <- gsea_res
-    signif_col <- if ("qvalue" %in% colnames(df)) "qvalue" else "padj"
-    if (signif_only) df <- df[!is.na(df[[signif_col]]) & df[[signif_col]] < 0.05, ]
+    if (!"padj" %in% colnames(df)) {
+        stop("`gsea_res` must contain a `padj` column (as returned by fgsea / run_gsea()).",
+             call. = FALSE)
+    }
+    if (signif_only) df <- df[!is.na(df$padj) & df$padj < 0.05, ]
     if (nrow(df) == 0) {
         stop("No pathways to plot (after signif_only filtering, if applied).", call. = FALSE)
     }
@@ -486,7 +470,7 @@ plot_gsea_barplot <- function(gsea_res, top_n = 10, signif_only = FALSE, title =
             top_df$pathway_label <- sub(paste0("^", spec$prefix), "", top_df$pathway_label)
         }
     }
-    top_df$stars <- padj_to_stars(top_df[[signif_col]])
+    top_df$stars <- padj_to_stars(top_df$padj)
     nes_limit <- max(abs(top_df$NES), na.rm = TRUE)
 
     # Nudge the star label beyond the end of each bar, on the side the bar
@@ -589,14 +573,6 @@ make_gsea_datatable <- function(gsea_res, digits = 4, page_length = 10) {
              "`install.packages(\"DT\")`.", call. = FALSE)
     }
     display_df <- gsea_res
-    # Prefer column order ... padj, qvalue, ... when both are present.
-    if (all(c("padj", "qvalue") %in% colnames(display_df))) {
-        cols <- colnames(display_df)
-        cols <- cols[cols != "qvalue"]
-        padj_i <- match("padj", cols)
-        cols <- append(cols, "qvalue", after = padj_i)
-        display_df <- display_df[, cols, drop = FALSE]
-    }
     num_cols <- vapply(display_df, is.numeric, logical(1))
     display_df[num_cols] <- lapply(display_df[num_cols], round, digits = digits)
 

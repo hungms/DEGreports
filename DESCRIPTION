@@ -56,7 +56,6 @@ Suggests:
     knitr,
     OmnipathR,
     patchwork,
-    qvalue,
     testthat (>= 3.0.0),
     WGCNA,
     withr
