@@ -1,3 +1,0 @@
-"step","n_before","n_removed","pct_removed","n_after"
-"Input",80,0,0,80
-"Low-expression gene removal (CPM percentile)",80,4,5,76

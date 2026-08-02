@@ -7,9 +7,9 @@
 report_nav_links(current, disabled = character(0), hrefs = NULL)
 }
 \arguments{
-\item{current}{One of \code{"Index"}, \code{"QC"}, \code{"Differential expression"},
-\code{"Pathway enrichment"}, \code{"WGCNA"}, \code{"TF activity"} -- the page this
-bar is being placed on.}
+\item{current}{One of \code{"Index"}, \code{"QC"}, \code{"DESeq2"}, \code{"clusterProfiler"},
+\code{"WGCNA"}, \code{"decoupleR"}, \code{"VIPER"} -- the page this bar is being
+placed on.}
 
 \item{disabled}{Character vector of page labels (from the same set as
 \code{current}) that have no corresponding file and should be greyed out
@@ -25,12 +25,12 @@ suitable for \code{cat()}-ing into a \code{results='asis'} chunk.
 }
 \description{
 Renders a single-line strip of cross-links between the report's HTML
-pages (\code{index}, \code{qc}, \code{diffexp}, \code{pathway_enrichment}, \code{wgcna},
-\code{tf_activity}), used identically at the top of every page so a reader
-can jump between sections. The current page is shown as plain bold text
-(not a link to itself); any page named in \code{disabled} (e.g. \code{"WGCNA"}
-when \code{wgcna_out} was \code{NULL} and that page was never rendered) is shown
-greyed out instead of linked.
+pages (\code{index}, \code{qc}, \code{deseq2}, \code{clusterProfiler}, \code{wgcna},
+\code{decoupleR}, \code{viper}), used identically at the top of every page so a
+reader can jump between sections. The current page is shown as plain
+bold text (not a link to itself); any page named in \code{disabled} (e.g.
+\code{"WGCNA"} when \code{wgcna_out} was \code{NULL} and that page was never rendered)
+is shown greyed out instead of linked.
 }
 \examples{
 cat(report_nav_links("QC"))

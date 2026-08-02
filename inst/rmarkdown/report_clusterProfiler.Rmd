@@ -1,5 +1,5 @@
 ---
-title: "deseq2reports Analysis Report -- Pathway Enrichment"
+title: "DESeq2Reports -- clusterProfiler"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -21,11 +21,13 @@ params:
   gsea_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
   package_version: NULL
-  current_page: "Pathway enrichment"
+  current_page: "clusterProfiler"
   disabled_labels: !r character(0)
   page_hrefs: NULL
 ---
@@ -42,23 +44,25 @@ cat(deseq2reports::report_nav_links(
 ))
 ```
 
-## Pathway Enrichment
+## clusterProfiler
 
 ```{r gsea-methods, results='asis'}
 cat("\n\nGene-set enrichment on the DESeq2 ranked gene list for each contrast, ",
     "run independently against every requested MSigDB collection.\n\n", sep = "")
 deseq2reports::emit_code_block(
-  caption = "Key functions used for pathway enrichment:",
-  "msigdbr::msigdbr(species = \"Homo sapiens\", collection = \"H\")",
-  "fgsea::fgsea(pathways, stats = ranked_genes, eps = 0)",
-  "fgsea::collapsePathways(fgsea_res, pathways, stats)  # optional redundancy filter",
-  "clusterProfiler::GSEA(geneList, TERM2GENE = ...)    # optional parallel run"
+  caption = "Reproduce pathway enrichment with this package module:",
+  "gsea_out <- run_gsea_pipeline(",
+  "  diffexp_out$results,",
+  "  collections = c(\"HALLMARK\", \"GOBP\", \"REACTOME\")",
+  ")"
 )
 ```
 
 ```{r gsea-helpers, include=FALSE}
 emit_gsea_contrast <- function(comp, by_coll, by_coll_cp = NULL, coll_heading = "#####") {
   cat(" {.tabset}\n\n", sep = "")
+  ranks <- params$gsea_out$ranks_by_comparison[[comp]]
+  gene_sets_all <- params$gsea_out$gene_sets
   for (coll in names(by_coll)) {
     cat("\n\n", coll_heading, " Collection: ", coll, "\n\n", sep = "")
     gsea_df <- by_coll[[coll]]
@@ -75,6 +79,29 @@ emit_gsea_contrast <- function(comp, by_coll, by_coll_cp = NULL, coll_heading = 
         p, filename = paste(comp, coll, "gsea_barplot", sep = "_"),
         width = sz$width, height = sz$height, dpi = 150
       )
+    }
+
+    # VIPER-style gene enrichment barcode for the same pathways as the barplot.
+    if (!is.null(ranks) && !is.null(gene_sets_all[[coll]])) {
+      cat("\n\nGene enrichment barcode for the same top/bottom pathways ",
+          "(pathway names left; member genes marked along the ranked list; ",
+          "red = pathway NES > 0, blue = NES < 0; padj and NES on the right):\n\n",
+          sep = "")
+      p_bc <- tryCatch(
+        deseq2reports::plot_gsea_barcode_panel(
+          gsea_df, ranks = ranks, gene_sets = gene_sets_all[[coll]],
+          top_n = 10, title = comp
+        ),
+        error = function(e) NULL
+      )
+      if (!is.null(p_bc)) {
+        sz_bc <- attr(p_bc, "plot_size")
+        if (is.null(sz_bc)) sz_bc <- list(width = 4.25, height = 2.25)
+        deseq2reports::emit_plot_with_download(
+          p_bc, filename = paste(comp, coll, "gsea_barcode", sep = "_"),
+          width = sz_bc$width, height = sz_bc$height, dpi = 150
+        )
+      }
     }
 
     cat("\n\nTop 10 up- and top 10 down-regulated pathways by normalized enrichment score (NES), ",

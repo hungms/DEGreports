@@ -72,22 +72,22 @@ the count-distribution diagnostic plot, and the sample-correlation
 heatmap as PDFs in \code{save_dir}. Default \code{TRUE}.}
 
 \item{add_correlation_heatmap}{Logical. If \code{TRUE}, also computes a
-Pearson sample-correlation heatmap (see
-\code{\link[=plot_sample_correlation]{plot_sample_correlation()}}) on the QC-filtered data and attaches it
-to the returned metadata / writes it under \code{save_dir}. Default
-\code{FALSE} -- the HTML report shows the Spearman sample-similarity
-heatmap from \code{\link[=run_distance_pca]{run_distance_pca()}} instead.}
+Pearson sample-correlation heatmap (see \code{\link[=plot_sample_correlation]{plot_sample_correlation()}})
+on the QC-filtered data and attaches it to the returned metadata /
+writes it under \code{save_dir}. Default \code{FALSE} -- the HTML report shows
+the Spearman sample-similarity heatmap from \code{\link[=run_distance_pca]{run_distance_pca()}}
+instead, so this Pearson plot is optional offline output only.}
 
 \item{correlation_transform}{Transform used for the correlation heatmap
 when \code{add_correlation_heatmap = TRUE}: \code{"vst"} (default) or \code{"rlog"}.}
 }
 \value{
 The filtered \code{DESeqDataSet} object. The number/percent of genes
-removed at each step, the count-distribution, library-size, and
-(optionally) sample-correlation plots, and the filtering parameters
-used are attached as \code{S4Vectors::metadata(dds)$deseq2reports_qc} so
-that \code{\link[=render_report]{render_report()}} can display them without recomputation; also
-written to \code{qc_steps_summary.csv} in \code{save_dir}.
+removed at each step, the count-distribution and library-size plots,
+and the filtering parameters used are attached as
+\code{S4Vectors::metadata(dds)$deseq2reports_qc} so that \code{\link[=render_report]{render_report()}}
+can display them without recomputation; also written to
+\code{qc_steps_summary.csv} in \code{save_dir}.
 }
 \description{
 Optionally filters lowly-expressed genes, optionally removes

@@ -57,6 +57,7 @@ out <- run_deseq2_pipeline(
   run_wgcna = TRUE,
   wgcna_min_module_size = 100,
   run_decoupler = TRUE,
+  run_viper = TRUE,
   render_html = TRUE,
   save_dir = out_dir
 )

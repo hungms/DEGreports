@@ -10,7 +10,15 @@ A self-contained, modular pipeline for RNA-seq differential expression
 analysis built on DESeq2. See \code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}} for the one-command
 entry point, or use the standalone stage functions \code{\link[=run_qc]{run_qc()}},
 \code{\link[=run_distance_pca]{run_distance_pca()}}, \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}, \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}},
-and \code{\link[=render_report]{render_report()}} independently.
+\code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, \code{\link[=run_viper_pipeline]{run_viper_pipeline()}},
+\code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}, and \code{\link[=render_report]{render_report()}} independently.
+}
+\details{
+Package vignettes (HTML):
+\itemize{
+\item \code{vignette("deseq2reports")} -- one-command and modular usage
+\item \code{vignette("deseq2reports-modules")} -- detailed module reference
+}
 }
 \author{
 \strong{Maintainer}: Miu Shing Hung \email{matthewhungms@gmail.com} (\href{https://orcid.org/0009-0004-0412-4374}{ORCID})

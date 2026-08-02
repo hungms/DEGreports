@@ -7,8 +7,8 @@
 report_page_hrefs(from = "Index")
 }
 \arguments{
-\item{from}{One of \code{"Index"}, \code{"QC"}, \code{"Differential expression"},
-\code{"Pathway enrichment"}, \code{"WGCNA"}, \code{"TF activity"}.}
+\item{from}{One of \code{"Index"}, \code{"QC"}, \code{"DESeq2"}, \code{"clusterProfiler"},
+\code{"WGCNA"}, \code{"decoupleR"}, \code{"VIPER"}.}
 }
 \value{
 Named character vector of hrefs, names = page labels.
@@ -17,5 +17,5 @@ Named character vector of hrefs, names = page labels.
 Returns a named character vector of relative paths from \code{from} to every
 report page (including itself). Used by \code{\link[=report_nav_links]{report_nav_links()}} and the
 index page's section list so links stay correct when HTML files live in
-per-module subfolders (\code{qc/qc.html}, \code{diffexp/diffexp.html}, ...).
+per-module subfolders (\code{qc/qc.html}, \code{deseq2/deseq2.html}, ...).
 }

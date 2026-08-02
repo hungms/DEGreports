@@ -40,6 +40,10 @@ run_deseq2_pipeline(
   wgcna_min_module_size = 30,
   run_decoupler = FALSE,
   decoupler_n_tfs = 25,
+  run_viper = FALSE,
+  viper_n_tfs = 10,
+  run_ppi = TRUE,
+  ppi_top_n_hubs = 10,
   render_html = TRUE,
   save_dir = getwd()
 )
@@ -146,11 +150,32 @@ Ignored if \code{run_wgcna = FALSE}.}
 
 \item{run_decoupler}{Logical. If \code{TRUE} (default \code{FALSE}), runs
 CollecTRI + ULM TF activity analysis via \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}
-and adds a \strong{TF activity} HTML page. Requires Suggests packages
+and adds a \strong{decoupleR} HTML page. Requires Suggests packages
 \code{decoupleR} and \code{OmnipathR}.}
 
 \item{decoupler_n_tfs}{Number of top TFs shown in the sample heatmap
 and contrast barplots. Default \code{25}. Ignored if \code{run_decoupler = FALSE}.}
+
+\item{run_viper}{Logical. If \code{TRUE} (default \code{FALSE}), runs
+\href{https://califano.c2b2.columbia.edu/viper}{VIPER} / msVIPER with the
+human B-cell regulon from \href{https://bioconductor.org/packages/bcellViper/}{bcellViper}
+via \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} and adds a \strong{VIPER} HTML page. Requires
+Suggests packages \code{viper}, \code{bcellViper}, and (for mouse) \code{babelgene}.}
+
+\item{viper_n_tfs}{Number of top master regulators shown in each
+contrast barcode plot. Default \code{10}. Ignored if \code{run_viper = FALSE}.}
+
+\item{run_ppi}{Logical. If \code{TRUE} (default), runs STRING PPI
+connectivity analysis via \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}} for every DE contrast
+and (when enabled) every WGCNA module, embedding BioNERO-style
+community/hub network plots (plus native STRINGdb PNGs on disk) in
+the DE and WGCNA HTML pages. Requires Suggests packages \code{STRINGdb}
+and \code{igraph} and network access on first run to download STRING
+files. Failures are caught with a warning so the rest of the
+pipeline still finishes.}
+
+\item{ppi_top_n_hubs}{Number of highest-degree genes highlighted per
+PPI plot. Default \code{10}. Ignored if \code{run_ppi = FALSE}.}
 
 \item{render_html}{Logical. If \code{TRUE} (default), renders an HTML summary
 report via \code{\link[=render_report]{render_report()}} after all stages complete.}
@@ -162,10 +187,16 @@ report via \code{\link[=render_report]{render_report()}} after all stages comple
 Invisibly, a list with elements \code{dds} (the QC-filtered object),
 \code{distance} (output of \code{\link[=run_distance_pca]{run_distance_pca()}}), \code{diffexp} (output of
 \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}), \code{gsea} (output of \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}),
-\code{wgcna} (output of \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, or \code{NULL} if \code{run_wgcna = FALSE}), and \code{report_path} (a named character vector of the paths to
-the rendered HTML report pages -- \code{"index"}, \code{"qc"}, \code{"diffexp"},
-\code{"pathway_enrichment"}, and (if \code{run_wgcna = TRUE}) \code{"wgcna"}; see
-\code{\link[=render_report]{render_report()}} -- or \code{NULL} if \code{render_html = FALSE}).
+\code{wgcna} (output of \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, or \code{NULL} if \code{run_wgcna = FALSE}), \code{ppi} (output of \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}, or \code{NULL} if
+\code{run_ppi = FALSE} / the stage failed), \code{viper} (output of
+\code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL} if \code{run_viper = FALSE}), and
+\code{report_path} (a named character vector of the paths to the rendered
+HTML report pages -- \code{"index"}, \code{"qc"}, \code{"deseq2"},
+\code{"clusterProfiler"}, and (if enabled) \code{"wgcna"} / \code{"decoupleR"} /
+\code{"viper"}; see \code{\link[=render_report]{render_report()}} -- or \code{NULL} if \code{render_html = FALSE}). Module artifacts and their HTML pages are written under
+per-module folders (\verb{qc/}, \verb{distance/}, \verb{deseq2/}, \verb{clusterprofiler/},
+\verb{wgcna/}, \verb{decoupler/}, \verb{viper/}, \verb{ppi/}) with \code{index.html} at the
+root of \code{save_dir}.
 }
 \description{
 Chains quality control (\code{\link[=run_qc]{run_qc()}}), sample distance/PCA

@@ -12,6 +12,8 @@ render_report(
   gsea_out,
   wgcna_out = NULL,
   decoupler_out = NULL,
+  ppi_out = NULL,
+  viper_out = NULL,
   alpha = 0.05,
   lfc_threshold = 0.5,
   run_args = NULL,
@@ -41,7 +43,13 @@ to omit the WGCNA page entirely (its link is greyed out, not removed,
 in the navigation bar of the other pages).}
 
 \item{decoupler_out}{Output of \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, or \code{NULL}
-(default) to omit the TF activity page.}
+(default) to omit the decoupleR page.}
+
+\item{ppi_out}{Output of \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}, or \code{NULL} (default) to
+omit PPI connectivity sections on the DE and WGCNA pages.}
+
+\item{viper_out}{Output of \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL} (default)
+to omit the VIPER page.}
 
 \item{alpha}{Significance threshold to display/use for report summaries.
 Default \code{0.05}.}
@@ -57,22 +65,24 @@ per-module subfolders under this path. Default \code{getwd()}.}
 }
 \value{
 Invisibly, a named character vector of rendered file paths, with
-names \code{"index"}, \code{"qc"}, \code{"diffexp"}, \code{"pathway_enrichment"}, and
-(when rendered) \code{"wgcna"} / \code{"tf_activity"}.
+names \code{"index"}, \code{"qc"}, \code{"deseq2"}, \code{"clusterProfiler"}, and
+(when rendered) \code{"wgcna"} / \code{"decoupleR"} / \code{"viper"}.
 }
 \description{
 Knits the package's bundled R Markdown templates against the outputs of
 \code{\link[=run_qc]{run_qc()}}, \code{\link[=run_distance_pca]{run_distance_pca()}}, \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}},
-\code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}, \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, and
-\code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, writing each section page into its module
-folder and \code{index.html} at the pipeline root:
+\code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}, \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}},
+\code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, and \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, writing each
+section page into its module folder and \code{index.html} at the pipeline
+root:
 \itemize{
-  \item \code{index.html}
-  \item \code{qc/qc.html}
-  \item \code{diffexp/diffexp.html}
-  \item \code{pathway/pathway_enrichment.html}
-  \item \code{wgcna/wgcna.html} (omitted when \code{wgcna_out = NULL})
-  \item \code{tf_activity/tf_activity.html} (omitted when \code{decoupler_out = NULL})
+\item \code{index.html}
+\item \code{qc/qc.html}
+\item \code{deseq2/deseq2.html}
+\item \code{clusterprofiler/clusterprofiler.html}
+\item \code{wgcna/wgcna.html} (omitted when \code{wgcna_out = NULL})
+\item \code{decoupler/decoupler.html} (omitted when \code{decoupler_out = NULL})
+\item \code{viper/viper.html} (omitted when \code{viper_out = NULL})
 }
 Each file is self-contained (\code{self_contained = TRUE}); cross-links use
 relative paths so the folder tree can be copied and opened offline.

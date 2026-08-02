@@ -1,5 +1,5 @@
 ---
-title: "deseq2reports Analysis Report -- QC"
+title: "DESeq2Reports -- QC"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -21,6 +21,8 @@ params:
   gsea_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
@@ -74,10 +76,8 @@ if (!is.null(params$qc_out)) {
   }
 
   deseq2reports::emit_code_block(
-    caption = "Key functions used for library QC / filtering:",
-    "edgeR::cpm(counts, log = TRUE)                 # mean-CPM filter (filter_method = \"cpm\")",
-    "DESeq2::counts(dds, normalized = TRUE)         # size-factor–normalized counts",
-    "DESeq2::estimateSizeFactors(dds)               # library-size factors"
+    caption = "Reproduce library QC with this package module:",
+    "dds_qc <- run_qc(dds, var = \"condition\", filter_method = \"cpm\")"
   )
 
   cat("\n\n### Count distribution\n\n")
@@ -106,11 +106,8 @@ deseq2reports::emit_plot_with_download(params$qc_out$library_size_plot, filename
 
 ```{r sample-qc-methods, results='asis'}
 deseq2reports::emit_code_block(
-  caption = "Key functions used for sample QC (PCA + similarity):",
-  "DESeq2::vst(dds, blind = TRUE)                  # variance-stabilizing transform",
-  "stats::prcomp(t(assay(vsd)), scale. = TRUE)     # PCA on samples",
-  "stats::cor(mat, method = \"spearman\")             # sample–sample similarity",
-  "pheatmap::pheatmap(cor_mat)                     # similarity heatmap"
+  caption = "Reproduce sample QC (PCA + similarity) with this package module:",
+  "distance_out <- run_distance_pca(dds_qc, var = \"condition\")"
 )
 ```
 

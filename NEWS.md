@@ -1,5 +1,38 @@
 # deseq2reports (development version)
 
+* Module output folders are lowercase (`clusterprofiler/`, `decoupler/`)
+  while comparison subfolders keep their original labels (e.g.
+  `IgA_vs_IgM`). Report page titles/nav labels are unchanged.
+* Report pages now show only the minimal `deseq2reports` module call needed
+  to reproduce each section (not upstream package internals). New vignette
+  `deseq2reports-modules` is a detailed HTML module reference; the intro
+  vignette focuses on one-command vs modular usage.
+* GSEA barcode panels use a single track per pathway coloured by NES sign
+  (red = NES > 0, blue = NES < 0), instead of splitting member genes into
+  up/down tracks. Pathway and VIPER barcode plot sizes are halved.
+* WGCNA module-gene tables include the full module membership (sorted by
+  |kME|), showing the top 10 rows by default instead of truncating HTML to
+  100 genes. PPI degree tables likewise list every gene with ≥1 STRING
+  edge among seeds/module members (plot still degree-capped).
+* GSEA pathway page: under each NES barplot, a gene-enrichment barcode
+  panel (`plot_gsea_barcode_panel()`) shows the same top/bottom pathways
+  with names on the left, member-gene ticks along the ranked list, and
+  padj + NES on the right.
+* New VIPER / msVIPER module: `run_viper_pipeline()` scores the human
+  B-cell regulon from **bcellViper** via `viper` / `msviper` (sample-level
+  VST activities + contrast-level barcodes from DESeq2 Wald `stat`). Mouse
+  genes are mapped to human orthologs with **babelgene**. Enabled with
+  `run_viper = TRUE` on `run_deseq2_pipeline()`; writes a separate
+  `viper/viper.html` page. Requires Suggests packages `viper`,
+  `bcellViper`, and (for mouse) `babelgene`.
+* New PPI connectivity analysis: `run_ppi_pipeline()` uses **STRINGdb**
+  interactions and BioNERO-style interactive plotly networks (Louvain
+  communities, degree-sized nodes, hover any gene, top hubs labelled),
+  plus native STRINGdb network PNGs on disk. Defaults use all significant
+  DEGs as seeds (`max_genes = Inf`) and plot up to 100 highest-degree
+  genes with STRING edges (`max_plot_nodes = 100`). Enabled by default
+  via `run_ppi = TRUE` on `run_deseq2_pipeline()`. Requires Suggests
+  packages `STRINGdb` and `igraph`.
 * Sample-similarity heatmap: size `plotTag` so device inches match the
   absolute pheatmap gtable (`width = inches*72`, `pixelratio = dpi/72`),
   fixing the empty band under the section title.

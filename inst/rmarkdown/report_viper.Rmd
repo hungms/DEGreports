@@ -1,0 +1,238 @@
+---
+title: "DESeq2Reports -- VIPER"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    df_print: paged
+    self_contained: true
+    mathjax: null
+params:
+  var: NULL
+  design_str: NULL
+  org: NULL
+  n_samples: NULL
+  n_genes: NULL
+  qc_out: NULL
+  distance_out: NULL
+  diffexp_out: NULL
+  gsea_out: NULL
+  wgcna_out: NULL
+  decoupler_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
+  alpha: 0.05
+  lfc_threshold: 0.5
+  run_args: NULL
+  package_version: NULL
+  current_page: "VIPER"
+  disabled_labels: !r character(0)
+  page_hrefs: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+```
+
+```{r nav, results='asis'}
+cat(deseq2reports::report_nav_links(
+  params$current_page,
+  disabled = params$disabled_labels,
+  hrefs = params$page_hrefs
+))
+```
+
+## VIPER protein activity (bcellViper)
+
+```{r viper-intro, results='asis', eval=!is.null(params$viper_out)}
+cat("\n\nMaster-regulator / protein activity inferred with ",
+    "[**VIPER**](https://califano.c2b2.columbia.edu/viper) ",
+    "(`viper` / `msviper`) using the human B-cell transcriptional regulon from the ",
+    "[**bcellViper**](https://bioconductor.org/packages/bcellViper/) data package ",
+    "(Alvarez et al., *Nat Genet* 2016). Detected organism: **",
+    params$viper_out$org, "**",
+    if (identical(params$viper_out$org, "mouse")) {
+      " (mouse genes mapped to human orthologs via `babelgene` before scoring)."
+    } else {
+      "."
+    },
+    " Regulons loaded: **", params$viper_out$regulon_n, "**.\n\n",
+    "Sample-level scores use gene-wise z-scored VST expression with `viper()`. ",
+    "Contrast-level master-regulator analysis uses each comparison's DESeq2 Wald ",
+    "`stat` as the gene-expression signature with `msviper()`, and the classic ",
+    "VIPER barcode plot (`plot.msviper`) shows positively/negatively regulated ",
+    "targets in red/blue along the ranked signature.\n\n",
+    sep = "")
+deseq2reports::emit_code_block(
+  caption = "Reproduce VIPER with this package module:",
+  "viper_out <- run_viper_pipeline(",
+  "  dds_qc, var = \"condition\", diffexp_out = diffexp_out",
+  ")"
+)
+```
+
+```{r viper-missing, results='asis', eval=is.null(params$viper_out)}
+cat("\n\nVIPER analysis was not run for this report ",
+    "(`run_viper = FALSE` or `viper_out = NULL`).\n\n")
+```
+
+### Sample-level VIPER activities
+
+```{r viper-sample-heat, results='asis', eval=!is.null(params$viper_out$sample_heatmap)}
+n_heat <- params$viper_out$n_tfs_heatmap
+if (is.null(n_heat)) n_heat <- 50
+cat("\n\nTop **", n_heat,
+    "** most variable TFs / master regulators across samples ",
+    "(rows = samples, columns = TFs; scores scaled per sample). ",
+    "Dark blue = inactive, red = active.\n\n", sep = "")
+
+hm <- params$viper_out$sample_heatmap
+gt <- hm$gtable
+native_w <- min(grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE), 10)
+native_h <- min(grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE), 10)
+disp_w <- 0.5 * min(native_w, 6.5) * 1.25
+disp_h <- 0.5 * min(native_h, 5)
+dpi <- 150
+pixelratio <- dpi / 72
+css_w <- as.integer(round(native_w * 72))
+css_h <- as.integer(round(native_h * 72))
+display_w <- as.integer(round(disp_w * dpi))
+display_h <- as.integer(round(disp_h * dpi))
+img <- htmltools::plotTag({
+  grid::grid.newpage()
+  grid::grid.draw(gt)
+}, alt = "viper_sample_heatmap", width = css_w, height = css_h, pixelratio = pixelratio,
+   suppressSize = "xy",
+   attribs = list(
+     width = display_w, height = display_h,
+     style = sprintf("max-width: none !important; width: %dpx; height: %dpx;", display_w, display_h)
+   ))
+sample_df <- data.frame(
+  tf = rownames(params$viper_out$sample_acts),
+  params$viper_out$sample_acts,
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+buttons <- list(
+  deseq2reports::download_grid_plot_button(hm, filename = "viper_sample_tf_heatmap",
+                                           width = 0.5 * native_w, height = 0.5 * native_h),
+  deseq2reports::download_table_button(sample_df, filename = "viper_sample_activities")
+)
+deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(img, buttons))
+```
+
+```{r viper-helpers, include=FALSE}
+emit_viper_contrast <- function(comp, msv, acts, n_tfs) {
+  cat("\n\nmsVIPER master regulators for this contrast (DESeq2 Wald `stat` signature). ",
+      "Barcode plot shows the top **", n_tfs,
+      "** regulators by p-value (red/blue = positively/negatively regulated targets ",
+      "along the ranked gene list; layout from `plot.msviper`).\n\n", sep = "")
+  if (!is.null(msv)) {
+    deseq2reports::emit_msviper_plot(
+      msv, filename = paste0(comp, "_msviper_barcode"),
+      mrs = n_tfs, width = 4, height = max(2, 0.175 * n_tfs + 0.75), dpi = 150
+    )
+  }
+  if (!is.null(acts) && nrow(acts) > 0) {
+    show <- acts[order(acts$p.value), , drop = FALSE]
+    btn <- deseq2reports::download_table_button(acts, filename = paste0(comp, "_msviper_activities"))
+    deseq2reports::emit_widget_with_download(
+      deseq2reports::make_gsea_datatable(show, page_length = 15), btn
+    )
+  }
+  cat("\n\n")
+}
+
+specs <- NULL
+if (!is.null(params$diffexp_out)) {
+  specs <- params$diffexp_out$contrast_specs
+  if (is.null(specs) && !is.null(params$viper_out$contrast_acts)) {
+    comps <- names(params$viper_out$contrast_acts)
+    specs <- data.frame(
+      label = comps,
+      class = "single",
+      type = deseq2reports::classify_comparison_type(comps),
+      stratum_var = NA_character_,
+      stratum_level = NA_character_,
+      stringsAsFactors = FALSE
+    )
+  }
+}
+if (!is.null(specs) && !is.null(params$viper_out$contrast_acts)) {
+  specs <- specs[specs$label %in% names(params$viper_out$contrast_acts), , drop = FALSE]
+}
+two_factor <- !is.null(specs) && any(specs$class %in% c("within_A", "within_B", "interaction"))
+```
+
+### Contrast-level msVIPER
+
+```{r viper-contrast-single, results='asis', eval=!is.null(params$viper_out) && length(params$viper_out$contrast_acts) > 0 && !two_factor}
+vp_pairwise <- specs$label[specs$type == "pairwise"]
+vp_one_vs_all <- specs$label[specs$type == "one_vs_all"]
+n_tfs <- params$viper_out$n_tfs
+
+cat("\n\n#### Pairwise {.tabset}\n\n")
+if (length(vp_pairwise) > 0) {
+  for (comp in vp_pairwise) {
+    cat("\n\n##### ", comp, "\n\n", sep = "")
+    emit_viper_contrast(comp,
+                        params$viper_out$contrast_msviper[[comp]],
+                        params$viper_out$contrast_acts[[comp]],
+                        n_tfs)
+  }
+} else {
+  cat("\n\nNo pairwise comparisons.\n\n")
+}
+
+cat("\n\n#### One vs. all {.tabset}\n\n")
+if (length(vp_one_vs_all) > 0) {
+  for (comp in vp_one_vs_all) {
+    cat("\n\n##### ", comp, "\n\n", sep = "")
+    emit_viper_contrast(comp,
+                        params$viper_out$contrast_msviper[[comp]],
+                        params$viper_out$contrast_acts[[comp]],
+                        n_tfs)
+  }
+} else {
+  cat("\n\nNo one-vs-all comparisons.\n\n")
+}
+```
+
+```{r viper-contrast-two-factor, results='asis', eval=!is.null(params$viper_out) && length(params$viper_out$contrast_acts) > 0 && two_factor}
+var <- params$var
+n_tfs <- params$viper_out$n_tfs
+for (cls in c("within_A", "within_B", "interaction")) {
+  sub <- specs[specs$class == cls, , drop = FALSE]
+  if (nrow(sub) == 0) next
+  title <- deseq2reports::contrast_class_title(cls, var)
+  cat("\n\n#### ", title, " {.tabset}\n\n", sep = "")
+
+  if (identical(cls, "interaction")) {
+    for (comp in sub$label) {
+      cat("\n\n##### ", comp, "\n\n", sep = "")
+      emit_viper_contrast(comp,
+                          params$viper_out$contrast_msviper[[comp]],
+                          params$viper_out$contrast_acts[[comp]],
+                          n_tfs)
+    }
+    next
+  }
+
+  strata <- unique(sub$stratum_level)
+  for (st in strata) {
+    cat("\n\n##### ", st, " {.tabset}\n\n", sep = "")
+    st_sub <- sub[sub$stratum_level == st, , drop = FALSE]
+    ordered <- c(st_sub$label[st_sub$type == "pairwise"],
+                 st_sub$label[st_sub$type == "one_vs_all"])
+    for (comp in ordered) {
+      cat("\n\n###### ", comp, "\n\n", sep = "")
+      emit_viper_contrast(comp,
+                          params$viper_out$contrast_msviper[[comp]],
+                          params$viper_out$contrast_acts[[comp]],
+                          n_tfs)
+    }
+  }
+}
+```

@@ -1,5 +1,5 @@
 ---
-title: "deseq2reports Analysis Report -- WGCNA"
+title: "DESeq2Reports -- WGCNA"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -21,6 +21,8 @@ params:
   gsea_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
@@ -46,12 +48,8 @@ cat(deseq2reports::report_nav_links(
 if (!is.null(params$wgcna_out)) {
   cat("\n\n## Co-expression modules (WGCNA)\n\n")
   deseq2reports::emit_code_block(
-    caption = "Key functions used for co-expression network analysis:",
-    "WGCNA::pickSoftThreshold(datExpr, networkType = \"signed\")",
-    "WGCNA::blockwiseModules(datExpr, power = power, networkType = \"signed\")",
-    "WGCNA::moduleEigengenes(datExpr, colors)$eigengenes",
-    "WGCNA::signedKME(datExpr, MEs)                    # module membership",
-    "WGCNA::mergeCloseModules(datExpr, colors, cutHeight = ...)"
+    caption = "Reproduce WGCNA with this package module:",
+    "wgcna_out <- run_wgcna_pipeline(dds_qc, var = \"condition\")"
   )
 }
 ```
@@ -164,8 +162,9 @@ if (!is.null(params$wgcna_out)) {
 ```{r wgcna-hub-intro, results='asis', eval=length(wgcna_hub_modules) > 0}
 cat("\n\n### Module genes\n\n")
 cat("\n\nAll genes assigned to each co-expression module, sorted by absolute ",
-    "module membership (|kME|). Use the tabs below to show **one module table at a time**. ",
-    "Download the CSV for the full membership of the active module. The ",
+    "module membership (|kME|). Each table includes the full module membership ",
+    "and shows the top 10 by default. Use the tabs below to show **one module ",
+    "table at a time**. Download the CSV for the active module. The ",
     "\"Unassigned\" module (WGCNA's \"grey\" catch-all) is omitted here because it ",
     "has no coherent expression profile.\n\n", sep = "")
 if (isTRUE(wgcna_modules_truncated)) {
@@ -180,7 +179,6 @@ if (isTRUE(wgcna_modules_truncated)) {
 # they are visible even on very large self-contained pages.
 gene_col <- setdiff(colnames(params$wgcna_out$module_df),
                     c("module", "module_label", "module_color", "kME"))[1]
-max_genes_html <- 100L
 pane_ids <- deseq2reports::bs_tabset_start("wgcna-module-genes", wgcna_hub_modules)
 for (i in seq_along(wgcna_hub_modules)) {
   mod <- wgcna_hub_modules[i]
@@ -197,13 +195,10 @@ for (i in seq_along(wgcna_hub_modules)) {
   rownames(mod_df) <- NULL
 
   if (nrow(mod_df) > 0) {
-    show_df <- utils::head(mod_df, max_genes_html)
-    if (nrow(mod_df) > max_genes_html) {
-      cat("<p>Showing the top <strong>", max_genes_html,
-          "</strong> genes by |kME| (module has ", nrow(mod_df),
-          " genes total; download CSV for the full list).</p>\n", sep = "")
-    }
-    dt <- deseq2reports::make_gsea_datatable(show_df, page_length = 15)
+    cat("<p>All <strong>", nrow(mod_df),
+        "</strong> module genes sorted by |kME|; table shows the top 10 by ",
+        "default (use page length / search for the rest).</p>\n", sep = "")
+    dt <- deseq2reports::make_gsea_datatable(mod_df, page_length = 10)
     dt$x$options$scrollY <- "360px"
     dt$x$options$scrollCollapse <- TRUE
     dt$sizingPolicy$filler <- FALSE
@@ -221,6 +216,94 @@ deseq2reports::bs_tabset_end()
 cat("<script>$(document).on('shown.bs.tab', 'a[data-toggle=\"tab\"]', function () { if (window.HTMLWidgets) HTMLWidgets.staticRender(); if (window.jQuery && $.fn.dataTable) { $($.fn.dataTable.tables(true)).DataTable().columns.adjust(); } });</script>\n")
 ```
 
+```{r wgcna-ppi-split, include=FALSE}
+wgcna_ppi_modules <- character(0)
+if (!is.null(params$ppi_out) && !is.null(params$ppi_out$by_module) &&
+    length(params$ppi_out$by_module) > 0) {
+  # Prefer the same largest-module ordering used for hub/ORA tabs.
+  ppi_names <- names(params$ppi_out$by_module)
+  if (length(wgcna_hub_modules)) {
+    wgcna_ppi_modules <- intersect(wgcna_hub_modules, ppi_names)
+    # Append any remaining modules that have PPI results but were not in the
+    # HTML hub-module cap (still within max_modules_html).
+    extra <- setdiff(ppi_names, wgcna_ppi_modules)
+    if (length(wgcna_ppi_modules) < max_modules_html && length(extra)) {
+      n_add <- min(length(extra), max_modules_html - length(wgcna_ppi_modules))
+      wgcna_ppi_modules <- c(wgcna_ppi_modules, extra[seq_len(n_add)])
+    }
+  } else {
+    wgcna_ppi_modules <- utils::head(ppi_names, max_modules_html)
+  }
+}
+```
+
+```{r wgcna-ppi-intro, results='asis', eval=length(wgcna_ppi_modules) > 0}
+cat("\n\n### Module PPI connectivity\n\n")
+cat("\n\nSTRING protein-interaction subgraph among each module's member genes ",
+    "(ranked by |kME|). BioNERO-style layout: Louvain communities, degree-sized ",
+    "nodes; **hover any node** for its gene name. Top hubs stay labelled. ",
+    "Module genes with no STRING edge to another member are omitted. ",
+    "Use the tabs to show one module network at a time.\n\n", sep = "")
+deseq2reports::emit_code_block(
+  caption = "Reproduce module PPI connectivity with this package module:",
+  "ppi_out <- run_ppi_pipeline(",
+  "  diffexp_out = diffexp_out, wgcna_out = wgcna_out",
+  ")"
+)
+```
+
+```{r wgcna-ppi-loop, results='asis', eval=length(wgcna_ppi_modules) > 0}
+pane_ids <- deseq2reports::bs_tabset_start("wgcna-module-ppi", wgcna_ppi_modules)
+for (i in seq_along(wgcna_ppi_modules)) {
+  mod <- wgcna_ppi_modules[i]
+  deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+  ppi <- params$ppi_out$by_module[[mod]]
+  if (!is.null(ppi) && !is.null(ppi$plot)) {
+    n_mapped <- if (!is.null(ppi$n_mapped)) ppi$n_mapped else NA_integer_
+    cat("<p><strong>Gene filter funnel:</strong> ",
+        ppi$n_seed, " module seeds → ",
+        if (!is.na(n_mapped)) paste0(n_mapped, " mapped to STRING → ") else "",
+        ppi$n_with_edge, " with ≥1 STRING edge among members",
+        if (!is.null(ppi$max_plot_nodes) && ppi$n_with_edge > ppi$n_plotted) {
+          paste0(" → top ", ppi$n_plotted, " by degree plotted (cap ",
+                 ppi$max_plot_nodes, ")")
+        } else {
+          paste0(" → ", ppi$n_plotted, " plotted")
+        },
+        ". Top ", length(ppi$hubs), " hubs labelled.</p>\n", sep = "")
+    ppi_btn <- deseq2reports::download_plot_button(
+      ppi$plot, filename = paste0(safe_file_tag(mod), "_ppi_connectivity"),
+      width = 6.5, height = 5.5
+    )
+    deseq2reports::emit_widget_with_download(
+      deseq2reports::make_interactive_ppi(ppi$plot),
+      ppi_btn, center = TRUE
+    )
+    hub_df <- ppi$nodes
+    if (!is.null(hub_df) && nrow(hub_df)) {
+      hub_df <- hub_df[order(-hub_df$degree, hub_df$gene), , drop = FALSE]
+      rownames(hub_df) <- NULL
+      cat("<p><strong>Genes by connectivity (degree).</strong> ",
+          "All ", nrow(hub_df), " module genes with ≥1 STRING edge among ",
+          "members, ranked by degree (plot may show a degree-capped subset). ",
+          "Top 10 shown by default; ", sum(hub_df$hub, na.rm = TRUE),
+          " plot-labelled hubs have <code>hub = TRUE</code>.</p>\n", sep = "")
+      hub_btn <- deseq2reports::download_table_button(
+        hub_df, filename = paste0(safe_file_tag(mod), "_ppi_hubs")
+      )
+      deseq2reports::emit_widget_with_download(
+        deseq2reports::make_gsea_datatable(hub_df, page_length = 10),
+        hub_btn, center = FALSE
+      )
+    }
+  } else {
+    cat("<p>No OmniPath edges among genes in this module.</p>\n")
+  }
+  deseq2reports::bs_tab_pane_end()
+}
+deseq2reports::bs_tabset_end()
+```
+
 ```{r wgcna-ora-intro, results='asis', eval=length(wgcna_collections) > 0}
 cat("\n\n### Per-module pathway enrichment\n\n")
 cat("\n\nOver-representation analysis (`fgsea::fora()`) of each co-expression module's ",
@@ -228,9 +311,9 @@ cat("\n\nOver-representation analysis (`fgsea::fora()`) of each co-expression mo
     "Outer tabs select the module; inner tabs select the collection (same layout as ",
     "pathway enrichment). The \"grey\"/Unassigned module is excluded throughout.\n\n", sep = "")
 deseq2reports::emit_code_block(
-  caption = "Key functions used for per-module over-representation:",
-  "fgsea::fora(pathways, genes = module_genes, universe = all_genes)",
-  "msigdbr::msigdbr(species = ..., collection = ...)"
+  caption = "Per-module ORA is included in the WGCNA module call above:",
+  "wgcna_out <- run_wgcna_pipeline(dds_qc, var = \"condition\")",
+  "# results: wgcna_out$ora_by_module[[collection]][[module]]"
 )
 if (isTRUE(wgcna_modules_truncated)) {
   cat("Showing the **", length(wgcna_ora_modules),

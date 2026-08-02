@@ -5,15 +5,17 @@ test_that("report_page_hrefs() returns nested relative paths from Index and sibl
     from_index <- report_page_hrefs("Index")
     expect_equal(from_index[["Index"]], "index.html")
     expect_equal(from_index[["QC"]], "qc/qc.html")
-    expect_equal(from_index[["Differential expression"]], "diffexp/diffexp.html")
-    expect_equal(from_index[["Pathway enrichment"]], "pathway/pathway_enrichment.html")
+    expect_equal(from_index[["DESeq2"]], "deseq2/deseq2.html")
+    expect_equal(from_index[["clusterProfiler"]], "clusterprofiler/clusterprofiler.html")
     expect_equal(from_index[["WGCNA"]], "wgcna/wgcna.html")
-    expect_equal(from_index[["TF activity"]], "tf_activity/tf_activity.html")
+    expect_equal(from_index[["decoupleR"]], "decoupler/decoupler.html")
+    expect_equal(from_index[["VIPER"]], "viper/viper.html")
 
     from_qc <- report_page_hrefs("QC")
     expect_equal(from_qc[["Index"]], "../index.html")
     expect_equal(from_qc[["QC"]], "qc.html")
     expect_equal(from_qc[["WGCNA"]], "../wgcna/wgcna.html")
+    expect_equal(from_qc[["VIPER"]], "../viper/viper.html")
 })
 
 test_that("report_nav_links() marks the current page as plain bold text, not a link", {
@@ -22,8 +24,8 @@ test_that("report_nav_links() marks the current page as plain bold text, not a l
     expect_false(grepl('<a href="qc.html">QC</a>', html))
     # other pages use paths relative to the QC folder
     expect_true(grepl('<a href="../index.html">Index</a>', html))
-    expect_true(grepl('<a href="../diffexp/diffexp.html">Differential expression</a>', html))
-    expect_true(grepl('<a href="../pathway/pathway_enrichment.html">Pathway enrichment</a>', html))
+    expect_true(grepl('<a href="../deseq2/deseq2.html">DESeq2</a>', html))
+    expect_true(grepl('<a href="../clusterprofiler/clusterprofiler.html">clusterProfiler</a>', html))
     expect_true(grepl('<a href="../wgcna/wgcna.html">WGCNA</a>', html))
 })
 
@@ -66,12 +68,12 @@ test_that("render_report() writes cross-linked, self-contained HTML files in per
         save_dir = out_dir
     )
 
-    expect_setequal(names(paths), c("index", "qc", "diffexp", "pathway_enrichment", "wgcna"))
+    expect_setequal(names(paths), c("index", "qc", "deseq2", "clusterProfiler", "wgcna"))
     expect_true(all(file.exists(paths)))
     expect_true(all(file.info(paths)$size > 1000))
     expect_equal(basename(dirname(paths[["qc"]])), "qc")
-    expect_equal(basename(dirname(paths[["diffexp"]])), "diffexp")
-    expect_equal(basename(dirname(paths[["pathway_enrichment"]])), "pathway")
+    expect_equal(basename(dirname(paths[["deseq2"]])), "deseq2")
+    expect_equal(basename(dirname(paths[["clusterProfiler"]])), "clusterprofiler")
     expect_equal(basename(dirname(paths[["wgcna"]])), "wgcna")
 
     index_html <- paste(readLines(paths[["index"]]), collapse = "\n")
@@ -89,7 +91,7 @@ test_that("render_report() writes cross-linked, self-contained HTML files in per
     # text instead of rendering it live.
     expect_false(grepl("<pre><code>", qc_html, fixed = TRUE))
     expect_true(grepl("justify-content: flex-end", qc_html, fixed = TRUE))
-    diffexp_html <- paste(readLines(paths[["diffexp"]]), collapse = "\n")
+    diffexp_html <- paste(readLines(paths[["deseq2"]]), collapse = "\n")
     expect_false(grepl("<pre><code>", diffexp_html, fixed = TRUE))
     wgcna_html <- paste(readLines(paths[["wgcna"]]), collapse = "\n")
     expect_false(grepl("<pre><code>", wgcna_html, fixed = TRUE))
@@ -193,7 +195,7 @@ test_that("render_report() omits the wgcna page and greys out its nav link when 
         save_dir = out_dir
     )
 
-    expect_setequal(names(paths), c("index", "qc", "diffexp", "pathway_enrichment"))
+    expect_setequal(names(paths), c("index", "qc", "deseq2", "clusterProfiler"))
     expect_false(file.exists(file.path(out_dir, "wgcna.html")))
     expect_false(file.exists(file.path(out_dir, "wgcna", "wgcna.html")))
 

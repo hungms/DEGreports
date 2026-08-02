@@ -10,21 +10,25 @@
             key = "qc", dir = "qc", file = "qc.html",
             template = "report_qc.Rmd"
         ),
-        `Differential expression` = list(
-            key = "diffexp", dir = "diffexp", file = "diffexp.html",
-            template = "report_diffexp.Rmd"
+        DESeq2 = list(
+            key = "deseq2", dir = "deseq2", file = "deseq2.html",
+            template = "report_deseq2.Rmd"
         ),
-        `Pathway enrichment` = list(
-            key = "pathway_enrichment", dir = "pathway", file = "pathway_enrichment.html",
-            template = "report_pathway_enrichment.Rmd"
+        clusterProfiler = list(
+            key = "clusterProfiler", dir = "clusterprofiler", file = "clusterprofiler.html",
+            template = "report_clusterProfiler.Rmd"
         ),
         WGCNA = list(
             key = "wgcna", dir = "wgcna", file = "wgcna.html",
             template = "report_wgcna.Rmd"
         ),
-        `TF activity` = list(
-            key = "tf_activity", dir = "tf_activity", file = "tf_activity.html",
-            template = "report_tf_activity.Rmd"
+        decoupleR = list(
+            key = "decoupleR", dir = "decoupler", file = "decoupler.html",
+            template = "report_decoupleR.Rmd"
+        ),
+        VIPER = list(
+            key = "viper", dir = "viper", file = "viper.html",
+            template = "report_viper.Rmd"
         )
     )
 }
@@ -69,10 +73,10 @@
 #' Returns a named character vector of relative paths from `from` to every
 #' report page (including itself). Used by [report_nav_links()] and the
 #' index page's section list so links stay correct when HTML files live in
-#' per-module subfolders (`qc/qc.html`, `diffexp/diffexp.html`, ...).
+#' per-module subfolders (`qc/qc.html`, `deseq2/deseq2.html`, ...).
 #'
-#' @param from One of `"Index"`, `"QC"`, `"Differential expression"`,
-#'   `"Pathway enrichment"`, `"WGCNA"`, `"TF activity"`.
+#' @param from One of `"Index"`, `"QC"`, `"DESeq2"`, `"clusterProfiler"`,
+#'   `"WGCNA"`, `"decoupleR"`, `"VIPER"`.
 #' @return Named character vector of hrefs, names = page labels.
 #' @export
 report_page_hrefs <- function(from = "Index") {
@@ -93,16 +97,16 @@ report_page_hrefs <- function(from = "Index") {
 #' Build the shared top-of-page navigation bar for the multi-page HTML report
 #'
 #' Renders a single-line strip of cross-links between the report's HTML
-#' pages (`index`, `qc`, `diffexp`, `pathway_enrichment`, `wgcna`,
-#' `tf_activity`), used identically at the top of every page so a reader
-#' can jump between sections. The current page is shown as plain bold text
-#' (not a link to itself); any page named in `disabled` (e.g. `"WGCNA"`
-#' when `wgcna_out` was `NULL` and that page was never rendered) is shown
-#' greyed out instead of linked.
+#' pages (`index`, `qc`, `deseq2`, `clusterProfiler`, `wgcna`,
+#' `decoupleR`, `viper`), used identically at the top of every page so a
+#' reader can jump between sections. The current page is shown as plain
+#' bold text (not a link to itself); any page named in `disabled` (e.g.
+#' `"WGCNA"` when `wgcna_out` was `NULL` and that page was never rendered)
+#' is shown greyed out instead of linked.
 #'
-#' @param current One of `"Index"`, `"QC"`, `"Differential expression"`,
-#'   `"Pathway enrichment"`, `"WGCNA"`, `"TF activity"` -- the page this
-#'   bar is being placed on.
+#' @param current One of `"Index"`, `"QC"`, `"DESeq2"`, `"clusterProfiler"`,
+#'   `"WGCNA"`, `"decoupleR"`, `"VIPER"` -- the page this bar is being
+#'   placed on.
 #' @param disabled Character vector of page labels (from the same set as
 #'   `current`) that have no corresponding file and should be greyed out
 #'   rather than linked. Default `character(0)`.
@@ -256,6 +260,8 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
     gsea_out,
     wgcna_out = NULL,
     decoupler_out = NULL,
+    ppi_out = NULL,
+    viper_out = NULL,
     alpha = 0.05,
     lfc_threshold = 0.5,
     run_args = NULL,
@@ -264,6 +270,12 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
     org_guess <- tryCatch(gsea_out$results$org[1], error = function(e) NA_character_)
     if (is.null(org_guess) || is.na(org_guess)) {
         org_guess <- tryCatch(decoupler_out$org, error = function(e) NA_character_)
+    }
+    if (is.null(org_guess) || is.na(org_guess)) {
+        org_guess <- tryCatch(viper_out$org, error = function(e) NA_character_)
+    }
+    if (is.null(org_guess) || is.na(org_guess)) {
+        org_guess <- tryCatch(ppi_out$org, error = function(e) NA_character_)
     }
     list(
         var = var,
@@ -277,6 +289,8 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
         gsea_out = gsea_out,
         wgcna_out = wgcna_out,
         decoupler_out = decoupler_out,
+        ppi_out = ppi_out,
+        viper_out = viper_out,
         alpha = alpha,
         lfc_threshold = lfc_threshold,
         run_args = run_args,
@@ -333,13 +347,14 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
 #' @export
 render_index_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, alpha, lfc_threshold, run_args, disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
     )
     .render_report_page("Index", shared, save_dir)
 }
@@ -350,50 +365,61 @@ render_index_page <- function(
 #' @export
 render_qc_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, alpha, lfc_threshold, run_args, disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
     )
     .render_report_page("QC", shared, save_dir)
 }
 
-#' Render the differential-expression HTML page into `save_dir/diffexp/`
+#' Render the DESeq2 HTML page into `save_dir/deseq2/`
 #' @inheritParams render_index_page
-#' @return Path to `diffexp/diffexp.html`.
+#' @return Path to `deseq2/deseq2.html`.
 #' @export
-render_diffexp_page <- function(
+render_deseq2_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, alpha, lfc_threshold, run_args, disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
     )
-    .render_report_page("Differential expression", shared, save_dir)
+    .render_report_page("DESeq2", shared, save_dir)
 }
 
-#' Render the pathway-enrichment HTML page into `save_dir/pathway/`
-#' @inheritParams render_index_page
-#' @return Path to `pathway/pathway_enrichment.html`.
+#' @rdname render_deseq2_page
 #' @export
-render_pathway_page <- function(
+render_diffexp_page <- render_deseq2_page
+
+#' Render the clusterProfiler HTML page into `save_dir/clusterprofiler/`
+#' @inheritParams render_index_page
+#' @return Path to `clusterprofiler/clusterprofiler.html`.
+#' @export
+render_clusterProfiler_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, alpha, lfc_threshold, run_args, disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
     )
-    .render_report_page("Pathway enrichment", shared, save_dir)
+    .render_report_page("clusterProfiler", shared, save_dir)
 }
+
+#' @rdname render_clusterProfiler_page
+#' @export
+render_pathway_page <- render_clusterProfiler_page
 
 #' Render the WGCNA HTML page into `save_dir/wgcna/`
 #' @inheritParams render_index_page
@@ -401,7 +427,7 @@ render_pathway_page <- function(
 #' @export
 render_wgcna_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     if (is.null(wgcna_out)) {
@@ -410,46 +436,76 @@ render_wgcna_page <- function(
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, alpha, lfc_threshold, run_args, disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
     )
     .render_report_page("WGCNA", shared, save_dir)
 }
 
-#' Render the TF-activity HTML page into `save_dir/tf_activity/`
+#' Render the decoupleR HTML page into `save_dir/decoupler/`
 #' @inheritParams render_index_page
-#' @return Path to `tf_activity/tf_activity.html`.
+#' @return Path to `decoupler/decoupler.html`.
 #' @export
-render_tf_activity_page <- function(
+render_decoupleR_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     if (is.null(decoupler_out)) {
-        stop("`decoupler_out` must be supplied to render the TF activity page.",
+        stop("`decoupler_out` must be supplied to render the decoupleR page.",
              call. = FALSE)
     }
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, alpha, lfc_threshold, run_args, disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
     )
-    .render_report_page("TF activity", shared, save_dir)
+    .render_report_page("decoupleR", shared, save_dir)
+}
+
+#' @rdname render_decoupleR_page
+#' @export
+render_tf_activity_page <- render_decoupleR_page
+
+#' Render the VIPER HTML page into `save_dir/viper/`
+#' @inheritParams render_index_page
+#' @return Path to `viper/viper.html`.
+#' @export
+render_viper_page <- function(
+    dds, var, distance_out, diffexp_out, gsea_out,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
+    disabled_labels = character(0), save_dir = getwd()) {
+    if (is.null(viper_out)) {
+        stop("`viper_out` must be supplied to render the VIPER page.",
+             call. = FALSE)
+    }
+    save_dir <- validate_save_dir(save_dir)
+    shared <- .report_shared_params(
+        dds, var, distance_out, diffexp_out, gsea_out,
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
+    )
+    .render_report_page("VIPER", shared, save_dir)
 }
 
 #' Render the pipeline's multi-page HTML summary report
 #'
 #' Knits the package's bundled R Markdown templates against the outputs of
 #' [run_qc()], [run_distance_pca()], [run_diffexp_pipeline()],
-#' [run_gsea_pipeline()], [run_wgcna_pipeline()], and
-#' [run_decoupler_pipeline()], writing each section page into its module
-#' folder and `index.html` at the pipeline root:
+#' [run_gsea_pipeline()], [run_wgcna_pipeline()],
+#' [run_decoupler_pipeline()], and [run_viper_pipeline()], writing each
+#' section page into its module folder and `index.html` at the pipeline
+#' root:
 #' \itemize{
 #'   \item `index.html`
 #'   \item `qc/qc.html`
-#'   \item `diffexp/diffexp.html`
-#'   \item `pathway/pathway_enrichment.html`
+#'   \item `deseq2/deseq2.html`
+#'   \item `clusterprofiler/clusterprofiler.html`
 #'   \item `wgcna/wgcna.html` (omitted when `wgcna_out = NULL`)
-#'   \item `tf_activity/tf_activity.html` (omitted when `decoupler_out = NULL`)
+#'   \item `decoupler/decoupler.html` (omitted when `decoupler_out = NULL`)
+#'   \item `viper/viper.html` (omitted when `viper_out = NULL`)
 #' }
 #' Each file is self-contained (`self_contained = TRUE`); cross-links use
 #' relative paths so the folder tree can be copied and opened offline.
@@ -470,7 +526,11 @@ render_tf_activity_page <- function(
 #'   to omit the WGCNA page entirely (its link is greyed out, not removed,
 #'   in the navigation bar of the other pages).
 #' @param decoupler_out Output of [run_decoupler_pipeline()], or `NULL`
-#'   (default) to omit the TF activity page.
+#'   (default) to omit the decoupleR page.
+#' @param ppi_out Output of [run_ppi_pipeline()], or `NULL` (default) to
+#'   omit PPI connectivity sections on the DE and WGCNA pages.
+#' @param viper_out Output of [run_viper_pipeline()], or `NULL` (default)
+#'   to omit the VIPER page.
 #' @param alpha Significance threshold to display/use for report summaries.
 #'   Default `0.05`.
 #' @param lfc_threshold Log2 fold-change threshold used for up/down
@@ -480,8 +540,8 @@ render_tf_activity_page <- function(
 #' @param save_dir Pipeline root directory. Section pages are written into
 #'   per-module subfolders under this path. Default `getwd()`.
 #' @return Invisibly, a named character vector of rendered file paths, with
-#'   names `"index"`, `"qc"`, `"diffexp"`, `"pathway_enrichment"`, and
-#'   (when rendered) `"wgcna"` / `"tf_activity"`.
+#'   names `"index"`, `"qc"`, `"deseq2"`, `"clusterProfiler"`, and
+#'   (when rendered) `"wgcna"` / `"decoupleR"` / `"viper"`.
 #' @examples
 #' \dontrun{
 #' render_report(dds, var = "condition", distance_out = distance_out,
@@ -497,6 +557,8 @@ render_report <- function(
     gsea_out,
     wgcna_out = NULL,
     decoupler_out = NULL,
+    ppi_out = NULL,
+    viper_out = NULL,
     alpha = 0.05,
     lfc_threshold = 0.5,
     run_args = NULL,
@@ -513,17 +575,20 @@ render_report <- function(
 
     disabled_labels <- character(0)
     if (is.null(wgcna_out)) disabled_labels <- c(disabled_labels, "WGCNA")
-    if (is.null(decoupler_out)) disabled_labels <- c(disabled_labels, "TF activity")
+    if (is.null(decoupler_out)) disabled_labels <- c(disabled_labels, "decoupleR")
+    if (is.null(viper_out)) disabled_labels <- c(disabled_labels, "VIPER")
 
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, alpha, lfc_threshold, run_args, disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        disabled_labels
     )
 
     # Module pages first, then index (so the landing page is written last).
-    render_order <- c("qc", "diffexp", "pathway_enrichment")
+    render_order <- c("qc", "deseq2", "clusterProfiler")
     if (!is.null(wgcna_out)) render_order <- c(render_order, "wgcna")
-    if (!is.null(decoupler_out)) render_order <- c(render_order, "tf_activity")
+    if (!is.null(decoupler_out)) render_order <- c(render_order, "decoupleR")
+    if (!is.null(viper_out)) render_order <- c(render_order, "viper")
     render_order <- c(render_order, "index")
 
     out_paths <- stats::setNames(character(length(render_order)), render_order)

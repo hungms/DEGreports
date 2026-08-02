@@ -1,5 +1,5 @@
 ---
-title: "deseq2reports Analysis Report -- TF activity (CollecTRI / ULM)"
+title: "DESeq2Reports -- decoupleR"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -21,11 +21,13 @@ params:
   gsea_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
   package_version: NULL
-  current_page: "TF activity"
+  current_page: "decoupleR"
   disabled_labels: !r character(0)
   page_hrefs: NULL
 ---
@@ -42,7 +44,7 @@ cat(deseq2reports::report_nav_links(
 ))
 ```
 
-## Transcription factor activity (CollecTRI + ULM)
+## decoupleR
 
 ```{r tf-intro, results='asis', eval=!is.null(params$decoupler_out)}
 cat("\n\nTranscription-factor (TF) activities inferred with ",
@@ -53,16 +55,15 @@ cat("\n\nTranscription-factor (TF) activities inferred with ",
     "Sample-level scores use VST-normalized expression; contrast-level scores use ",
     "each comparison's DESeq2 Wald `stat` as the gene-level statistic.\n\n", sep = "")
 deseq2reports::emit_code_block(
-  caption = "Key functions used for TF activity inference:",
-  "decoupleR::get_collectri(organism = \"human\", split_complexes = FALSE)",
-  "DESeq2::vst(dds, blind = TRUE)                  # sample-level expression matrix",
-  "decoupleR::run_ulm(mat, net, .source = \"source\", .target = \"target\", .mor = \"mor\")",
-  "# contrast-level: mat = matrix(res$stat, dimnames = list(genes, \"stat\"))"
+  caption = "Reproduce decoupleR analysis with this package module:",
+  "decoupler_out <- run_decoupler_pipeline(",
+  "  dds_qc, var = \"condition\", diffexp_out = diffexp_out",
+  ")"
 )
 ```
 
 ```{r tf-missing, results='asis', eval=is.null(params$decoupler_out)}
-cat("\n\nTF activity analysis was not run for this report ",
+cat("\n\ndecoupleR analysis was not run for this report ",
     "(`run_decoupler = FALSE` or `decoupler_out = NULL`).\n\n")
 ```
 

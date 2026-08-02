@@ -88,10 +88,27 @@
 #'   Ignored if `run_wgcna = FALSE`.
 #' @param run_decoupler Logical. If `TRUE` (default `FALSE`), runs
 #'   CollecTRI + ULM TF activity analysis via [run_decoupler_pipeline()]
-#'   and adds a **TF activity** HTML page. Requires Suggests packages
+#'   and adds a **decoupleR** HTML page. Requires Suggests packages
 #'   `decoupleR` and `OmnipathR`.
 #' @param decoupler_n_tfs Number of top TFs shown in the sample heatmap
 #'   and contrast barplots. Default `25`. Ignored if `run_decoupler = FALSE`.
+#' @param run_viper Logical. If `TRUE` (default `FALSE`), runs
+#'   [VIPER](https://califano.c2b2.columbia.edu/viper) / msVIPER with the
+#'   human B-cell regulon from [bcellViper](https://bioconductor.org/packages/bcellViper/)
+#'   via [run_viper_pipeline()] and adds a **VIPER** HTML page. Requires
+#'   Suggests packages `viper`, `bcellViper`, and (for mouse) `babelgene`.
+#' @param viper_n_tfs Number of top master regulators shown in each
+#'   contrast barcode plot. Default `10`. Ignored if `run_viper = FALSE`.
+#' @param run_ppi Logical. If `TRUE` (default), runs STRING PPI
+#'   connectivity analysis via [run_ppi_pipeline()] for every DE contrast
+#'   and (when enabled) every WGCNA module, embedding BioNERO-style
+#'   community/hub network plots (plus native STRINGdb PNGs on disk) in
+#'   the DE and WGCNA HTML pages. Requires Suggests packages `STRINGdb`
+#'   and `igraph` and network access on first run to download STRING
+#'   files. Failures are caught with a warning so the rest of the
+#'   pipeline still finishes.
+#' @param ppi_top_n_hubs Number of highest-degree genes highlighted per
+#'   PPI plot. Default `10`. Ignored if `run_ppi = FALSE`.
 #' @param render_html Logical. If `TRUE` (default), renders an HTML summary
 #'   report via [render_report()] after all stages complete.
 #' @param save_dir Directory where all outputs will be written. Default
@@ -100,13 +117,17 @@
 #'   `distance` (output of [run_distance_pca()]), `diffexp` (output of
 #'   [run_diffexp_pipeline()]), `gsea` (output of [run_gsea_pipeline()]),
 #'   `wgcna` (output of [run_wgcna_pipeline()], or `NULL` if `run_wgcna =
-#'   FALSE`), and `report_path` (a named character vector of the paths to
-#'   the rendered HTML report pages -- `"index"`, `"qc"`, `"diffexp"`,
-#'   `"pathway_enrichment"`, and (if enabled) `"wgcna"` / `"tf_activity"`;
-#'   see [render_report()] -- or `NULL` if `render_html = FALSE`). Module
-#'   artifacts and their HTML pages are written under per-module folders
-#'   (`qc/`, `distance/`, `diffexp/`, `pathway/`, `wgcna/`, `tf_activity/`)
-#'   with `index.html` at the root of `save_dir`.
+#'   FALSE`), `ppi` (output of [run_ppi_pipeline()], or `NULL` if
+#'   `run_ppi = FALSE` / the stage failed), `viper` (output of
+#'   [run_viper_pipeline()], or `NULL` if `run_viper = FALSE`), and
+#'   `report_path` (a named character vector of the paths to the rendered
+#'   HTML report pages -- `"index"`, `"qc"`, `"deseq2"`,
+#'   `"clusterProfiler"`, and (if enabled) `"wgcna"` / `"decoupleR"` /
+#'   `"viper"`; see [render_report()] -- or `NULL` if `render_html =
+#'   FALSE`). Module artifacts and their HTML pages are written under
+#'   per-module folders (`qc/`, `distance/`, `deseq2/`, `clusterprofiler/`,
+#'   `wgcna/`, `decoupler/`, `viper/`, `ppi/`) with `index.html` at the
+#'   root of `save_dir`.
 #' @examples
 #' \dontrun{
 #' out <- run_deseq2_pipeline(
@@ -153,6 +174,10 @@ run_deseq2_pipeline <- function(
     wgcna_min_module_size = 30,
     run_decoupler = FALSE,
     decoupler_n_tfs = 25,
+    run_viper = FALSE,
+    viper_n_tfs = 10,
+    run_ppi = TRUE,
+    ppi_top_n_hubs = 10,
     render_html = TRUE,
     save_dir = getwd()) {
 
@@ -173,6 +198,8 @@ run_deseq2_pipeline <- function(
         run_wgcna = run_wgcna, wgcna_power = wgcna_power,
         wgcna_min_module_size = wgcna_min_module_size,
         run_decoupler = run_decoupler, decoupler_n_tfs = decoupler_n_tfs,
+        run_viper = run_viper, viper_n_tfs = viper_n_tfs,
+        run_ppi = run_ppi, ppi_top_n_hubs = ppi_top_n_hubs,
         render_html = render_html
     )
 
@@ -200,7 +227,8 @@ run_deseq2_pipeline <- function(
         }
 
         n_steps <- 4L + as.integer(isTRUE(export_counts)) +
-            as.integer(isTRUE(run_wgcna)) + as.integer(isTRUE(run_decoupler))
+            as.integer(isTRUE(run_wgcna)) + as.integer(isTRUE(run_decoupler)) +
+            as.integer(isTRUE(run_viper)) + as.integer(isTRUE(run_ppi))
         step <- 0L
         step <- step + 1L
         message("[", step, "/", n_steps, "] Quality control...")
@@ -235,7 +263,7 @@ run_deseq2_pipeline <- function(
             dds = dds, var = var, comparisons = comparisons, batch = batch,
             shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
             ranking = ranking, top_label_n = top_label_n,
-            save_dir = file.path(save_dir, "diffexp"))
+            save_dir = file.path(save_dir, "deseq2"))
 
         step <- step + 1L
         message("[", step, "/", n_steps, "] Gene set enrichment analysis...")
@@ -243,7 +271,7 @@ run_deseq2_pipeline <- function(
             diffexp_results = diffexp_out$results, collections = collections,
             ranking = ranking, top_n_plot = top_n_plot,
             run_clusterprofiler = run_clusterprofiler,
-            save_dir = file.path(save_dir, "pathway"))
+            save_dir = file.path(save_dir, "clusterprofiler"))
 
         wgcna_out <- NULL
         if (run_wgcna) {
@@ -263,16 +291,59 @@ run_deseq2_pipeline <- function(
             decoupler_out <- run_decoupler_pipeline(
                 dds = dds, var = viz_var, diffexp_out = diffexp_out,
                 n_tfs = decoupler_n_tfs,
-                save_dir = file.path(save_dir, "tf_activity"))
+                save_dir = file.path(save_dir, "decoupler"))
+        }
+
+        viper_out <- NULL
+        if (run_viper) {
+            step <- step + 1L
+            message("[", step, "/", n_steps, "] VIPER (bcellViper)...")
+            viper_out <- tryCatch(
+                run_viper_pipeline(
+                    dds = dds, var = viz_var, diffexp_out = diffexp_out,
+                    n_tfs = viper_n_tfs,
+                    save_dir = file.path(save_dir, "viper")
+                ),
+                error = function(e) {
+                    warning("VIPER analysis failed (",
+                            conditionMessage(e), "); continuing without VIPER page.",
+                            call. = FALSE)
+                    NULL
+                }
+            )
+        }
+
+        ppi_out <- NULL
+        if (run_ppi) {
+            step <- step + 1L
+            message("[", step, "/", n_steps, "] PPI connectivity (STRINGdb)...")
+            ppi_out <- tryCatch(
+                run_ppi_pipeline(
+                    diffexp_out = diffexp_out,
+                    wgcna_out = wgcna_out,
+                    top_n_hubs = ppi_top_n_hubs,
+                    alpha = alpha,
+                    lfc_threshold = lfc_threshold,
+                    save_dir = file.path(save_dir, "ppi")
+                ),
+                error = function(e) {
+                    warning("PPI connectivity analysis failed (",
+                            conditionMessage(e), "); continuing without PPI plots.",
+                            call. = FALSE)
+                    NULL
+                }
+            )
         }
 
         report_path <- NULL
         if (render_html) {
             message("Rendering HTML report...")
+            ppi_for_report <- ppi_out
             report_path <- render_report(
                 dds = dds, var = var, distance_out = distance_out,
                 diffexp_out = diffexp_out, gsea_out = gsea_out,
                 wgcna_out = wgcna_out, decoupler_out = decoupler_out,
+                ppi_out = ppi_for_report, viper_out = viper_out,
                 alpha = alpha, lfc_threshold = lfc_threshold,
                 run_args = params,
                 save_dir = save_dir)
@@ -281,6 +352,7 @@ run_deseq2_pipeline <- function(
         message("Pipeline complete. Outputs written to: ", save_dir)
         invisible(list(dds = dds, distance = distance_out, diffexp = diffexp_out,
                        gsea = gsea_out, wgcna = wgcna_out,
-                       decoupler = decoupler_out, report_path = report_path))
+                       decoupler = decoupler_out, viper = viper_out, ppi = ppi_out,
+                       report_path = report_path))
     }))
 }

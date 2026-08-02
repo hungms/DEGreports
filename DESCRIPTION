@@ -1,4 +1,4 @@
-Package: deseq2reports
+Package: DESeq2Reports
 Title: Modular DESeq2 Pipeline with Automated HTML Reports
 Version: 0.1.0
 Authors@R: 
@@ -7,13 +7,15 @@ Description: A self-contained, modular pipeline for RNA-seq differential express
     analysis built on DESeq2. Provides a single one-command entry point
     (run_deseq2_pipeline()) that chains quality control, sample distance/PCA,
     differential expression across all pairwise and one-vs-rest group comparisons,
-    gene set enrichment analysis (GSEA) against MSigDB collections, and a rendered
-    HTML report -- as well as standalone modular functions for each stage so that
-    individual steps can be run, inspected, or substituted independently. All
-    behaviour that analysts commonly need to change per-analysis (count filtering
-    thresholds, batch correction method, LFC shrinkage estimator, significance
-    thresholds, ranking metric, MSigDB collections, colour palettes) is exposed
-    as explicit function arguments with validated defaults.
+    gene set enrichment analysis (GSEA) against MSigDB collections, optional
+    WGCNA / TF-activity / VIPER (bcellViper) / STRING PPI connectivity modules,
+    and a rendered HTML report -- as well as standalone modular functions for
+    each stage so that individual steps can be run, inspected, or substituted
+    independently. All behaviour that analysts commonly need to change
+    per-analysis (count filtering thresholds, batch correction method, LFC
+    shrinkage estimator, significance thresholds, ranking metric, MSigDB
+    collections, colour palettes) is exposed as explicit function arguments
+    with validated defaults.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -48,15 +50,20 @@ Imports:
 Suggests:
     apeglm,
     ashr,
+    babelgene,
+    bcellViper,
     clusterProfiler,
     decoupleR,
     downloadthis,
     gridExtra,
     htmltools,
+    igraph,
     knitr,
     OmnipathR,
     patchwork,
+    STRINGdb,
     testthat (>= 3.0.0),
+    viper,
     WGCNA,
     withr
 Config/testthat/edition: 3

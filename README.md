@@ -1,11 +1,12 @@
-# deseq2reports
+# DESeq2Reports
 
 A self-contained, modular R package for RNA-seq differential expression
 analysis built on DESeq2 -- quality control, sample distance/PCA,
 differential expression across pairwise and one-vs-rest comparisons, gene
-set enrichment analysis (GSEA) against MSigDB, optional WGCNA and TF
-activity analysis, and a multi-page HTML report -- all through a single
-one-command entry point or as standalone modules.
+set enrichment analysis (GSEA) against MSigDB, optional WGCNA, TF
+activity, VIPER (bcellViper), and STRING PPI analysis, and a multi-page
+HTML report -- all through a single one-command entry point or as
+standalone modules.
 
 ## Install
 
@@ -31,15 +32,23 @@ out <- run_deseq2_pipeline(
 
 Organism (human/mouse) is auto-detected from gene symbols -- there is no
 `org` argument. By default this writes per-module folders under `results/`
-(`qc/`, `distance/`, `counts/`, `diffexp/`, `pathway/`) plus `index.html`
-and linked section pages (`qc/qc.html`, `diffexp/diffexp.html`, …). Optional
-stages add `wgcna/` and `tf_activity/` when `run_wgcna = TRUE` /
-`run_decoupler = TRUE`.
+(`qc/`, `distance/`, `counts/`, `deseq2/`, `clusterprofiler/`) plus `index.html`
+and linked section pages (`qc/qc.html`, `deseq2/deseq2.html`, …). Optional
+stages add `wgcna/`, `decoupler/`, and `viper/` when `run_wgcna = TRUE` /
+`run_decoupler = TRUE` / `run_viper = TRUE`.
 
-See `vignette("deseq2reports")` for the full argument reference and the
-standalone module functions (`run_qc()`, `run_distance_pca()`,
+## Documentation
+
+```r
+vignette("deseq2reports", package = "deseq2reports")           # one-command + modular usage
+vignette("deseq2reports-modules", package = "deseq2reports") # detailed module reference (HTML)
+browseVignettes("deseq2reports")
+```
+
+Standalone modules: `run_qc()`, `run_distance_pca()`,
 `run_diffexp_pipeline()`, `run_gsea_pipeline()`, `run_wgcna_pipeline()`,
-`run_decoupler_pipeline()`, `render_report()`).
+`run_decoupler_pipeline()`, `run_viper_pipeline()`, `run_ppi_pipeline()`,
+`render_report()`.
 
 ## Design notes
 

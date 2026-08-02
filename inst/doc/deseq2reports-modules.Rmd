@@ -1,0 +1,490 @@
+---
+title: "deseq2reports module reference"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{deseq2reports module reference}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+# Code is illustrative (placeholder objects). Not executed or tangled.
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE, purl = FALSE)
+```
+
+## Purpose of this vignette
+
+This HTML vignette explains **what each `deseq2reports` module does**, the
+functions used inside it, and their **main / default settings**. No figures --
+only code and narrative.
+
+For a short “how do I run it?” guide, see
+`vignette("deseq2reports", package = "deseq2reports")`.
+
+```{r}
+library(deseq2reports)
+library(DESeq2)
+# Assume `dds` is a DESeqDataSet with gene-symbol rownames and a grouping
+# column such as `condition` in colData(dds).
+```
+
+---
+
+## Pipeline orchestration: `run_deseq2_pipeline()`
+
+**Role.** Chains every stage below into one call and (by default) renders the
+multi-page HTML report.
+
+```{r}
+out <- run_deseq2_pipeline(
+  dds,
+  var = "condition",          # required; length 2 → two-factor mode
+  design = NULL,              # NULL → resolve_design(var, batch)
+  comparisons = NULL,         # NULL → full pairwise + one-vs-rest grid
+  batch = NULL,
+  batch_method = "limma",     # PCA viz only: "limma" | "combat" | "none"
+  filter_method = "cpm",
+  cpm_percentile = 0.05,
+  shrinkage = "ashr",
+  alpha = 0.05,
+  lfc_threshold = 0.5,
+  ranking = "pxfc",
+  collections = c("GOBP", "GOCC", "GOMF",
+                  "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID"),
+  n_scree_pcs = 10,
+  n_loading_pcs = 6,
+  n_top_genes = 10,
+  top_label_n = 5,            # volcano labels per direction
+  top_n_plot = 10,            # GSEA barplot pathways per NES direction
+  run_clusterprofiler = FALSE,
+  run_wgcna = FALSE,
+  wgcna_power = NULL,
+  wgcna_min_module_size = 30,
+  run_decoupler = FALSE,
+  decoupler_n_tfs = 25,
+  run_viper = FALSE,
+  viper_n_tfs = 10,
+  run_ppi = TRUE,
+  ppi_top_n_hubs = 10,
+  render_html = TRUE,
+  save_dir = getwd()
+)
+```
+
+**Stages (in order).** `run_qc()` → `run_distance_pca()` →
+`run_diffexp_pipeline()` → `run_gsea_pipeline()` → optional
+`run_wgcna_pipeline()` / `run_decoupler_pipeline()` / `run_viper_pipeline()` /
+`run_ppi_pipeline()` → optional `render_report()`.
+
+**Return value.** List with `dds`, `distance`, `diffexp`, `gsea`, optional
+`wgcna` / `decoupler` / `viper` / `ppi`, and `report_path`.
+
+**Helpers used by the orchestrator.** `resolve_design()`,
+`validate_comparisons()` / `expand_contrast_specs()`, `detect_organism()`,
+`log_output()`.
+
+---
+
+## Quality control: `run_qc()`
+
+**Role.** Filter genes, estimate size factors, write QC summaries / plots, and
+attach metadata for the report.
+
+```{r}
+dds_qc <- run_qc(
+  dds,
+  var = "condition",
+  filter_method = "cpm",          # "cpm" | "count" | NULL
+  cpm_percentile = 0.05,          # used when filter_method = "cpm"
+  min_count = 10,                 # used when filter_method = "count"
+  min_samples_per_group = NULL,   # NULL → size of smallest group
+  remove_mt = FALSE,
+  mt_pattern = "^MT-|^mt-",
+  remove_xy = FALSE,
+  gene_chr = NULL,                # needed if remove_xy = TRUE
+  remove_vdj = NULL,              # NULL/FALSE | TRUE/"both" | "BCR" | "TCR"
+  save_dir = getwd(),
+  save_plot = TRUE,
+  add_correlation_heatmap = FALSE,
+  correlation_transform = "vst"   # or "rlog" if heatmap enabled
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_library_size(dds, var)` | Per-sample library sizes by group |
+| `plot_count_distribution(...)` | Pre/post filter density; cutoff line |
+| `plot_sample_correlation(dds, var, transform = "vst")` | Optional Pearson heatmap |
+| `detect_organism(genes, min_fraction = 0.5)` | `"human"` / `"mouse"` from symbols |
+
+**Return value.** Filtered `DESeqDataSet`; QC metadata in
+`S4Vectors::metadata(dds_qc)$deseq2reports_qc`.
+
+---
+
+## Sample distance / PCA: `run_distance_pca()`
+
+**Role.** VST (or rlog), PCA, scree, top loadings, sample-similarity heatmap;
+optional visualization-only batch correction.
+
+```{r}
+distance_out <- run_distance_pca(
+  dds_qc,
+  var = "condition",
+  batch = NULL,
+  batch_method = "limma",     # "limma" | "combat" | "none"
+  transform = "vst",          # or "rlog"
+  pals = NULL,
+  shape_var = NULL,
+  ntop = 500,                 # most-variable genes for PCA
+  n_scree_pcs = 10,
+  n_loading_pcs = 6,
+  n_top_genes = 10,           # genes labelled per PC in loadings plot
+  save_dir = getwd(),
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_pca(pca_df, var, shape_var = NULL, pals = NULL)` | PC1 vs PC2 scatter |
+| `plot_pca_scree(..., n_scree_pcs = 10)` | % variance per PC |
+| `plot_pca_top_loadings(..., n_loading_pcs = 6, n_top_genes = 10)` | Top loading genes |
+| `plot_sample_similarity(...)` | Spearman sample×sample heatmap |
+| `compute_pca_loadings(...)` / `top_genes_per_pc(...)` | Loading tables |
+| `make_interactive(gg, tooltip = "text", square = TRUE, base_size = 550)` | plotly widget |
+
+Batch correction (when `batch` is set) is for **plots only** -- not the DE
+model. Corrected and uncorrected PCA panels are both returned.
+
+---
+
+## Differential expression: `run_diffexp_pipeline()` / `run_diffexp()`
+
+**Role.** Fit DESeq2, run contrasts, shrink LFCs, rank genes, write tables and
+MA/volcano plots.
+
+```{r}
+diffexp_out <- run_diffexp_pipeline(
+  dds_qc,
+  var = "condition",
+  comparisons = NULL,         # NULL → generate_comparisons() / expand_contrast_specs()
+  batch = NULL,               # added to design when set
+  shrinkage = "ashr",         # "ashr" | "apeglm" | "normal" | "none"
+  alpha = 0.05,
+  lfc_threshold = 0.5,
+  ranking = "pxfc",           # "pxfc" | "padj" | "log2FoldChange" | "stat"
+  gene_col = "gene",
+  top_label_n = 10,           # pipeline wrapper uses 5 when called via run_deseq2_pipeline()
+  save_dir = getwd(),
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `run_diffexp(dds, contrast, shrinkage = "ashr", ...)` | Single-contrast fit |
+| `generate_comparisons(levels)` | All pairwise + one-vs-rest labels |
+| `expand_contrast_specs(dds, var)` | Two-factor within-/interaction specs |
+| `classify_comparison_type(labels)` | `"pairwise"` vs `"one_vs_all"` |
+| `assert_full_rank_model_matrix(mm)` | Fail early on singular designs |
+| `compute_ranking_score(res, ranking = "pxfc")` | Gene ranking metric |
+| `plot_ma(res, alpha = 0.05, lfc_threshold = 0.5)` | MA plot |
+| `plot_volcano(res, alpha = 0.05, lfc_threshold = 0.5, top_label_n = 5)` | Volcano |
+| `diffexp_top_bottom_table(res, top_n = 10)` | Top up/down table helper |
+| `make_deg_datatable(res, digits = 4, page_length = 10)` | Interactive DEG table |
+
+**Significance.** `sig` requires `padj < alpha` **and**
+`|log2FoldChange| > lfc_threshold`.
+
+**Return value.** `results`, `by_comparison`, `contrast_specs`.
+
+---
+
+## Pathway enrichment (GSEA): `run_gsea_pipeline()`
+
+**Role.** Rank genes per contrast; run `fgsea` for each MSigDB collection;
+write CSVs, NES barplots, and barcode panels.
+
+```{r}
+gsea_out <- run_gsea_pipeline(
+  diffexp_out$results,
+  collections = "HALLMARK",   # pipeline default is broader (see above)
+  ranking = "pxfc",
+  gene_col = "gene",
+  min_size = 15,
+  max_size = 500,
+  top_n_plot = 10,            # pathways per NES direction in barplot/barcode
+  save_dir = getwd(),
+  save_plot = TRUE,
+  run_clusterprofiler = FALSE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `detect_organism(genes, min_fraction = 0.5)` | Species for MSigDB |
+| `import_msigdbr(org, collection)` | Named gene-set list |
+| `import_msigdbr_term2gene(org, collection)` | For clusterProfiler path |
+| `build_gsea_ranks(res, gene_col = "gene", ranking = "pxfc")` | Named rank vector |
+| `run_gsea(ranks, gene_sets, min_size = 15, max_size = 500, eps = 1e-10)` | `fgsea` wrapper |
+| `run_clusterprofiler_gsea(ranks, term2gene, min_size = 15, max_size = 500)` | Optional |
+| `plot_gsea_barplot(res, top_n = 10, signif_only = FALSE)` | NES barplot |
+| `plot_gsea_barcode_panel(res, ranks, gene_sets, top_n = 10, signif_only = FALSE)` | NES-coloured barcodes |
+| `gsea_top_bottom_table(res, top_n = 10)` | Top/bottom NES table |
+| `make_gsea_datatable(res, digits = 4, page_length = 10)` | Interactive table |
+
+**Barcode colouring.** One track per pathway; red = `NES > 0`, blue =
+`NES < 0` (not per-gene up/down).
+
+**Return value.** `results`, `by_comparison`, `ranks_by_comparison`,
+`gene_sets`, `ranking`, `org`.
+
+---
+
+## WGCNA: `run_wgcna_pipeline()`
+
+**Role.** Soft-threshold selection, signed modules, module–trait correlation,
+hub genes (kME), per-module ORA.
+
+```{r}
+wgcna_out <- run_wgcna_pipeline(
+  dds_qc,
+  var = "condition",
+  power = NULL,                             # NULL → auto-select
+  power_vector = c(1:10, seq(12, 20, 2)),
+  rsq_cutoff = 0.85,
+  network_type = "signed",
+  min_module_size = 30,
+  merge_cut_height = 0.25,
+  max_modules = 15L,                        # merge toward ≤ this many modules
+  cor_type = "pearson",
+  top_n_hub_genes = 10,
+  ora_collection = c("GOBP", "GOCC", "GOMF",
+                     "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID"),
+  top_n_ora = 10,
+  gene_col = "gene",
+  save_dir = getwd(),
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_soft_threshold(fit_indices)` | Scale-free topology / mean connectivity |
+| `plot_module_sizes(module_df)` | Genes per module |
+| `plot_module_trait_heatmap(module_trait_cor)` | Module vs trait correlation |
+| `plot_module_eigengene_heatmap(MEs)` | Sample × ME heatmap |
+| `plot_module_ora_dotplot(ora_df, top_n = 10)` | Per-module ORA dots |
+
+Modules are renamed `"Module 1"`, `"Module 2"`, … by size; WGCNA grey →
+`"Unassigned"` (excluded from ORA). HTML module-gene tables list **all**
+members by `|kME|` (top 10 rows shown by default).
+
+**Requires.** Suggests `WGCNA`, `withr`.
+
+---
+
+## TF activity (CollecTRI + ULM): `run_decoupler_pipeline()`
+
+**Role.** Sample- and contrast-level TF activities via decoupleR ULM on
+CollecTRI.
+
+```{r}
+decoupler_out <- run_decoupler_pipeline(
+  dds_qc,
+  var = "condition",
+  diffexp_out = diffexp_out,
+  n_tfs = 25,                 # TFs in contrast barplots
+  n_tfs_heatmap = 50,         # most variable TFs in sample heatmap
+  minsize = 5,                # min targets per TF for run_ulm
+  gene_col = "gene",
+  save_dir = getwd(),
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_tf_sample_heatmap(sample_acts, n_tfs = 50)` | Sample × TF heatmap |
+| `plot_tf_contrast_barplot(acts, n_tfs = 25, title = NULL)` | Contrast TF barplot |
+
+Sample scores use blind VST; contrast scores use DESeq2 Wald `stat`.
+
+**Requires.** Suggests `decoupleR`, `OmnipathR`.
+
+---
+
+## VIPER (bcellViper): `run_viper_pipeline()`
+
+**Role.** Sample-level `viper()` and contrast-level `msviper()` with the human
+B-cell regulon from `bcellViper`.
+
+```{r}
+viper_out <- run_viper_pipeline(
+  dds_qc,
+  var = "condition",
+  diffexp_out = diffexp_out,
+  n_tfs = 10,                 # master regulators in barcode plots
+  n_tfs_heatmap = 50,
+  minsize = 25,               # auto-lowered to 15 for mouse if left at default
+  gene_col = "gene",
+  save_dir = getwd(),
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_viper_sample_heatmap(sample_acts, n_tfs = 50)` | Sample × TF heatmap |
+| `emit_msviper_plot(msv, filename, mrs = 10, width = 4, height = 2.5, dpi = 150)` | HTML barcode + PDF |
+
+Mouse genes are mapped to human orthologs with `babelgene` before scoring.
+
+**Requires.** Suggests `viper`, `bcellViper`, and (mouse) `babelgene`.
+
+---
+
+## STRING PPI connectivity: `run_ppi_pipeline()`
+
+**Role.** STRING subgraphs for DE contrasts and (optionally) WGCNA modules;
+BioNERO-style communities / hubs.
+
+```{r}
+ppi_out <- run_ppi_pipeline(
+  diffexp_out = diffexp_out,
+  wgcna_out = NULL,             # or wgcna_out for module networks
+  org = NULL,                   # NULL → detect_organism()
+  top_n_hubs = 10L,
+  max_genes = Inf,              # all sig DEGs / module members as seeds
+  max_plot_nodes = 100L,        # degree cap for the plotted network
+  score_threshold = 400L,       # STRING combined score (0–1000)
+  gene_col = "gene",
+  alpha = 0.05,                 # DE direction annotation only
+  lfc_threshold = 0.5,
+  save_dir = getwd(),
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_ppi_connectivity(nodes, edges, top_n_hubs = 10L)` | Static network |
+| `make_interactive_ppi(nodes, edges = NULL, top_n_hubs = 10L)` | Hoverable plotly |
+
+**Funnel.** seeds → STRING-mapped → genes with ≥1 edge → plot may keep top
+`max_plot_nodes` by degree. Degree **tables** keep all genes with edges (HTML
+shows top 10 by default).
+
+**Requires.** Suggests `STRINGdb`, `igraph`. Embedded in DE / WGCNA pages (no
+separate nav page).
+
+---
+
+## HTML report: `render_report()`
+
+**Role.** Knit bundled Rmds into a multi-page, self-contained report tree.
+
+```{r}
+render_report(
+  dds = dds_qc,
+  var = "condition",
+  distance_out = distance_out,
+  diffexp_out = diffexp_out,
+  gsea_out = gsea_out,
+  wgcna_out = NULL,
+  decoupler_out = NULL,
+  ppi_out = NULL,
+  viper_out = NULL,
+  alpha = 0.05,
+  lfc_threshold = 0.5,
+  run_args = NULL,              # optional list shown on the index page
+  save_dir = getwd()
+)
+```
+
+**Pages.** `index.html`, `qc/qc.html`, `deseq2/deseq2.html`,
+`clusterprofiler/clusterprofiler.html`, optional `wgcna/`, `decoupler/`,
+`viper/`.
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `render_index_page(...)` / `render_qc_page(...)` / … | Single-page knitters |
+| `report_page_hrefs(from = "Index")` | Relative href map |
+| `report_nav_links(current, disabled = character(0), hrefs = NULL)` | Top nav bar |
+| `emit_code_block(..., lang = "r", caption = NULL)` | Minimal reproduce-me code |
+| `emit_plot_with_download(plot, filename, width = 7, height = 5, dpi = 150)` | Figure + PDF button |
+| `download_table_button(...)` / `download_plot_button(...)` | Offline downloads |
+| `make_interactive(...)` / `make_interactive_ppi(...)` | Interactive widgets |
+
+Each report section shows the **minimal package module call** to reproduce it.
+
+---
+
+## Cross-cutting utilities
+
+| Function | Defaults / role |
+|---|---|
+| `detect_organism(genes, min_fraction = 0.5)` | `"human"` / `"mouse"` |
+| `resolve_design(var, batch = NULL, design = NULL)` | Auto design formula |
+| `generate_comparisons(levels)` | Pairwise + one-vs-rest labels |
+| `expand_contrast_specs(dds, var)` | Contrast inventory data frame |
+| `compute_ranking_score(res, ranking = "pxfc")` | Ranking metric |
+| `build_gsea_ranks(res, gene_col = "gene", ranking = "pxfc")` | Named ranks |
+| `import_msigdbr(org, collection)` | MSigDB gene sets |
+| `save_ggplot(plot, path, width = 7, height = 5)` | PDF writer |
+| `write_output(x, path, format = "csv")` | Table writer |
+| `log_output(call, save_dir, ...)` | Run log + JSON |
+
+---
+
+## Minimal modular script
+
+```{r}
+library(deseq2reports)
+library(DESeq2)
+
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
+dds_qc <- run_qc(dds, var = "condition")                 # filter_method = "cpm"
+distance_out <- run_distance_pca(dds_qc, var = "condition")
+diffexp_out <- run_diffexp_pipeline(dds_qc, var = "condition")
+gsea_out <- run_gsea_pipeline(diffexp_out$results)       # collections = "HALLMARK"
+
+# Optional:
+# wgcna_out <- run_wgcna_pipeline(dds_qc, var = "condition")
+# decoupler_out <- run_decoupler_pipeline(dds_qc, var = "condition", diffexp_out = diffexp_out)
+# viper_out <- run_viper_pipeline(dds_qc, var = "condition", diffexp_out = diffexp_out)
+# ppi_out <- run_ppi_pipeline(diffexp_out = diffexp_out)
+
+render_report(
+  dds_qc, var = "condition",
+  distance_out = distance_out,
+  diffexp_out = diffexp_out,
+  gsea_out = gsea_out,
+  save_dir = "results"
+)
+```
+
+Or:
+
+```{r}
+out <- run_deseq2_pipeline(dds, var = "condition", save_dir = "results")
+```

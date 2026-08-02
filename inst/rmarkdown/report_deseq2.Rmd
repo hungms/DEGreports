@@ -1,5 +1,5 @@
 ---
-title: "deseq2reports Analysis Report -- Differential expression"
+title: "DESeq2Reports -- DESeq2"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -21,11 +21,13 @@ params:
   gsea_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
   package_version: NULL
-  current_page: "Differential expression"
+  current_page: "DESeq2"
   disabled_labels: !r character(0)
   page_hrefs: NULL
 ---
@@ -42,20 +44,23 @@ cat(deseq2reports::report_nav_links(
 ))
 ```
 
-## Differential expression
+## DESeq2
 
 ```{r de-methods, results='asis'}
 deseq2reports::emit_code_block(
-  caption = "Key functions used for differential expression:",
-  "DESeq2::DESeq(dds)                              # fit NB GLM + Wald tests",
-  "DESeq2::results(dds, contrast = c(\"Group\", \"A\", \"B\"))",
-  "DESeq2::lfcShrink(dds, coef = ..., type = \"ashr\")  # shrunken log2FC",
-  "DESeq2::resultsNames(dds)                       # available coefficients"
+  caption = "Reproduce differential expression with this package module:",
+  "diffexp_out <- run_diffexp_pipeline(dds_qc, var = \"condition\")"
 )
+if (!is.null(params$ppi_out)) {
+  deseq2reports::emit_code_block(
+    caption = "Reproduce PPI connectivity (embedded below per contrast) with:",
+    "ppi_out <- run_ppi_pipeline(diffexp_out = diffexp_out)"
+  )
+}
 ```
 
 ```{r de-helpers, include=FALSE}
-emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold) {
+emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold, ppi_out = NULL) {
   n_sig <- sum(res_df$sig, na.rm = TRUE)
   cat("\n\n**", n_sig, "significant genes** (padj <", alpha,
       "& |log2FC| >", lfc_threshold, ")\n\n")
@@ -78,6 +83,63 @@ emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold) {
       "sort by any column or search by gene using the box below.\n\n", sep = "")
   deg_btn <- deseq2reports::download_table_button(res_df, filename = paste0(comp, "_deg_results"))
   deseq2reports::emit_widget_with_download(deseq2reports::make_deg_datatable(res_df), deg_btn)
+
+  ppi <- if (!is.null(ppi_out) && !is.null(ppi_out$by_comparison)) {
+    ppi_out$by_comparison[[comp]]
+  } else {
+    NULL
+  }
+  if (!is.null(ppi) && !is.null(ppi$plot)) {
+    cat("\n\n##### PPI connectivity\n\n")
+    cat("\n\nSTRING protein-interaction subgraph among significant DEGs ",
+        "(falling back to top-ranked genes when fewer than two DEGs share an edge). ",
+        "BioNERO-style layout: Louvain communities, degree-sized nodes; ",
+        "**hover any node** to see its gene name. Top ",
+        length(ppi$hubs), " hubs stay labelled. ",
+        "Genes with no STRING edge to another seed gene are omitted ",
+        "(they have degree 0 in this induced network).\n\n", sep = "")
+    n_sig <- if (!is.null(ppi$n_sig)) ppi$n_sig else NA_integer_
+    n_mapped <- if (!is.null(ppi$n_mapped)) ppi$n_mapped else NA_integer_
+    cat("<p><strong>Gene filter funnel:</strong> ",
+        if (!is.na(n_sig)) paste0(n_sig, " significant DEGs → ") else "",
+        ppi$n_seed, " seeds → ",
+        if (!is.na(n_mapped)) paste0(n_mapped, " mapped to STRING → ") else "",
+        ppi$n_with_edge, " with ≥1 STRING edge among seeds",
+        if (!is.null(ppi$max_plot_nodes) && ppi$n_with_edge > ppi$n_plotted) {
+          paste0(" → top ", ppi$n_plotted, " by degree plotted (cap ",
+                 ppi$max_plot_nodes, ")")
+        } else {
+          paste0(" → ", ppi$n_plotted, " plotted")
+        },
+        ".</p>\n", sep = "")
+    ppi_btn <- deseq2reports::download_plot_button(
+      ppi$plot, filename = paste0(comp, "_ppi_connectivity"),
+      width = 6.5, height = 5.5
+    )
+    deseq2reports::emit_widget_with_download(
+      deseq2reports::make_interactive_ppi(ppi$plot),
+      ppi_btn, center = TRUE
+    )
+    hub_df <- ppi$nodes
+    if (!is.null(hub_df) && nrow(hub_df)) {
+      hub_df <- hub_df[order(-hub_df$degree, hub_df$gene), , drop = FALSE]
+      rownames(hub_df) <- NULL
+      cat("\n\n###### Genes by connectivity (degree)\n\n")
+      cat("\n\nAll ", nrow(hub_df), " genes with ≥1 STRING edge among seeds, ",
+          "ranked by degree (the plot may show a degree-capped subset). ",
+          "The table shows the top 10 by default; use the page-length control ",
+          "or search box for the full list. The ",
+          sum(hub_df$hub, na.rm = TRUE),
+          " genes labelled on the plot have <code>hub = TRUE</code>.\n\n", sep = "")
+      hub_btn <- deseq2reports::download_table_button(
+        hub_df, filename = paste0(comp, "_ppi_hubs")
+      )
+      deseq2reports::emit_widget_with_download(
+        deseq2reports::make_gsea_datatable(hub_df, page_length = 10),
+        hub_btn, center = FALSE
+      )
+    }
+  }
   cat("\n\n")
 }
 
@@ -105,7 +167,7 @@ if (length(de_pairwise) > 0) {
   for (comp in de_pairwise) {
     cat("\n\n#### ", comp, "\n\n", sep = "")
     emit_de_contrast(comp, params$diffexp_out$by_comparison[[comp]],
-                     params$alpha, params$lfc_threshold)
+                     params$alpha, params$lfc_threshold, params$ppi_out)
   }
 } else {
   cat("\n\nNo pairwise comparisons.\n\n")
@@ -116,7 +178,7 @@ if (length(de_one_vs_all) > 0) {
   for (comp in de_one_vs_all) {
     cat("\n\n#### ", comp, "\n\n", sep = "")
     emit_de_contrast(comp, params$diffexp_out$by_comparison[[comp]],
-                     params$alpha, params$lfc_threshold)
+                     params$alpha, params$lfc_threshold, params$ppi_out)
   }
 } else {
   cat("\n\nNo one-vs-all comparisons.\n\n")
@@ -135,7 +197,7 @@ for (cls in c("within_A", "within_B", "interaction")) {
     for (comp in sub$label) {
       cat("\n\n#### ", comp, "\n\n", sep = "")
       emit_de_contrast(comp, params$diffexp_out$by_comparison[[comp]],
-                       params$alpha, params$lfc_threshold)
+                       params$alpha, params$lfc_threshold, params$ppi_out)
     }
     next
   }
@@ -152,7 +214,7 @@ for (cls in c("within_A", "within_B", "interaction")) {
       for (comp in pw) {
         cat("\n\n###### ", comp, "\n\n", sep = "")
         emit_de_contrast(comp, params$diffexp_out$by_comparison[[comp]],
-                         params$alpha, params$lfc_threshold)
+                         params$alpha, params$lfc_threshold, params$ppi_out)
       }
     } else {
       cat("\n\nNo pairwise comparisons.\n\n")
@@ -163,7 +225,7 @@ for (cls in c("within_A", "within_B", "interaction")) {
       for (comp in ova) {
         cat("\n\n###### ", comp, "\n\n", sep = "")
         emit_de_contrast(comp, params$diffexp_out$by_comparison[[comp]],
-                         params$alpha, params$lfc_threshold)
+                         params$alpha, params$lfc_threshold, params$ppi_out)
       }
     }
   }

@@ -316,12 +316,14 @@ run_gsea_pipeline <- function(
 
     comparisons <- unique(diffexp_results$comparison)
     by_comparison <- list()
+    ranks_by_comparison <- list()
     by_comparison_cp <- if (run_clusterprofiler) list() else NULL
 
     for (comparison in comparisons) {
         message("Running GSEA: ", comparison, " ...")
         comp_df <- diffexp_results[diffexp_results$comparison == comparison, ]
         ranks <- build_gsea_ranks(comp_df, gene_col = gene_col, ranking = ranking)
+        ranks_by_comparison[[comparison]] <- ranks
 
         comp_dir <- file.path(save_dir, comparison, "gsea")
         by_collection <- list()
@@ -362,6 +364,24 @@ run_gsea_pipeline <- function(
                 if (is.null(sz)) sz <- list(width = 6.5, height = 5)
                 save_ggplot(p, file.path(comp_dir, paste0(coll_label, "_gsea_barplot.pdf")),
                             width = sz$width, height = sz$height)
+                p_bc <- tryCatch(
+                    plot_gsea_barcode_panel(
+                        gsea_res, ranks = ranks,
+                        gene_sets = gene_set_cache[[coll]],
+                        top_n = top_n_plot, title = comparison
+                    ),
+                    error = function(e) {
+                        warning("GSEA barcode panel failed for ", comparison, "/", coll,
+                                ": ", conditionMessage(e), call. = FALSE)
+                        NULL
+                    }
+                )
+                if (!is.null(p_bc)) {
+                    sz_bc <- attr(p_bc, "plot_size")
+                    if (is.null(sz_bc)) sz_bc <- list(width = 4.25, height = 2.25)
+                    save_ggplot(p_bc, file.path(comp_dir, paste0(coll_label, "_gsea_barcode.pdf")),
+                                width = sz_bc$width, height = sz_bc$height)
+                }
             }
 
             by_collection[[coll]] <- gsea_res
@@ -386,7 +406,14 @@ run_gsea_pipeline <- function(
     combined <- do.call(rbind, lapply(by_comparison, function(x) do.call(rbind, x)))
     rownames(combined) <- NULL
 
-    out <- list(results = combined, by_comparison = by_comparison)
+    out <- list(
+        results = combined,
+        by_comparison = by_comparison,
+        ranks_by_comparison = ranks_by_comparison,
+        gene_sets = gene_set_cache,
+        ranking = ranking,
+        org = org
+    )
     if (run_clusterprofiler) out$by_comparison_cp <- by_comparison_cp
     out
 }
@@ -402,6 +429,47 @@ padj_to_stars <- function(x) {
               ifelse(x < 0.01, "**",
               ifelse(x < 0.05, "*", ""))))
     stars
+}
+
+#' Select the same pathways shown by [plot_gsea_barplot()]
+#'
+#' Top `top_n` pathways per NES direction by `|NES|`, with cosmetic
+#' `pathway_label` (collection prefix stripped).
+#' @noRd
+.gsea_barplot_pathways <- function(gsea_res, top_n = 10, signif_only = FALSE) {
+    df <- gsea_res
+    if (!"padj" %in% colnames(df)) {
+        stop("`gsea_res` must contain a `padj` column (as returned by fgsea / run_gsea()).",
+             call. = FALSE)
+    }
+    if (signif_only) df <- df[!is.na(df$padj) & df$padj < 0.05, ]
+    if (nrow(df) == 0) {
+        stop("No pathways to plot (after signif_only filtering, if applied).", call. = FALSE)
+    }
+    df$direction <- ifelse(df$NES > 0, "up", "down")
+    df <- df[order(-abs(df$NES)), ]
+    top_df <- do.call(rbind, lapply(split(df, df$direction), function(d) {
+        d[seq_len(min(top_n, nrow(d))), ]
+    }))
+    top_df$pathway_label <- as.character(top_df$pathway)
+    if ("collection" %in% colnames(top_df)) {
+        for (coll in unique(top_df$collection)) {
+            spec <- .msigdb_collection_map[[coll]]
+            if (!is.null(spec)) {
+                rows <- top_df$collection == coll
+                top_df$pathway_label[rows] <- sub(
+                    paste0("^", spec$prefix), "", top_df$pathway_label[rows]
+                )
+            }
+        }
+    } else {
+        for (spec in .msigdb_collection_map) {
+            top_df$pathway_label <- sub(
+                paste0("^", spec$prefix), "", top_df$pathway_label
+            )
+        }
+    }
+    top_df
 }
 
 #' GSEA barplot: top and bottom enriched pathways by normalized enrichment score
@@ -434,42 +502,8 @@ padj_to_stars <- function(x) {
 #'   `width`/`height` in inches scaled to the number of pathways shown.
 #' @export
 plot_gsea_barplot <- function(gsea_res, top_n = 10, signif_only = FALSE, title = NULL) {
-    df <- gsea_res
-    if (!"padj" %in% colnames(df)) {
-        stop("`gsea_res` must contain a `padj` column (as returned by fgsea / run_gsea()).",
-             call. = FALSE)
-    }
-    if (signif_only) df <- df[!is.na(df$padj) & df$padj < 0.05, ]
-    if (nrow(df) == 0) {
-        stop("No pathways to plot (after signif_only filtering, if applied).", call. = FALSE)
-    }
-    df$direction <- ifelse(df$NES > 0, "up", "down")
-    df <- df[order(-abs(df$NES)), ]
-    top_df <- do.call(rbind, lapply(split(df, df$direction), function(d) {
-        d[seq_len(min(top_n, nrow(d))), ]
-    }))
+    top_df <- .gsea_barplot_pathways(gsea_res, top_n = top_n, signif_only = signif_only)
     top_df$pathway <- factor(top_df$pathway, levels = top_df$pathway[order(top_df$NES)])
-    # Cosmetic-only display label: strip the collection's gene-set-name
-    # prefix (e.g. "HALLMARK_", "GOBP_", "KEGG_MEDICUS_") -- the underlying
-    # `pathway` column, and any downstream table, is untouched, this only
-    # affects what's drawn on the bars. If `gsea_res$collection` is present
-    # (as attached by run_gsea_pipeline()) the exact prefix for each row's
-    # collection is looked up and stripped; otherwise every known prefix is
-    # tried (a plain sub() on each is a no-op for non-matching rows).
-    top_df$pathway_label <- as.character(top_df$pathway)
-    if ("collection" %in% colnames(top_df)) {
-        for (coll in unique(top_df$collection)) {
-            spec <- .msigdb_collection_map[[coll]]
-            if (!is.null(spec)) {
-                rows <- top_df$collection == coll
-                top_df$pathway_label[rows] <- sub(paste0("^", spec$prefix), "", top_df$pathway_label[rows])
-            }
-        }
-    } else {
-        for (spec in .msigdb_collection_map) {
-            top_df$pathway_label <- sub(paste0("^", spec$prefix), "", top_df$pathway_label)
-        }
-    }
     top_df$stars <- padj_to_stars(top_df$padj)
     nes_limit <- max(abs(top_df$NES), na.rm = TRUE)
 
@@ -527,6 +561,156 @@ plot_gsea_barplot <- function(gsea_res, top_n = 10, signif_only = FALSE, title =
         ggplot2::labs(fill = "NES", title = title)
 
     attr(p, "plot_size") <- .gsea_barplot_size(nrow(top_df))
+    p
+}
+
+#' GSEA gene-set barcode panel
+#'
+#' For the same pathways shown by [plot_gsea_barplot()], draws a multi-row
+#' enrichment barcode: pathway names on the left, member-gene positions
+#' along the ranked list in the middle (one track per pathway; red =
+#' `NES > 0`, blue = `NES < 0`), and `padj` + `NES` on the right.
+#'
+#' @param gsea_res A data frame as returned by [run_gsea()].
+#' @param ranks Named numeric gene ranking vector (e.g. from
+#'   [build_gsea_ranks()]), decreasing order preferred but not required.
+#' @param gene_sets Named list of character gene-symbol vectors (e.g. from
+#'   [import_msigdbr()]).
+#' @param top_n Pathways per NES direction, matching the barplot. Default
+#'   `10`.
+#' @param signif_only Passed through to pathway selection. Default `FALSE`.
+#' @param title Optional title.
+#' @return A `ggplot` object with `attr(,"plot_size")` width/height inches.
+#' @export
+plot_gsea_barcode_panel <- function(gsea_res, ranks, gene_sets,
+                                    top_n = 10, signif_only = FALSE,
+                                    title = NULL) {
+    if (is.null(ranks) || !length(ranks) || is.null(names(ranks))) {
+        stop("`ranks` must be a named numeric vector.", call. = FALSE)
+    }
+    if (is.null(gene_sets) || !length(gene_sets)) {
+        stop("`gene_sets` must be a named list of gene sets.", call. = FALSE)
+    }
+    top_df <- .gsea_barplot_pathways(gsea_res, top_n = top_n, signif_only = signif_only)
+    # High NES at top of panel.
+    top_df <- top_df[order(-top_df$NES, top_df$pathway), , drop = FALSE]
+    top_df$pathway_label <- factor(top_df$pathway_label, levels = rev(unique(top_df$pathway_label)))
+    top_df$nes_dir <- ifelse(top_df$NES >= 0, "pos", "neg")
+
+    ranks <- sort(ranks, decreasing = TRUE)
+    n_rank <- length(ranks)
+    rank_pos <- stats::setNames(seq_along(ranks), names(ranks))
+
+    tick_list <- lapply(seq_len(nrow(top_df)), function(i) {
+        pw <- as.character(top_df$pathway[i])
+        lab <- as.character(top_df$pathway_label[i])
+        members <- intersect(gene_sets[[pw]], names(ranks))
+        if (!length(members)) return(NULL)
+        data.frame(
+            pathway_label = lab,
+            gene = members,
+            x = as.numeric(rank_pos[members]),
+            nes_dir = top_df$nes_dir[i],
+            stringsAsFactors = FALSE
+        )
+    })
+    ticks <- do.call(rbind, tick_list)
+    if (is.null(ticks) || !nrow(ticks)) {
+        stop("No pathway member genes overlap the ranked list for barcode plotting.",
+             call. = FALSE)
+    }
+    ticks$pathway_label <- factor(ticks$pathway_label, levels = levels(top_df$pathway_label))
+    ticks$nes_dir <- factor(ticks$nes_dir, levels = c("pos", "neg"))
+    # Single track per pathway row; colour by pathway NES sign.
+    ticks$y <- as.numeric(ticks$pathway_label)
+    ticks$ymin <- ticks$y - 0.35
+    ticks$ymax <- ticks$y + 0.35
+
+    meta <- top_df
+    meta$y <- as.numeric(meta$pathway_label)
+    meta$padj_lab <- ifelse(
+        is.na(meta$padj), "NA",
+        formatC(meta$padj, format = "e", digits = 2)
+    )
+    meta$nes_lab <- formatC(meta$NES, format = "f", digits = 2)
+
+    x_padj <- n_rank * 1.18
+    x_nes <- n_rank * 1.32
+    x_max <- n_rank * 1.42
+
+    p <- ggplot2::ggplot() +
+        ggplot2::geom_rect(
+            data = meta,
+            ggplot2::aes(xmin = 0.5, xmax = n_rank + 0.5,
+                         ymin = .data$y - 0.45, ymax = .data$y + 0.45),
+            fill = NA, colour = "grey40", linewidth = 0.3
+        ) +
+        ggplot2::geom_segment(
+            data = ticks,
+            ggplot2::aes(x = .data$x, xend = .data$x,
+                         y = .data$ymin, yend = .data$ymax,
+                         colour = .data$nes_dir),
+            linewidth = 0.35, alpha = 0.9
+        ) +
+        ggplot2::geom_text(
+            data = meta,
+            ggplot2::aes(x = 0, y = .data$y, label = .data$pathway_label),
+            hjust = 1, size = 2.8, colour = "grey15"
+        ) +
+        ggplot2::geom_text(
+            data = meta,
+            ggplot2::aes(x = x_padj, y = .data$y, label = .data$padj_lab),
+            hjust = 0, size = 2.6, colour = "grey20"
+        ) +
+        ggplot2::geom_text(
+            data = meta,
+            ggplot2::aes(x = x_nes, y = .data$y, label = .data$nes_lab),
+            hjust = 0, size = 2.6, colour = "grey20"
+        ) +
+        ggplot2::annotate(
+            "text", x = 0, y = max(meta$y) + 0.85, label = "Pathway",
+            hjust = 1, size = 3.2, fontface = "bold"
+        ) +
+        ggplot2::annotate(
+            "text", x = x_padj, y = max(meta$y) + 0.85, label = "padj",
+            hjust = 0, size = 3.2, fontface = "bold"
+        ) +
+        ggplot2::annotate(
+            "text", x = x_nes, y = max(meta$y) + 0.85, label = "NES",
+            hjust = 0, size = 3.2, fontface = "bold"
+        ) +
+        ggplot2::scale_colour_manual(
+            values = c(pos = "#B2182B", neg = "#2166AC"),
+            labels = c(pos = "NES > 0", neg = "NES < 0"),
+            name = NULL,
+            drop = FALSE
+        ) +
+        ggplot2::scale_x_continuous(
+            limits = c(-n_rank * 0.42, x_max),
+            expand = c(0, 0)
+        ) +
+        ggplot2::scale_y_continuous(
+            limits = c(0.4, max(meta$y) + 1.2),
+            expand = c(0, 0)
+        ) +
+        ggplot2::coord_cartesian(clip = "off") +
+        ggplot2::theme_void(base_size = 11) +
+        ggplot2::theme(
+            legend.position = "bottom",
+            plot.title = ggplot2::element_text(face = "bold", hjust = 0.5),
+            plot.margin = ggplot2::margin(8, 12, 8, 80)
+        ) +
+        ggplot2::labs(
+            title = title,
+            subtitle = "Gene enrichment barcode (red = NES > 0 / blue = NES < 0)"
+        )
+
+    n_pw <- nrow(meta)
+    # Display / PDF size: half of the previous barcode footprint.
+    attr(p, "plot_size") <- list(
+        width = 4.25,
+        height = max(1.31, 0.1575 * n_pw + 0.525)
+    )
     p
 }
 

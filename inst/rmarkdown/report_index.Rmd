@@ -1,5 +1,5 @@
 ---
-title: "deseq2reports Analysis Report"
+title: "DESeq2Reports"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -19,6 +19,8 @@ params:
   gsea_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
@@ -44,12 +46,12 @@ cat(deseq2reports::report_nav_links(
 
 ```{r index-methods, results='asis'}
 deseq2reports::emit_code_block(
-  caption = "Key entry point for this multi-page report:",
-  "deseq2reports::run_deseq2_pipeline(",
+  caption = "Reproduce this report with the package entry point:",
+  "library(deseq2reports)",
+  "out <- run_deseq2_pipeline(",
   "  dds, var = \"condition\",",
-  "  filter_method = \"cpm\", shrinkage = \"ashr\",",
-  "  collections = c(\"HALLMARK\", \"GOBP\", \"REACTOME\"),",
-  "  run_wgcna = TRUE, run_decoupler = TRUE",
+  "  run_wgcna = TRUE, run_decoupler = TRUE, run_viper = TRUE,",
+  "  run_ppi = TRUE, save_dir = \"results\"",
   ")"
 )
 ```
@@ -120,21 +122,36 @@ if (is.null(hrefs)) hrefs <- deseq2reports::report_page_hrefs(params$current_pag
 cat("\n\nThis report is split across the following linked pages (each module's HTML ",
     "lives in its own folder; every page is fully self-contained and viewable offline):\n\n", sep = "")
 cat("\n\n- [**QC**](", hrefs[["QC"]], ") -- library QC, PCA, and sample-similarity heatmap\n", sep = "")
-cat("- [**Differential expression**](", hrefs[["Differential expression"]],
-    ") -- per-comparison MA plot, volcano plot, and DEG table\n", sep = "")
-cat("- [**Pathway enrichment**](", hrefs[["Pathway enrichment"]],
-    ") -- per-comparison, per-collection GSEA barplot and results table\n", sep = "")
+cat("- [**DESeq2**](", hrefs[["DESeq2"]],
+    ") -- per-comparison MA plot, volcano plot, DEG table",
+    if (!is.null(params$ppi_out)) ", and PPI connectivity" else "",
+    "\n", sep = "")
+cat("- [**clusterProfiler**](", hrefs[["clusterProfiler"]],
+    ") -- per-comparison, per-collection GSEA barplot, gene-enrichment barcode, and results table\n",
+    sep = "")
 if (!is.null(params$wgcna_out)) {
   cat("- [**WGCNA**](", hrefs[["WGCNA"]],
-      ") -- co-expression modules, module-trait/eigengene heatmaps, per-module pathway enrichment\n", sep = "")
+      ") -- co-expression modules, module-trait/eigengene heatmaps, per-module pathway enrichment",
+      if (!is.null(params$ppi_out) && length(params$ppi_out$by_module)) {
+        ", and module PPI connectivity"
+      } else {
+        ""
+      },
+      "\n", sep = "")
 } else {
   cat("- WGCNA -- not run for this report (`wgcna_out = NULL`)\n")
 }
 if (!is.null(params$decoupler_out)) {
-  cat("- [**TF activity**](", hrefs[["TF activity"]],
+  cat("- [**decoupleR**](", hrefs[["decoupleR"]],
       ") -- CollecTRI network + ULM transcription-factor activities\n", sep = "")
 } else {
-  cat("- TF activity -- not run for this report (`decoupler_out = NULL`)\n")
+  cat("- decoupleR -- not run for this report (`decoupler_out = NULL`)\n")
+}
+if (!is.null(params$viper_out)) {
+  cat("- [**VIPER**](", hrefs[["VIPER"]],
+      ") -- bcellViper regulon + VIPER / msVIPER protein-activity inference\n", sep = "")
+} else {
+  cat("- VIPER -- not run for this report (`viper_out = NULL`)\n")
 }
 cat("\n\n")
 ```

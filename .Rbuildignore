@@ -9,3 +9,5 @@
 ^demo_run$
 ^demo_run_outputs.*$
 ^\.r-libs$
+^doc$
+^Meta$
