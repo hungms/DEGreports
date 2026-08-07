@@ -4,12 +4,17 @@
 .Ruserdata
 *.tar.gz
 example_run/
+example_run_*/
 .DS_Store
 .Renviron
 .r-libs/
 omnipathr-log/
 Rplots.pdf
 *.Rcheck/
+inst/rmarkdown/*.knit.md
+inst/rmarkdown/*.utf8.md
+inst/lib/
+inst/rmarkdown/lib/
 
 # Accidental test working-directory spill under tests/testthat/
 tests/testthat/pca_*

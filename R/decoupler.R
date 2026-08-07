@@ -22,6 +22,10 @@
 #' @param minsize Minimum number of targets per TF (passed to
 #'   `decoupleR::run_ulm`). Default `5`.
 #' @param gene_col Gene-id column name in diffexp tables. Default `"gene"`.
+#' @param collectri_file Optional path to a local CollecTRI CSV with columns
+#'   `source`, `target`, `mor`. Default `NULL` looks under `example_data/`
+#'   (`collectri_human.csv` / `collectri_mouse.csv`) then downloads via
+#'   OmniPath if needed.
 #' @param save_dir Output directory. Default `getwd()`.
 #' @param save_plot Logical; write PDFs alongside CSVs. Default `TRUE`.
 #' @return A list with `net`, `sample_acts`, `contrast_acts` (named list),
@@ -35,16 +39,13 @@ run_decoupler_pipeline <- function(
     n_tfs_heatmap = 50,
     minsize = 5,
     gene_col = "gene",
+    collectri_file = NULL,
     save_dir = getwd(),
     save_plot = TRUE) {
 
     if (!requireNamespace("decoupleR", quietly = TRUE)) {
         stop("Package \"decoupleR\" is required for TF activity analysis. ",
              "Install with BiocManager::install(\"decoupleR\").", call. = FALSE)
-    }
-    if (!requireNamespace("OmnipathR", quietly = TRUE)) {
-        stop("Package \"OmnipathR\" is required to download CollecTRI. ",
-             "Install with BiocManager::install(\"OmnipathR\").", call. = FALSE)
     }
 
     dds <- validate_dds(dds)
@@ -60,7 +61,7 @@ run_decoupler_pipeline <- function(
 
     org <- detect_organism(rownames(dds))
     message("Fetching CollecTRI network for organism=\"", org, "\" ...")
-    net <- .get_collectri_network(org)
+    net <- .get_collectri_network(org, file = collectri_file)
     write_output(net, file.path(save_dir, "collectri_network.csv"))
 
     message("Running sample-level ULM on VST expression ...")
@@ -112,15 +113,14 @@ run_decoupler_pipeline <- function(
         ))
         acts$comparison <- comp
         contrast_acts[[comp]] <- acts
-        write_output(acts, file.path(save_dir, paste0("ulm_contrast_",
-                                                       gsub("[^A-Za-z0-9]+", "_", comp),
-                                                       ".csv")))
+        # Per-comparison subfolder keyed by the raw contrast label (same
+        # names as deseq2/<label>/).
+        comp_dir <- file.path(save_dir, comp)
+        write_output(acts, file.path(comp_dir, "ulm_contrast.csv"))
         bp <- plot_tf_contrast_barplot(acts, n_tfs = n_tfs, title = comp)
         contrast_barplots[[comp]] <- bp
         if (save_plot && !is.null(bp)) {
-            save_ggplot(bp, file.path(save_dir, paste0("ulm_contrast_",
-                                                       gsub("[^A-Za-z0-9]+", "_", comp),
-                                                       "_barplot.pdf")),
+            save_ggplot(bp, file.path(comp_dir, "ulm_contrast_barplot.pdf"),
                         width = 4, height = 2.25)
         }
     }
@@ -137,28 +137,82 @@ run_decoupler_pipeline <- function(
     )
 }
 
-#' Fetch CollecTRI as source/target/mor, with OmniPath REST fallback
-#'
-#' Tries [decoupleR::get_collectri()] first; if OmniPathR's client fails
-#' (common with the static-table backup path), downloads CollecTRI from
-#' the OmniPath HTTP API and builds the same three-column network.
+#' Resolve a local CollecTRI CSV (example_data / extdata)
 #' @noRd
-.get_collectri_network <- function(organism = c("human", "mouse")) {
+.collectri_default_path <- function(organism = c("human", "mouse")) {
     organism <- match.arg(organism)
-    net <- tryCatch(
-        as.data.frame(decoupleR::get_collectri(
-            organism = organism, split_complexes = FALSE
-        )),
-        error = function(e) {
-            message("decoupleR::get_collectri() failed (", conditionMessage(e),
-                    "); falling back to OmniPath REST API ...")
-            NULL
+    fname <- paste0("collectri_", organism, ".csv")
+    pkg_path <- tryCatch(find.package("deseq2reports"), error = function(e) "")
+    for (cand in c(
+        system.file("extdata", fname, package = "deseq2reports"),
+        file.path(pkg_path, "extdata", fname),
+        file.path(pkg_path, "inst", "extdata", fname),
+        file.path(pkg_path, "example_data", fname),
+        file.path("inst", "extdata", fname),
+        file.path("example_data", fname)
+    )) {
+        if (nzchar(cand) && file.exists(cand)) {
+            return(normalizePath(cand, mustWork = TRUE))
         }
-    )
-    if (!is.null(net) && all(c("source", "target", "mor") %in% colnames(net))) {
-        net <- net[, c("source", "target", "mor"), drop = FALSE]
-        net <- unique(net)
-        return(net)
+    }
+    NULL
+}
+
+#' Read a local CollecTRI CSV (source/target/mor)
+#' @noRd
+.read_collectri_file <- function(file) {
+    file <- normalizePath(file, mustWork = TRUE)
+    net <- utils::read.csv(file, stringsAsFactors = FALSE, check.names = FALSE)
+    need <- c("source", "target", "mor")
+    if (!all(need %in% colnames(net))) {
+        stop("CollecTRI file must have columns source, target, mor: ", file,
+             call. = FALSE)
+    }
+    net <- net[, need, drop = FALSE]
+    net$mor <- as.numeric(net$mor)
+    net <- net[!is.na(net$mor) & nzchar(net$source) & nzchar(net$target), ,
+               drop = FALSE]
+    unique(net)
+}
+
+#' Fetch CollecTRI as source/target/mor, with local + OmniPath fallbacks
+#'
+#' Order: explicit `file` → bundled/example_data CSV →
+#' [decoupleR::get_collectri()] → OmniPath REST API.
+#' @noRd
+.get_collectri_network <- function(organism = c("human", "mouse"),
+                                   file = NULL) {
+    organism <- match.arg(organism)
+
+    if (!is.null(file)) {
+        message("Loading CollecTRI from ", file, " ...")
+        return(.read_collectri_file(file))
+    }
+    local <- .collectri_default_path(organism)
+    if (!is.null(local)) {
+        message("Loading local CollecTRI from ", local, " ...")
+        return(.read_collectri_file(local))
+    }
+
+    if (!requireNamespace("OmnipathR", quietly = TRUE)) {
+        message("Package \"OmnipathR\" not installed; skipping ",
+                "decoupleR::get_collectri() and using OmniPath REST ...")
+    } else {
+        net <- tryCatch(
+            as.data.frame(decoupleR::get_collectri(
+                organism = organism, split_complexes = FALSE
+            )),
+            error = function(e) {
+                message("decoupleR::get_collectri() failed (",
+                        conditionMessage(e),
+                        "); falling back to OmniPath REST API ...")
+                NULL
+            }
+        )
+        if (!is.null(net) && all(c("source", "target", "mor") %in% colnames(net))) {
+            net <- net[, c("source", "target", "mor"), drop = FALSE]
+            return(unique(net))
+        }
     }
 
     tax <- if (identical(organism, "mouse")) 10090L else 9606L

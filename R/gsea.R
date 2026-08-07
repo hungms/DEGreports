@@ -269,7 +269,7 @@ run_gsea <- function(ranks, gene_sets, min_size = 15, max_size = 500, eps = 1e-1
 run_gsea_pipeline <- function(
     diffexp_results,
     collections = "HALLMARK",
-    ranking = "pxfc",
+    ranking = "log2FoldChange",
     gene_col = "gene",
     min_size = 15,
     max_size = 500,

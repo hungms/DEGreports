@@ -9,6 +9,7 @@ run_wgcna_pipeline(
   var,
   power = NULL,
   power_vector = c(1:10, seq(12, 20, 2)),
+  power_cap = 15,
   rsq_cutoff = 0.85,
   network_type = "signed",
   min_module_size = 30,
@@ -33,8 +34,13 @@ group of interest; module eigengenes are correlated against this.}
 \item{power}{Soft-thresholding power. Default \code{NULL} auto-selects via
 \code{pick_wgcna_power()}.}
 
-\item{power_vector}{Candidate powers evaluated when \code{power = NULL}.
-Default \code{c(1:10, seq(12, 20, 2))}.}
+\item{power_vector}{Candidate powers evaluated (and shown on the
+soft-threshold diagnostic plot) when \code{power = NULL}. Default
+\code{c(1:10, seq(12, 20, 2))}.}
+
+\item{power_cap}{Maximum power allowed for the \emph{selected} network power
+when auto-selecting. Default \code{15}. Higher powers in \code{power_vector}
+are still plotted for diagnostics.}
 
 \item{rsq_cutoff}{Minimum scale-free-topology fit accepted when
 auto-selecting \code{power}. Default \code{0.85}.}
@@ -86,7 +92,9 @@ barplot per module to \code{save_dir}.}
 }
 \value{
 A list with elements: \code{power} (the power used), \code{power_source}
-(\code{"user"}, \code{"estimated"}, or \code{"fallback_best_fit"}), \code{fit_indices}
+(\code{"user"}, \code{"estimated"}, \code{"estimated_capped"}, or
+\code{"fallback_best_fit"}), \code{power_cap} (selection cap; default \code{15}),
+\code{fit_indices}
 (the soft-threshold candidate table), \code{module_df} (data frame: gene,
 module color, module label), \code{MEs} (module eigengene data frame, one
 row per sample), \code{module_trait_cor} (data frame: module, correlation

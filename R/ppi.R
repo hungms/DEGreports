@@ -163,7 +163,7 @@
 #'   share an edge.
 #' @noRd
 .build_ppi_subgraph <- function(genes, net, top_n_hubs = 10L,
-                                max_plot_nodes = 80L) {
+                                max_plot_nodes = 50L) {
     genes <- unique(as.character(genes))
     genes <- genes[!is.na(genes) & nzchar(genes)]
     n_seed <- length(genes)
@@ -650,7 +650,7 @@ make_interactive_ppi <- function(nodes, edges = NULL, title = NULL,
 #'   integer to cap by `rank_score` / `|kME|`.
 #' @param max_plot_nodes Maximum nodes drawn per plot. When more genes have
 #'   STRING edges among the seed set, the highest-degree genes are kept.
-#'   Default `100`.
+#'   Default `50`.
 #' @param score_threshold Minimum STRING combined score (0--1000). Default
 #'   `400`.
 #' @param gene_col Gene-id column name. Default `"gene"`.
@@ -667,7 +667,7 @@ run_ppi_pipeline <- function(
     org = NULL,
     top_n_hubs = 10L,
     max_genes = Inf,
-    max_plot_nodes = 100L,
+    max_plot_nodes = 50L,
     score_threshold = 400L,
     gene_col = "gene",
     alpha = 0.05,
@@ -727,7 +727,24 @@ run_ppi_pipeline <- function(
         cache_dir = cache_dir
     )
 
-    safe_tag <- function(x) gsub("[^A-Za-z0-9]+", "_", x)
+    # Contrast folders use the raw deseq2 contrast label; module folders
+    # sanitize names that contain spaces (e.g. "Module 1" -> "Module_1").
+    safe_mod_dir <- function(x) gsub("[^A-Za-z0-9]+", "_", x)
+    .write_ppi_outputs <- function(out, out_dir, save_plot) {
+        write_output(out$nodes, file.path(out_dir, "ppi_nodes.csv"))
+        write_output(out$edges, file.path(out_dir, "ppi_edges.csv"))
+        # Full degree-ranked node table (same as the HTML hub table / CSV button).
+        hubs_out <- out$nodes[order(-out$nodes$degree, out$nodes$gene), , drop = FALSE]
+        write_output(hubs_out, file.path(out_dir, "ppi_hubs.csv"))
+        if (save_plot) {
+            save_ggplot(out$plot, file.path(out_dir, "ppi_connectivity.pdf"),
+                        width = 6.5, height = 5.5)
+            .save_string_native_plot(
+                string_db, out$mapping,
+                file.path(out_dir, "stringdb_network.png")
+            )
+        }
+    }
 
     by_comparison <- list()
     message("Building STRING PPI plots for ", length(by_comp),
@@ -759,20 +776,7 @@ run_ppi_pipeline <- function(
                 " -> with edges=", out$n_with_edge,
                 " -> plotted=", out$n_plotted)
         by_comparison[[comp]] <- out
-        tag <- safe_tag(comp)
-        write_output(out$nodes, file.path(save_dir, paste0(tag, "_ppi_nodes.csv")))
-        write_output(out$edges, file.path(save_dir, paste0(tag, "_ppi_edges.csv")))
-        # Full degree-ranked node table (same as the HTML hub table / CSV button).
-        hubs_out <- out$nodes[order(-out$nodes$degree, out$nodes$gene), , drop = FALSE]
-        write_output(hubs_out, file.path(save_dir, paste0(tag, "_ppi_hubs.csv")))
-        if (save_plot) {
-            save_ggplot(out$plot, file.path(save_dir, paste0(tag, "_ppi_connectivity.pdf")),
-                        width = 6.5, height = 5.5)
-            .save_string_native_plot(
-                string_db, out$mapping,
-                file.path(save_dir, paste0(tag, "_stringdb_network.png"))
-            )
-        }
+        .write_ppi_outputs(out, file.path(save_dir, comp), save_plot)
     }
 
     by_module <- list()
@@ -800,19 +804,7 @@ run_ppi_pipeline <- function(
                 next
             }
             by_module[[mod]] <- out
-            tag <- safe_tag(mod)
-            write_output(out$nodes, file.path(save_dir, paste0(tag, "_ppi_nodes.csv")))
-            write_output(out$edges, file.path(save_dir, paste0(tag, "_ppi_edges.csv")))
-            hubs_out <- out$nodes[order(-out$nodes$degree, out$nodes$gene), , drop = FALSE]
-            write_output(hubs_out, file.path(save_dir, paste0(tag, "_ppi_hubs.csv")))
-            if (save_plot) {
-                save_ggplot(out$plot, file.path(save_dir, paste0(tag, "_ppi_connectivity.pdf")),
-                            width = 6.5, height = 5.5)
-                .save_string_native_plot(
-                    string_db, out$mapping,
-                    file.path(save_dir, paste0(tag, "_stringdb_network.png"))
-                )
-            }
+            .write_ppi_outputs(out, file.path(save_dir, safe_mod_dir(mod)), save_plot)
         }
     }
 

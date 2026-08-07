@@ -5,9 +5,13 @@
 ^data-raw$
 ^\.Rprofile$
 ^\.DS_Store$
-^example_run$
+^example_run
+^example_data$
+^run_gse.*\.R$
 ^demo_run$
 ^demo_run_outputs.*$
 ^\.r-libs$
 ^doc$
 ^Meta$
+^inst/lib$
+^inst/rmarkdown/lib$

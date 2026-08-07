@@ -289,11 +289,14 @@ run_viper_pipeline <- function(
         acts <- .msviper_to_df(msv, comparison = comp)
         contrast_acts[[comp]] <- acts
         contrast_msviper[[comp]] <- msv
-        safe <- gsub("[^A-Za-z0-9]+", "_", comp)
-        write_output(acts, file.path(save_dir, paste0("msviper_contrast_", safe, ".csv")))
+        # Per-comparison subfolder keyed by the raw contrast label (same
+        # names as deseq2/<label>/).
+        comp_dir <- file.path(save_dir, comp)
+        write_output(acts, file.path(comp_dir, "msviper_contrast.csv"))
 
         if (save_plot) {
-            pdf_path <- file.path(save_dir, paste0("msviper_contrast_", safe, "_barcode.pdf"))
+            pdf_path <- file.path(comp_dir, "msviper_contrast_barcode.pdf")
+            dir.create(comp_dir, recursive = TRUE, showWarnings = FALSE)
             # Half the previous barcode footprint (was 8 x max(4, 0.35*n+1.5)).
             grDevices::pdf(pdf_path, width = 4, height = max(2, 0.175 * n_tfs + 0.75))
             tryCatch(

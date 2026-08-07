@@ -34,20 +34,27 @@ log_output <- function(call, save_dir, expr, params = list(), envir = parent.fra
     writeLines(paste0("Call: ", paste(deparse(call), collapse = " ")), con)
     writeLines("", con)
 
-    captured <- character(0)
+    # Stream messages/warnings into the log as they arrive (so a crash still
+    # leaves a useful trail), and also echo them to the console.
+    write_log_line <- function(line) {
+        writeLines(line, con)
+        flush(con)
+    }
     result <- withCallingHandlers(
         eval(expr, envir = envir),
         message = function(m) {
-            captured <<- c(captured, paste0("[message] ", conditionMessage(m)))
+            write_log_line(paste0("[message] ", conditionMessage(m)))
+            # Echo to stderr without re-entering this handler via message().
+            cat(conditionMessage(m), "\n", file = stderr(), sep = "")
             invokeRestart("muffleMessage")
         },
         warning = function(w) {
-            captured <<- c(captured, paste0("[warning] ", conditionMessage(w)))
+            write_log_line(paste0("[warning] ", conditionMessage(w)))
+            cat("[warning] ", conditionMessage(w), "\n", file = stderr(), sep = "")
             invokeRestart("muffleWarning")
         }
     )
 
-    writeLines(captured, con)
     writeLines("", con)
     writeLines("--- sessionInfo() ---", con)
     writeLines(utils::capture.output(utils::sessionInfo()), con)

@@ -7,7 +7,7 @@ output:
     toc_float: true
     theme: flatly
     df_print: paged
-    self_contained: true
+    self_contained: false
     mathjax: null
 params:
   var: NULL
@@ -19,10 +19,15 @@ params:
   distance_out: NULL
   diffexp_out: NULL
   gsea_out: NULL
+  gsea_overlap_out: NULL
+  multihit_out: NULL
+  degpatterns_out: NULL
+  cluster_ora_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
   ppi_out: NULL
   viper_out: NULL
+  cspa_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
@@ -56,7 +61,13 @@ if (!is.null(params$wgcna_out)) {
 
 ```{r wgcna-power-heading, results='asis', eval=!is.null(params$wgcna_out)}
 cat("\n\n### Soft-thresholding power\n\n")
-cat("\n\nSelected power: **", params$wgcna_out$power, "** (", params$wgcna_out$power_source, ").\n\n", sep = "")
+cap <- params$wgcna_out$power_cap
+if (is.null(cap) || !is.finite(cap)) cap <- 15
+cat("\n\nSelected power: **", params$wgcna_out$power, "** (",
+    params$wgcna_out$power_source, "). ",
+    "Selection is capped at **", cap,
+    "**; the diagnostic plot still shows candidate powers through 20.\n\n",
+    sep = "")
 ```
 ```{r wgcna-power-plot, results='asis', eval=!is.null(params$wgcna_out)}
 deseq2reports::emit_plot_with_download(params$wgcna_out$soft_threshold_plot, filename = "wgcna_soft_threshold", width = 5.25, height = 3)
@@ -70,7 +81,7 @@ cat("\n\n### Module sizes\n\n")
 size_content <- deseq2reports::capture_plot_tag(params$wgcna_out$module_size_plot, width = 5.25, height = 3.5, alt = "wgcna_module_sizes")
 size_buttons <- list(
   deseq2reports::download_plot_button(params$wgcna_out$module_size_plot, filename = "wgcna_module_sizes", width = 5.25, height = 3.5),
-  deseq2reports::download_table_button(params$wgcna_out$module_df, filename = "wgcna_modules")
+  deseq2reports::link_output_file("wgcna_modules.csv", label = "Download modules CSV")
 )
 deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(size_content, size_buttons))
 ```
@@ -83,7 +94,7 @@ cat("\n\n### Module-trait relationships\n\n")
 trait_content <- deseq2reports::capture_plot_tag(params$wgcna_out$module_trait_heatmap, width = 3.94, height = 4.2, alt = "wgcna_module_trait_heatmap")
 trait_buttons <- list(
   deseq2reports::download_plot_button(params$wgcna_out$module_trait_heatmap, filename = "wgcna_module_trait_heatmap", width = 3.94, height = 4.2),
-  deseq2reports::download_table_button(params$wgcna_out$module_trait_cor, filename = "wgcna_module_trait_correlation")
+  deseq2reports::link_output_file("wgcna_module_trait_correlation.csv", label = "Download trait correlation CSV")
 )
 deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(trait_content, trait_buttons))
 ```
@@ -119,17 +130,17 @@ me_content <- htmltools::plotTag({
    ))
 me_buttons <- list(
   deseq2reports::download_grid_plot_button(params$wgcna_out$module_eigengene_heatmap, filename = "wgcna_module_eigengene_heatmap", width = me_w, height = me_h),
-  deseq2reports::download_table_button(params$wgcna_out$MEs, filename = "wgcna_module_eigengenes")
+  deseq2reports::link_output_file("wgcna_module_eigengenes.csv", label = "Download eigengenes CSV")
 )
 deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(me_content, me_buttons))
 ```
 
 ```{r wgcna-modules-split, include=FALSE}
 wgcna_collections <- if (!is.null(params$wgcna_out)) names(params$wgcna_out$ora_by_module) else character(0)
-# Cap modules shown in the self-contained HTML: embedding a DT + plot for
-# every module x collection blows pandoc's memory when WGCNA finds dozens
-# of modules. Full per-module CSVs/PDFs remain on disk. Pipeline-side
-# max_modules (default 15) already tries to merge down to an optimal count.
+# Cap modules shown in the HTML: embedding a DT + plot for every module x
+# collection blows memory when WGCNA finds dozens of modules. Full
+# per-module CSVs/PDFs remain on disk. Pipeline-side max_modules
+# (default 15) already tries to merge down to an optimal count.
 max_modules_html <- 15L
 safe_file_tag <- function(x) gsub("[^A-Za-z0-9]+", "_", x)
 wgcna_hub_modules <- character(0)
@@ -196,16 +207,23 @@ for (i in seq_along(wgcna_hub_modules)) {
 
   if (nrow(mod_df) > 0) {
     cat("<p>All <strong>", nrow(mod_df),
-        "</strong> module genes sorted by |kME|; table shows the top 10 by ",
-        "default (use page length / search for the rest).</p>\n", sep = "")
-    dt <- deseq2reports::make_gsea_datatable(mod_df, page_length = 10)
+        "</strong> module genes sorted by |kME|; table shows the top 50 ",
+        "(full membership via the CSV link).</p>\n", sep = "")
+    mod_show <- utils::head(mod_df, 50L)
+    dt <- deseq2reports::make_gsea_datatable(mod_show, page_length = 10)
     dt$x$options$scrollY <- "360px"
     dt$x$options$scrollCollapse <- TRUE
     dt$sizingPolicy$filler <- FALSE
-    btn <- deseq2reports::download_table_button(
-      mod_df, filename = paste0(safe_file_tag(mod), "_module_genes")
+    btn <- deseq2reports::link_output_file(
+      file.path(safe_file_tag(mod), "hub_genes.csv"),
+      label = "Download hub genes CSV"
     )
-    deseq2reports::emit_widget_with_download(dt, btn, center = FALSE)
+    # Full module membership is in wgcna_modules.csv (filtered by reader).
+    btn2 <- deseq2reports::link_output_file(
+      "wgcna_modules.csv",
+      label = "Download all modules CSV"
+    )
+    deseq2reports::emit_widget_with_download(dt, list(btn, btn2), center = FALSE)
   } else {
     cat("<p>No genes for this module.</p>\n")
   }
@@ -220,19 +238,15 @@ cat("<script>$(document).on('shown.bs.tab', 'a[data-toggle=\"tab\"]', function (
 wgcna_ppi_modules <- character(0)
 if (!is.null(params$ppi_out) && !is.null(params$ppi_out$by_module) &&
     length(params$ppi_out$by_module) > 0) {
-  # Prefer the same largest-module ordering used for hub/ORA tabs.
+  # Only real WGCNA modules (never LRT degPatterns cluster keys that may
+  # also live in ppi_out$by_module under run_deseq2_lrt()).
   ppi_names <- names(params$ppi_out$by_module)
   if (length(wgcna_hub_modules)) {
     wgcna_ppi_modules <- intersect(wgcna_hub_modules, ppi_names)
-    # Append any remaining modules that have PPI results but were not in the
-    # HTML hub-module cap (still within max_modules_html).
-    extra <- setdiff(ppi_names, wgcna_ppi_modules)
-    if (length(wgcna_ppi_modules) < max_modules_html && length(extra)) {
-      n_add <- min(length(extra), max_modules_html - length(wgcna_ppi_modules))
-      wgcna_ppi_modules <- c(wgcna_ppi_modules, extra[seq_len(n_add)])
-    }
-  } else {
-    wgcna_ppi_modules <- utils::head(ppi_names, max_modules_html)
+  } else if (!is.null(params$wgcna_out$module_df)) {
+    real_mods <- setdiff(unique(as.character(params$wgcna_out$module_df$module)),
+                         "Unassigned")
+    wgcna_ppi_modules <- utils::head(intersect(real_mods, ppi_names), max_modules_html)
   }
 }
 ```
@@ -271,13 +285,11 @@ for (i in seq_along(wgcna_ppi_modules)) {
           paste0(" → ", ppi$n_plotted, " plotted")
         },
         ". Top ", length(ppi$hubs), " hubs labelled.</p>\n", sep = "")
-    ppi_btn <- deseq2reports::download_plot_button(
-      ppi$plot, filename = paste0(safe_file_tag(mod), "_ppi_connectivity"),
+    # Static embed (interactive PPI x many modules blows HTML memory).
+    deseq2reports::emit_plot_with_download(
+      ppi$plot,
+      filename = paste0(safe_file_tag(mod), "_ppi_connectivity"),
       width = 6.5, height = 5.5
-    )
-    deseq2reports::emit_widget_with_download(
-      deseq2reports::make_interactive_ppi(ppi$plot),
-      ppi_btn, center = TRUE
     )
     hub_df <- ppi$nodes
     if (!is.null(hub_df) && nrow(hub_df)) {
@@ -286,18 +298,20 @@ for (i in seq_along(wgcna_ppi_modules)) {
       cat("<p><strong>Genes by connectivity (degree).</strong> ",
           "All ", nrow(hub_df), " module genes with ≥1 STRING edge among ",
           "members, ranked by degree (plot may show a degree-capped subset). ",
-          "Top 10 shown by default; ", sum(hub_df$hub, na.rm = TRUE),
+          "Top 50 shown in the table; ", sum(hub_df$hub, na.rm = TRUE),
           " plot-labelled hubs have <code>hub = TRUE</code>.</p>\n", sep = "")
-      hub_btn <- deseq2reports::download_table_button(
-        hub_df, filename = paste0(safe_file_tag(mod), "_ppi_hubs")
+      hub_show <- utils::head(hub_df, 50L)
+      hub_btn <- deseq2reports::link_output_file(
+        file.path("..", "ppi", safe_file_tag(mod), "ppi_hubs.csv"),
+        label = "Download full hubs CSV"
       )
       deseq2reports::emit_widget_with_download(
-        deseq2reports::make_gsea_datatable(hub_df, page_length = 10),
+        deseq2reports::make_gsea_datatable(hub_show, page_length = 10),
         hub_btn, center = FALSE
       )
     }
   } else {
-    cat("<p>No OmniPath edges among genes in this module.</p>\n")
+    cat("<p>No STRING edges among genes in this module.</p>\n")
   }
   deseq2reports::bs_tab_pane_end()
 }
@@ -352,11 +366,13 @@ for (mi in seq_along(wgcna_ora_modules)) {
       )
     }
     if (!is.null(ora_df) && nrow(ora_df) > 0) {
-      ora_btn <- deseq2reports::download_table_button(
-        ora_df, filename = paste(safe_file_tag(mod), coll, "ora_results", sep = "_")
+      ora_show <- utils::head(ora_df[order(ora_df$padj), , drop = FALSE], 50L)
+      ora_btn <- deseq2reports::link_output_file(
+        file.path(safe_file_tag(mod), paste0("ora_", coll, ".csv")),
+        label = "Download full ORA CSV"
       )
       deseq2reports::emit_widget_with_download(
-        deseq2reports::make_gsea_datatable(ora_df), ora_btn, center = FALSE
+        deseq2reports::make_gsea_datatable(ora_show), ora_btn, center = FALSE
       )
     } else {
       cat("<p>No significantly enriched ", coll, " gene sets for this module.</p>\n", sep = "")

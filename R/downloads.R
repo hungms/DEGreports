@@ -1,11 +1,46 @@
+#' Link to an on-disk output file from a folder-bundled HTML report
+#'
+#' Emits a plain relative `<a href="...">` styled like the download
+#' buttons, for CSVs/PDFs the pipeline already wrote beside the HTML
+#' (e.g. `deseq2/<label>/<label>_diffexp.csv`). Prefer this over
+#' [download_table_button()] for genome-scale tables so the HTML does
+#' not embed a second full copy of the data.
+#'
+#' @param path Relative path from the HTML page directory to the file
+#'   (e.g. `"WT__CC_vs_CB/WT__CC_vs_CB_diffexp.csv"`).
+#' @param label Link text. Default `"Download CSV"`.
+#' @return An `htmltools` tag suitable for [emit_widget()] /
+#'   [emit_widget_with_download()].
+#' @examples
+#' \dontrun{
+#' link_output_file("IgA_vs_IgM/IgA_vs_IgM_diffexp.csv")
+#' }
+#' @export
+link_output_file <- function(path, label = "Download CSV") {
+    if (!requireNamespace("htmltools", quietly = TRUE)) {
+        stop("Package \"htmltools\" is required for file links.", call. = FALSE)
+    }
+    path <- as.character(path)[1]
+    if (is.na(path) || !nzchar(path)) {
+        stop("`path` must be a non-empty character string.", call. = FALSE)
+    }
+    htmltools::tags$a(
+        href = path,
+        class = "btn btn-default btn-sm",
+        download = basename(path),
+        style = "margin: 0 0 0.4em 0;",
+        htmltools::tags$i(class = "fa fa-download", style = "margin-right: 0.35em;"),
+        label
+    )
+}
+
 #' Create a download button for a data frame (CSV)
 #'
-#' Thin wrapper around `downloadthis::download_this()` that renders a
-#' small self-contained "Download CSV" button, for embedding next to any
-#' table shown in the bundled HTML report (or in any Rmd of your own).
-#' The button embeds the data directly (`self_contained = TRUE`) so it
-#' works in the fully offline, single-file HTML report this package
-#' produces -- no server or external file is involved.
+#' Thin wrapper around `downloadthis::download_this()` that embeds a
+#' data frame as a self-contained "Download CSV" button. Prefer
+#' [link_output_file()] for large tables that already exist on disk in
+#' the results folder; use this helper for small / ad-hoc frames that
+#' are not written as separate CSVs.
 #'
 #' @param df A data frame (or an object coercible to one) to offer as a
 #'   CSV download.
@@ -204,8 +239,9 @@ capture_plot_tag <- function(drawable, width = 7, height = 5, dpi = 150, pixelra
 #' @param content The figure or table to display (an `htmltools` tag,
 #'   `plotly` widget, `DT::datatable`, or similar).
 #' @param button One button tag (from [download_table_button()],
-#'   [download_plot_button()], or [download_grid_plot_button()]), or a
-#'   list of several, to place in the row above the figure/table.
+#'   [download_plot_button()], [download_grid_plot_button()], or
+#'   [link_output_file()]), or a list of several, to place in the row
+#'   above the figure/table.
 #' @param center If `TRUE` (the default), the figure/table content is
 #'   centered on the page. Download buttons are always right-aligned to
 #'   the full content width (not just the figure's shrink-wrapped edge).

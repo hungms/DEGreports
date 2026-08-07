@@ -17,9 +17,7 @@ run_qc(
   gene_chr = NULL,
   remove_vdj = NULL,
   save_dir = getwd(),
-  save_plot = TRUE,
-  add_correlation_heatmap = FALSE,
-  correlation_transform = "vst"
+  save_plot = TRUE
 )
 }
 \arguments{
@@ -67,19 +65,9 @@ human (HGNC) and mouse (MGI) against \code{rownames(dds)}.}
 
 \item{save_dir}{Directory to write outputs to. Default \code{getwd()}.}
 
-\item{save_plot}{Logical. If \code{TRUE}, saves the library-size boxplot,
-the count-distribution diagnostic plot, and the sample-correlation
-heatmap as PDFs in \code{save_dir}. Default \code{TRUE}.}
-
-\item{add_correlation_heatmap}{Logical. If \code{TRUE}, also computes a
-Pearson sample-correlation heatmap (see \code{\link[=plot_sample_correlation]{plot_sample_correlation()}})
-on the QC-filtered data and attaches it to the returned metadata /
-writes it under \code{save_dir}. Default \code{FALSE} -- the HTML report shows
-the Spearman sample-similarity heatmap from \code{\link[=run_distance_pca]{run_distance_pca()}}
-instead, so this Pearson plot is optional offline output only.}
-
-\item{correlation_transform}{Transform used for the correlation heatmap
-when \code{add_correlation_heatmap = TRUE}: \code{"vst"} (default) or \code{"rlog"}.}
+\item{save_plot}{Logical. If \code{TRUE}, saves the library-size boxplot and
+the count-distribution diagnostic plot as PDFs in \code{save_dir}. Default
+\code{TRUE}.}
 }
 \value{
 The filtered \code{DESeqDataSet} object. The number/percent of genes

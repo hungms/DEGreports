@@ -7,6 +7,7 @@ test_that("report_page_hrefs() returns nested relative paths from Index and sibl
     expect_equal(from_index[["QC"]], "qc/qc.html")
     expect_equal(from_index[["DESeq2"]], "deseq2/deseq2.html")
     expect_equal(from_index[["clusterProfiler"]], "clusterprofiler/clusterprofiler.html")
+    expect_false("GSEA overlap" %in% names(from_index))
     expect_equal(from_index[["WGCNA"]], "wgcna/wgcna.html")
     expect_equal(from_index[["decoupleR"]], "decoupler/decoupler.html")
     expect_equal(from_index[["VIPER"]], "viper/viper.html")
@@ -96,11 +97,12 @@ test_that("render_report() writes cross-linked, self-contained HTML files in per
     wgcna_html <- paste(readLines(paths[["wgcna"]]), collapse = "\n")
     expect_false(grepl("<pre><code>", wgcna_html, fixed = TRUE))
 
-    # Regression: `self_contained: true` alone does not stop pandoc from
-    # injecting a remote MathJax <script src="https://mathjax.rstudio.com/...">
-    # into every page; a network-restricted viewer can then block
-    # navigation/rendering. None of these reports use LaTeX math, so
-    # `mathjax: null` in each template's YAML header must keep this out.
+    # Regression: even with folder-bundled (`self_contained = FALSE`) HTML,
+    # pandoc can still inject a remote MathJax
+    # <script src="https://mathjax.rstudio.com/..."> into every page; a
+    # network-restricted viewer can then block navigation/rendering. None
+    # of these reports use LaTeX math, so `mathjax: null` in each
+    # template's YAML header must keep this out.
     for (html_txt in list(index_html, qc_html, diffexp_html, wgcna_html)) {
         expect_false(grepl("mathjax.rstudio.com", html_txt, fixed = TRUE))
     }

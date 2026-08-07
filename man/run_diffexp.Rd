@@ -11,7 +11,7 @@ run_diffexp(
   shrinkage = "ashr",
   alpha = 0.05,
   lfc_threshold = 0.5,
-  ranking = "pxfc",
+  ranking = "log2FoldChange",
   gene_col = "gene"
 )
 }
@@ -37,7 +37,7 @@ independent filtering / \code{results()} call. Default \code{0.05}.}
 itself. Default \code{0}.}
 
 \item{ranking}{Ranking metric added as a \code{rank_score} column, via
-\code{\link[=compute_ranking_score]{compute_ranking_score()}}. Default \code{"pxfc"}.}
+\code{\link[=compute_ranking_score]{compute_ranking_score()}}. Default \code{"log2FoldChange"}.}
 
 \item{gene_col}{Name to give the gene-identifier column in the output
 (row names of \code{dds} are used as the values). Default \code{"gene"}.}

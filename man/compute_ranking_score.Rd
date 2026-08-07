@@ -4,7 +4,7 @@
 \alias{compute_ranking_score}
 \title{Compute a gene ranking score from a DESeq2 results data frame}
 \usage{
-compute_ranking_score(res_df, ranking = "pxfc")
+compute_ranking_score(res_df, ranking = "log2FoldChange")
 }
 \arguments{
 \item{res_df}{A data frame with columns \code{log2FoldChange}, \code{pvalue},

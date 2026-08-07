@@ -19,20 +19,36 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE, purl = FALS
 DESeq2. You can run **everything in one call**, or call **each stage on its
 own** and assemble the HTML report at the end.
 
-Modules cover quality control, sample distance/PCA, differential expression,
-GSEA, optional WGCNA, CollecTRI/ULM TF activity, VIPER (bcellViper), STRING
-PPI connectivity, and a multi-page self-contained HTML report.
+Two one-command entry points:
 
-For a detailed, code-focused explanation of what each module does (inputs,
-outputs, and key arguments), see the companion vignette
-**[Module reference](deseq2reports-modules.html)**
-(`vignette("deseq2reports-modules", package = "deseq2reports")`).
+| Function | When to use |
+|---|---|
+| `run_deseq2_wald()` | Standard group contrasts (pairwise / one-vs-rest / two-factor) |
+| `run_deseq2_lrt()` | Time-course / ordered trajectory (LRT + degPatterns clusters) |
+
+(`run_deseq2_pipeline()` remains as a **deprecated alias** of `run_deseq2_wald()`.)
+
+Modules cover quality control, sample distance/PCA, differential expression,
+GSEA (Wald) or cluster ORA (LRT), optional WGCNA, CollecTRI/ULM TF activity,
+VIPER (bcellViper), STRING PPI, CSPA surface markers, cross-analysis gene
+hits, and a multi-page HTML report.
+
+Companion vignettes:
+
+- **[Module reference](deseq2reports-modules.html)** —
+  `vignette("deseq2reports-modules", package = "deseq2reports")`
+- **[Analysis flow](deseq2reports-analysis-flow.html)** —
+  `vignette("deseq2reports-analysis-flow", package = "deseq2reports")`
 
 Organism (human/mouse) is auto-detected from gene symbols via
 `detect_organism()` -- there is no `org` argument. Row names should be
-standard HGNC/MGI symbols (not Ensembl/Entrez IDs).
+standard HGNC/MGI symbols (not Ensembl/Entrez IDs). Use
+`summarize_genes_dds()` / `load_nfcore()` when you start from transcript- or
+Ensembl-level counts.
 
-## One-command pipeline
+## Loading a DESeqDataSet
+
+From a count matrix:
 
 ```{r}
 library(deseq2reports)
@@ -41,21 +57,43 @@ library(DESeq2)
 dds <- DESeqDataSetFromMatrix(
   countData = counts,
   colData = coldata,
-  design = ~condition
+  design = ~ condition
 )
+```
 
-out <- run_deseq2_pipeline(
+From an **nf-core/rnaseq** `.RData` + `tx2gene` TSV (collapses features that
+share a gene symbol):
+
+```{r}
+dds <- load_nfcore(
+  rdata = "salmon.merged.gene_counts.RData",
+  tx2gene = "tx2gene.tsv"
+)
+```
+
+Or attach symbols yourself and collapse:
+
+```{r}
+rowData(dds)$gene <- gene_symbols
+dds <- summarize_genes_dds(dds, gene_sym_col = "gene")
+```
+
+## One-command Wald pipeline
+
+```{r}
+out <- run_deseq2_wald(
   dds = dds,
   var = "condition",
   filter_method = "cpm",
   cpm_percentile = 0.05,
   shrinkage = "ashr",
-  ranking = "pxfc",
+  ranking = "log2FoldChange",
   collections = c("HALLMARK", "GOBP", "REACTOME"),
   run_wgcna = TRUE,
   run_decoupler = TRUE,
   run_viper = TRUE,
   run_ppi = TRUE,
+  run_cspa = TRUE,
   render_html = TRUE,
   save_dir = "results"
 )
@@ -67,57 +105,62 @@ Under `results/` this writes per-module folders plus `index.html`:
 |---|---|
 | `qc/` | Filtering summaries, library QC plots, `qc.html` |
 | `distance/` | PCA / similarity artifacts (shown on the QC page) |
-| `deseq2/` | Per-contrast DE tables & plots, `deseq2.html` (+ PPI when enabled) |
-| `clusterprofiler/` | Per-contrast GSEA, `clusterprofiler.html` |
+| `deseq2/` (+ `deseq2/cspa/`) | Per-contrast DE tables & plots, CSPA, `deseq2.html` |
+| `clusterprofiler/` | Per-contrast GSEA (+ overlap), `clusterprofiler.html` |
 | `wgcna/` | Modules, ORA, `wgcna.html` (if `run_wgcna = TRUE`) |
 | `decoupler/` | CollecTRI/ULM, `decoupler.html` (if `run_decoupler = TRUE`) |
 | `viper/` | bcellViper/VIPER, `viper.html` (if `run_viper = TRUE`) |
-| `ppi/` | STRING PPI CSVs/PDFs (embedded in DE/WGCNA pages when `run_ppi = TRUE`) |
+| `ppi/` | STRING PPI CSVs/PDFs (embedded in DE/WGCNA pages) |
+| `multihit/` | Cross-analysis top genes (shown on the index page) |
 | `logs/` | Timestamped run log + JSON session record |
 
-`out` is a list with `dds`, `distance`, `diffexp`, `gsea`, optional
-`wgcna` / `decoupler` / `viper` / `ppi`, and `report_path` (named HTML paths).
+Local CollecTRI priors under `example_data/collectri_{human,mouse}.csv` are
+used automatically when present (no OmniPath download required).
 
-## Modular usage
+## One-command LRT pipeline
 
-Each stage is a standalone function with the same arguments the pipeline uses.
-Typical workflow:
+For ordered time / trajectory designs, use `run_deseq2_lrt()`:
 
 ```{r}
-library(deseq2reports)
-library(DESeq2)
-
-dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
-
-# 1. QC / filtering
-dds_qc <- run_qc(
-  dds, var = "condition",
-  filter_method = "cpm", cpm_percentile = 0.05,
-  save_dir = "results/qc"
+out <- run_deseq2_lrt(
+  dds = dds,
+  var = "genotype",       # or NULL for time-only
+  time = "day",
+  include_interactions = TRUE,
+  run_wgcna = TRUE,
+  run_decoupler = TRUE,
+  run_viper = TRUE,
+  run_ppi = TRUE,
+  run_cspa = TRUE,        # top 10 CSPA genes per degPatterns cluster
+  save_dir = "results_lrt"
 )
+```
 
-# 2. Sample similarity / PCA
-distance_out <- run_distance_pca(
-  dds_qc, var = "condition",
-  save_dir = "results/distance"
-)
+LRT mode fits nested full/reduced models, clusters significant genes with
+**degPatterns**, runs **ORA** (not ranked GSEA) per cluster, scores TFs per
+cluster, and shows per-cluster multihit tables on the index page.
 
-# 3. Differential expression (all pairwise + one-vs-rest by default)
-diffexp_out <- run_diffexp_pipeline(
-  dds_qc, var = "condition",
-  shrinkage = "ashr", ranking = "pxfc",
-  save_dir = "results/deseq2"
-)
+## Modular usage (Wald)
 
-# 4. GSEA
+Each stage is a standalone function with the same arguments the pipeline uses:
+
+```{r}
+dds_qc <- run_qc(dds, var = "condition", filter_method = "cpm",
+                 save_dir = "results/qc")
+distance_out <- run_distance_pca(dds_qc, var = "condition",
+                                 save_dir = "results/distance")
+diffexp_out <- run_diffexp_pipeline(dds_qc, var = "condition",
+                                    shrinkage = "ashr",
+                                    ranking = "log2FoldChange",
+                                    save_dir = "results/deseq2")
 gsea_out <- run_gsea_pipeline(
   diffexp_out$results,
   collections = c("HALLMARK", "GOBP", "REACTOME"),
-  ranking = "pxfc",
+  ranking = "log2FoldChange",
   save_dir = "results/clusterprofiler"
 )
 
-# 5. Optional modules
+# Optional modules …
 wgcna_out <- run_wgcna_pipeline(dds_qc, var = "condition", save_dir = "results/wgcna")
 decoupler_out <- run_decoupler_pipeline(
   dds_qc, var = "condition", diffexp_out = diffexp_out,
@@ -131,55 +174,61 @@ ppi_out <- run_ppi_pipeline(
   diffexp_out = diffexp_out, wgcna_out = wgcna_out,
   save_dir = "results/ppi"
 )
+cspa_out <- run_cspa_marker_pipeline(
+  dds_qc, diffexp_out = diffexp_out, save_dir = "results/deseq2/cspa"
+)
+multihit_out <- run_multihit_pipeline(
+  diffexp_out, gsea_out = gsea_out,
+  viper_out = viper_out, decoupler_out = decoupler_out,
+  cspa_out = cspa_out, save_dir = "results/multihit"
+)
 
-# 6. HTML report
 render_report(
-  dds = dds_qc,
-  var = "condition",
-  distance_out = distance_out,
-  diffexp_out = diffexp_out,
-  gsea_out = gsea_out,
-  wgcna_out = wgcna_out,
-  decoupler_out = decoupler_out,
-  viper_out = viper_out,
-  ppi_out = ppi_out,
+  dds = dds_qc, var = "condition",
+  distance_out = distance_out, diffexp_out = diffexp_out,
+  gsea_out = gsea_out, multihit_out = multihit_out,
+  wgcna_out = wgcna_out, decoupler_out = decoupler_out,
+  viper_out = viper_out, ppi_out = ppi_out, cspa_out = cspa_out,
   save_dir = "results"
 )
 ```
 
-You can stop after any stage, inspect CSVs/PDFs, tweak arguments, and continue.
-Omit optional outputs (`wgcna_out = NULL`, etc.) and those report pages are
-greyed out in the navigation bar rather than removed.
-
 ## Two-factor designs
 
-Pass two grouping columns to build interaction contrasts automatically:
+Pass two grouping columns for within-factor contrasts (additive design by
+default). Set `include_interactions = TRUE` to use `~ A * B` and expand
+interaction contrasts:
 
 ```{r}
-out <- run_deseq2_pipeline(
+out <- run_deseq2_wald(
   dds,
   var = c("Tissue", "Isotype"),
+  include_interactions = TRUE,
   save_dir = "results_2factor"
 )
 ```
 
-Or set `design = ~ Tissue * Isotype` (and optional `batch`) yourself via
-`design` / `resolve_design()`.
+## Example runners
+
+In the package source tree:
+
+```bash
+Rscript --vanilla run_gse189410_wald.R    # single-factor isotype (Wald)
+Rscript --vanilla run_gse224465_wald.R    # genotype × celltype (Wald)
+Rscript --vanilla run_gse189410_lrt.R     # isotype as time axis (LRT)
+```
 
 ## Reading the HTML report
 
-Open `results/index.html`. Every section page is self-contained
-(`self_contained = TRUE`) with relative cross-links, so the folder tree can be
-copied offline. Each report section shows the **minimal package call** needed
-to reproduce that module's results.
+Open `results/index.html` from the results folder (share the whole tree,
+including `lib/` and per-module CSVs). Pages use `self_contained = FALSE`
+with relative cross-links and on-disk CSV links. Each report section shows
+the **minimal package call** needed to reproduce that module's results.
 
 ## Next reading
 
 ```{r}
+vignette("deseq2reports-analysis-flow", package = "deseq2reports")
 vignette("deseq2reports-modules", package = "deseq2reports")
 browseVignettes("deseq2reports")
 ```
-
-The modules vignette walks through QC, distance/PCA, DE, GSEA, WGCNA, TF
-activity, VIPER, PPI, and report rendering in detail -- what each function
-expects, what it returns, and which arguments matter most.

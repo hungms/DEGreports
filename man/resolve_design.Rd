@@ -4,7 +4,7 @@
 \alias{resolve_design}
 \title{Resolve the DESeq2 design formula from \code{var} / \code{batch} (or an override)}
 \usage{
-resolve_design(var, batch = NULL, design = NULL)
+resolve_design(var, batch = NULL, design = NULL, include_interactions = FALSE)
 }
 \arguments{
 \item{var}{Character vector of length 1 or 2 naming grouping columns in
@@ -14,13 +14,19 @@ resolve_design(var, batch = NULL, design = NULL)
 
 \item{design}{Optional design formula / character string override, or
 \code{NULL} (default) to auto-build from \code{var} / \code{batch}.}
+
+\item{include_interactions}{Logical. When \code{var} has length 2 and
+\code{design} is \code{NULL}, use \code{A * B} if \code{TRUE} and additive \code{A + B} if
+\code{FALSE} (default). Ignored for single-factor \code{var} or when \code{design}
+is supplied.}
 }
 \value{
 A \code{formula}.
 }
 \description{
 Everyday use passes only \code{var} (length 1 or 2) and optional \code{batch};
-\code{design = NULL} then expands to \code{~ var}, \code{~ batch + var}, \code{~ A * B}, or
-\code{~ batch + A * B} as appropriate. An explicit \code{design} is validated and
-returned unchanged.
+\code{design = NULL} then expands to \code{~ var}, \code{~ batch + var}, and for two
+factors either \code{~ A + B} / \code{~ batch + A + B} (additive; default) or
+\code{~ A * B} / \code{~ batch + A * B} when \code{include_interactions = TRUE}. An
+explicit \code{design} is validated and returned unchanged.
 }

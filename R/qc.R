@@ -92,17 +92,9 @@
 #'   Matches immunoglobulin / T-cell receptor gene-symbol conventions for
 #'   human (HGNC) and mouse (MGI) against `rownames(dds)`.
 #' @param save_dir Directory to write outputs to. Default `getwd()`.
-#' @param save_plot Logical. If `TRUE`, saves the library-size boxplot,
-#'   the count-distribution diagnostic plot, and the sample-correlation
-#'   heatmap as PDFs in `save_dir`. Default `TRUE`.
-#' @param add_correlation_heatmap Logical. If `TRUE`, also computes a
-#'   Pearson sample-correlation heatmap (see [plot_sample_correlation()])
-#'   on the QC-filtered data and attaches it to the returned metadata /
-#'   writes it under `save_dir`. Default `FALSE` -- the HTML report shows
-#'   the Spearman sample-similarity heatmap from [run_distance_pca()]
-#'   instead, so this Pearson plot is optional offline output only.
-#' @param correlation_transform Transform used for the correlation heatmap
-#'   when `add_correlation_heatmap = TRUE`: `"vst"` (default) or `"rlog"`.
+#' @param save_plot Logical. If `TRUE`, saves the library-size boxplot and
+#'   the count-distribution diagnostic plot as PDFs in `save_dir`. Default
+#'   `TRUE`.
 #' @return The filtered `DESeqDataSet` object. The number/percent of genes
 #'   removed at each step, the count-distribution and library-size plots,
 #'   and the filtering parameters used are attached as
@@ -130,9 +122,7 @@ run_qc <- function(
     gene_chr = NULL,
     remove_vdj = NULL,
     save_dir = getwd(),
-    save_plot = TRUE,
-    add_correlation_heatmap = FALSE,
-    correlation_transform = "vst") {
+    save_plot = TRUE) {
 
     dds <- validate_dds(dds)
     dds <- validate_var(dds, var)
@@ -144,7 +134,6 @@ run_qc <- function(
     validate_logical(remove_xy, "remove_xy")
     vdj_kinds <- validate_remove_vdj(remove_vdj)
     validate_logical(save_plot, "save_plot")
-    validate_logical(add_correlation_heatmap, "add_correlation_heatmap")
     save_dir <- validate_save_dir(save_dir)
 
     if (!is.null(filter_method) && filter_method == "cpm") {
@@ -299,13 +288,6 @@ run_qc <- function(
                     width = 3, height = 2.5)
     }
 
-    correlation_plot <- NULL
-    if (add_correlation_heatmap) {
-        correlation_plot <- plot_sample_correlation(
-            dds, var = var, transform = correlation_transform,
-            save_dir = save_dir, save_plot = save_plot)
-    }
-
     # Attach everything render_report() needs to build a QC section, so the
     # report doesn't need to recompute (or be separately passed) QC detail.
     qc_meta <- list(
@@ -319,11 +301,6 @@ run_qc <- function(
         count_dist_plot = count_dist_plot,
         library_size_plot = p
     )
-    # Only attach when requested -- unused by the HTML report (Spearman
-    # similarity comes from run_distance_pca), and pheatmap objects are large.
-    if (!is.null(correlation_plot)) {
-        qc_meta$correlation_plot <- correlation_plot
-    }
     S4Vectors::metadata(dds)$deseq2reports_qc <- qc_meta
 
     dds
@@ -406,95 +383,4 @@ plot_library_size <- function(dds) {
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1)) +
         ggplot2::xlab(NULL) +
         ggplot2::ylab("VST expression")
-}
-
-#' Plot a sample-to-sample Pearson correlation heatmap
-#'
-#' A QC diagnostic complementary to [plot_sample_similarity()]: pairwise
-#' Pearson correlation of samples in VST/rlog expression space, rendered as
-#' a square heatmap (darker/more saturated = more similar, i.e. higher
-#' correlation) with hierarchical clustering on `1 - correlation` as the
-#' distance metric. Intended to be run during QC (before/independently of
-#' [run_distance_pca()]) as a quick sample-similarity/outlier check.
-#'
-#' @param dds A `DESeqDataSet` object.
-#' @param var Column name in `colData(dds)` used to annotate rows by group.
-#' @param transform One of `"vst"` (default) or `"rlog"` -- the
-#'   variance-stabilizing transform used to compute correlations.
-#' @param save_dir Directory to write outputs to. Default `getwd()`.
-#' @param save_plot Logical. If `TRUE`, saves the heatmap as PDF and the
-#'   correlation matrix as CSV in `save_dir`. Default `TRUE`.
-#' @return A `pheatmap` grob (invisibly printable/savable object), with
-#'   the underlying correlation matrix attached as `attr(., "cor_matrix")`.
-#' @examples
-#' \dontrun{
-#' plot_sample_correlation(dds, var = "condition")
-#' }
-#' @export
-plot_sample_correlation <- function(dds, var, transform = "vst", save_dir = getwd(), save_plot = TRUE) {
-    dds <- validate_dds(dds)
-    dds <- validate_var(dds, var)
-    if (!transform %in% c("vst", "rlog")) {
-        stop("`transform` must be \"vst\" or \"rlog\".", call. = FALSE)
-    }
-    validate_logical(save_plot, "save_plot")
-    save_dir <- validate_save_dir(save_dir)
-
-    vsd <- if (transform == "vst") safe_vst(dds, blind = TRUE) else DESeq2::rlog(dds, blind = TRUE)
-    mat <- SummarizedExperiment::assay(vsd)
-
-    cor_mat <- stats::cor(mat, method = "pearson")
-    cor_dist <- stats::as.dist(1 - cor_mat)
-    # On pathologically small/degenerate data (e.g. too few genes, or a
-    # sample with ~zero variance after transformation), the correlation
-    # matrix -- and therefore the clustering distance -- can contain NAs,
-    # which makes hclust() error out. Fall back to no clustering in that
-    # case rather than failing the whole QC step over a cosmetic ordering.
-    can_cluster <- !anyNA(cor_dist)
-
-    annotation <- data.frame(group = SummarizedExperiment::colData(dds)[[var]])
-    rownames(annotation) <- colnames(dds)
-
-    colours <- grDevices::colorRampPalette(c("#2166AC", "#F7F7F7", "#B2182B"))(100)
-    # Fix the colour-scale breaks to [0, 1] rather than letting pheatmap
-    # derive them from the data range: on pathologically small/degenerate
-    # data every pairwise correlation can come out identical (e.g. exactly
-    # 1), which makes pheatmap's data-driven breaks non-unique and errors
-    # out in cut(). A fixed range is always valid. [0, 1] (rather than the
-    # full [-1, 1] correlation range) is used because same-experiment
-    # sample-to-sample Pearson correlations in VST/rlog space are in
-    # practice always positive, so the wider negative half of the scale
-    # would otherwise sit unused and compress the visually-relevant range.
-    breaks <- seq(0, 1, length.out = length(colours) + 1)
-    # Fixed, equal cellwidth/cellheight so the data-matrix panel (excluding
-    # row/column labels and dendrograms) renders with aspect ratio 1 -- see
-    # pheatmap_cell_size().
-    cell_size <- pheatmap_cell_size(ncol(cor_mat))
-
-    p <- pheatmap::pheatmap(
-        cor_mat,
-        cluster_rows = can_cluster,
-        cluster_cols = can_cluster,
-        clustering_distance_rows = if (can_cluster) cor_dist else NA,
-        clustering_distance_cols = if (can_cluster) cor_dist else NA,
-        annotation_row = annotation,
-        color = colours,
-        breaks = breaks,
-        display_numbers = TRUE,
-        number_format = "%.2f",
-        cellwidth = cell_size,
-        cellheight = cell_size,
-        silent = TRUE
-    )
-    attr(p, "cor_matrix") <- cor_mat
-
-    if (save_plot) {
-        save_pheatmap(p, file.path(save_dir, "qc_sample_correlation_heatmap.pdf"))
-        cor_df <- as.data.frame(cor_mat)
-        cor_df$sample <- rownames(cor_df)
-        cor_df <- cor_df[, c("sample", setdiff(colnames(cor_df), "sample"))]
-        write_output(cor_df, file.path(save_dir, "qc_sample_correlation_matrix.csv"), format = "csv")
-    }
-
-    p
 }

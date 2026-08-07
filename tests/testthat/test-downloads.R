@@ -1,9 +1,23 @@
-# Tests for the download-button helpers (download_table_button,
-# download_plot_button, download_grid_plot_button), all thin wrappers
-# around downloadthis:: that must self-contain their payload so the
-# bundled HTML report works fully offline as a single file.
+# Tests for the download / link helpers (download_table_button,
+# download_plot_button, download_grid_plot_button, link_output_file).
+# Embedded downloadthis buttons remain available for small ad-hoc tables;
+# large pipeline outputs should prefer link_output_file() to on-disk CSVs.
 
 skip_if_not_installed("downloadthis")
+skip_if_not_installed("htmltools")
+
+test_that("link_output_file emits a relative href download link", {
+    tag <- link_output_file("IgA_vs_IgM/IgA_vs_IgM_diffexp.csv", label = "Download full CSV")
+    expect_true(inherits(tag, "shiny.tag"))
+    html_txt <- as.character(htmltools::as.tags(tag))
+    expect_true(grepl("Download full CSV", html_txt))
+    expect_true(grepl('href="IgA_vs_IgM/IgA_vs_IgM_diffexp.csv"', html_txt))
+    expect_false(grepl("base64", html_txt))
+})
+
+test_that("link_output_file rejects empty paths", {
+    expect_error(link_output_file(""), "non-empty")
+})
 
 test_that("download_table_button wraps a data frame as a self-contained CSV download button", {
     df <- data.frame(gene = c("TP53", "BRCA1"), log2FoldChange = c(1.5, -2.1))
@@ -119,10 +133,12 @@ test_that("wrap_with_corner_button centers static content by default but spans f
     btn <- download_table_button(data.frame(x = 1), filename = "data")
     centered <- wrap_with_corner_button(content, btn, center = TRUE)
     full_width <- wrap_with_corner_button(content, btn, center = FALSE)
-    expect_true(grepl("text-align: center", as.character(htmltools::as.tags(centered))))
-    expect_true(grepl("display: inline-block", as.character(htmltools::as.tags(centered))))
-    expect_false(grepl("text-align: center", as.character(htmltools::as.tags(full_width))))
-    expect_true(grepl("width: 100%", as.character(htmltools::as.tags(full_width))))
+    centered_txt <- as.character(htmltools::as.tags(centered))
+    full_txt <- as.character(htmltools::as.tags(full_width))
+    expect_true(grepl("justify-content: center", centered_txt))
+    expect_true(grepl("display: inline-block", centered_txt))
+    expect_false(grepl("justify-content: center", full_txt))
+    expect_true(grepl("width: 100%", full_txt))
 })
 
 test_that("emit_plot_with_download cats a self-contained figure + corner PDF button", {

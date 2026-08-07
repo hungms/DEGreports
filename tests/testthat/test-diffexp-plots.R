@@ -213,7 +213,7 @@ test_that("make_interactive wraps a ggplot into a plotly widget with the modebar
     expect_false(pl$x$config$displaylogo)
 })
 
-test_that("make_deg_datatable returns a DT::datatable over the full unfiltered result table", {
+test_that("make_deg_datatable returns a DT::datatable over the result table", {
     skip_if_not_installed("DT")
     res_df <- mock_res_df()
     res_df$sig <- c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE)

@@ -14,6 +14,7 @@ render_index_page(
   decoupler_out = NULL,
   ppi_out = NULL,
   viper_out = NULL,
+  cspa_out = NULL,
   alpha = 0.05,
   lfc_threshold = 0.5,
   run_args = NULL,
@@ -51,6 +52,8 @@ omit PPI connectivity sections on the DE and WGCNA pages.}
 
 \item{viper_out}{Output of \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL} (default)
 to omit the VIPER page.}
+
+\item{cspa_out}{Output of \code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}, or \code{NULL}.}
 
 \item{alpha}{Significance threshold to display/use for report summaries.
 Default \code{0.05}.}

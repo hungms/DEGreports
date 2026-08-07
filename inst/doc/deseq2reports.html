@@ -347,46 +347,90 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 expression pipeline built on DESeq2. You can run <strong>everything in
 one call</strong>, or call <strong>each stage on its own</strong> and
 assemble the HTML report at the end.</p>
+<p>Two one-command entry points:</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>run_deseq2_wald()</code></td>
+<td>Standard group contrasts (pairwise / one-vs-rest / two-factor)</td>
+</tr>
+<tr class="even">
+<td><code>run_deseq2_lrt()</code></td>
+<td>Time-course / ordered trajectory (LRT + degPatterns clusters)</td>
+</tr>
+</tbody>
+</table>
+<p>(<code>run_deseq2_pipeline()</code> remains as a <strong>deprecated
+alias</strong> of <code>run_deseq2_wald()</code>.)</p>
 <p>Modules cover quality control, sample distance/PCA, differential
-expression, GSEA, optional WGCNA, CollecTRI/ULM TF activity, VIPER
-(bcellViper), STRING PPI connectivity, and a multi-page self-contained
-HTML report.</p>
-<p>For a detailed, code-focused explanation of what each module does
-(inputs, outputs, and key arguments), see the companion vignette
-<strong><a href="deseq2reports-modules.html">Module
-reference</a></strong>
-(<code>vignette(&quot;deseq2reports-modules&quot;, package = &quot;deseq2reports&quot;)</code>).</p>
+expression, GSEA (Wald) or cluster ORA (LRT), optional WGCNA,
+CollecTRI/ULM TF activity, VIPER (bcellViper), STRING PPI, CSPA surface
+markers, cross-analysis gene hits, and a multi-page HTML report.</p>
+<p>Companion vignettes:</p>
+<ul>
+<li><strong><a href="deseq2reports-modules.html">Module
+reference</a></strong> —
+<code>vignette(&quot;deseq2reports-modules&quot;, package = &quot;deseq2reports&quot;)</code></li>
+<li><strong><a href="deseq2reports-analysis-flow.html">Analysis
+flow</a></strong> —
+<code>vignette(&quot;deseq2reports-analysis-flow&quot;, package = &quot;deseq2reports&quot;)</code></li>
+</ul>
 <p>Organism (human/mouse) is auto-detected from gene symbols via
 <code>detect_organism()</code> – there is no <code>org</code> argument.
-Row names should be standard HGNC/MGI symbols (not Ensembl/Entrez
-IDs).</p>
+Row names should be standard HGNC/MGI symbols (not Ensembl/Entrez IDs).
+Use <code>summarize_genes_dds()</code> / <code>load_nfcore()</code> when
+you start from transcript- or Ensembl-level counts.</p>
 </div>
-<div id="one-command-pipeline" class="section level2">
-<h2>One-command pipeline</h2>
+<div id="loading-a-deseqdataset" class="section level2">
+<h2>Loading a DESeqDataSet</h2>
+<p>From a count matrix:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(deseq2reports)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(DESeq2)</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>dds <span class="ot">&lt;-</span> <span class="fu">DESeqDataSetFromMatrix</span>(</span>
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>  <span class="at">countData =</span> counts,</span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="at">colData =</span> coldata,</span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="at">design =</span> <span class="sc">~</span>condition</span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>)</span>
-<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">run_deseq2_pipeline</span>(</span>
-<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="at">dds =</span> dds,</span>
-<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
-<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="at">filter_method =</span> <span class="st">&quot;cpm&quot;</span>,</span>
-<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="at">cpm_percentile =</span> <span class="fl">0.05</span>,</span>
-<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  <span class="at">shrinkage =</span> <span class="st">&quot;ashr&quot;</span>,</span>
-<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="at">ranking =</span> <span class="st">&quot;pxfc&quot;</span>,</span>
-<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>  <span class="at">collections =</span> <span class="fu">c</span>(<span class="st">&quot;HALLMARK&quot;</span>, <span class="st">&quot;GOBP&quot;</span>, <span class="st">&quot;REACTOME&quot;</span>),</span>
-<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>  <span class="at">run_wgcna =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>  <span class="at">run_decoupler =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a>  <span class="at">run_viper =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a>  <span class="at">run_ppi =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a>  <span class="at">render_html =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results&quot;</span></span>
-<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>)</span></code></pre></div>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="at">design =</span> <span class="sc">~</span> condition</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>)</span></code></pre></div>
+<p>From an <strong>nf-core/rnaseq</strong> <code>.RData</code> +
+<code>tx2gene</code> TSV (collapses features that share a gene
+symbol):</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>dds <span class="ot">&lt;-</span> <span class="fu">load_nfcore</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="at">rdata =</span> <span class="st">&quot;salmon.merged.gene_counts.RData&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">tx2gene =</span> <span class="st">&quot;tx2gene.tsv&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>)</span></code></pre></div>
+<p>Or attach symbols yourself and collapse:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">rowData</span>(dds)<span class="sc">$</span>gene <span class="ot">&lt;-</span> gene_symbols</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>dds <span class="ot">&lt;-</span> <span class="fu">summarize_genes_dds</span>(dds, <span class="at">gene_sym_col =</span> <span class="st">&quot;gene&quot;</span>)</span></code></pre></div>
+</div>
+<div id="one-command-wald-pipeline" class="section level2">
+<h2>One-command Wald pipeline</h2>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">run_deseq2_wald</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="at">dds =</span> dds,</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">filter_method =</span> <span class="st">&quot;cpm&quot;</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">cpm_percentile =</span> <span class="fl">0.05</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="at">shrinkage =</span> <span class="st">&quot;ashr&quot;</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="at">ranking =</span> <span class="st">&quot;log2FoldChange&quot;</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="at">collections =</span> <span class="fu">c</span>(<span class="st">&quot;HALLMARK&quot;</span>, <span class="st">&quot;GOBP&quot;</span>, <span class="st">&quot;REACTOME&quot;</span>),</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">run_wgcna =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="at">run_decoupler =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  <span class="at">run_viper =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="at">run_ppi =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  <span class="at">run_cspa =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  <span class="at">render_html =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results&quot;</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>)</span></code></pre></div>
 <p>Under <code>results/</code> this writes per-module folders plus
 <code>index.html</code>:</p>
 <table>
@@ -410,13 +454,14 @@ IDs).</p>
 <td>PCA / similarity artifacts (shown on the QC page)</td>
 </tr>
 <tr class="odd">
-<td><code>deseq2/</code></td>
-<td>Per-contrast DE tables &amp; plots, <code>deseq2.html</code> (+ PPI
-when enabled)</td>
+<td><code>deseq2/</code> (+ <code>deseq2/cspa/</code>)</td>
+<td>Per-contrast DE tables &amp; plots, CSPA,
+<code>deseq2.html</code></td>
 </tr>
 <tr class="even">
 <td><code>clusterprofiler/</code></td>
-<td>Per-contrast GSEA, <code>clusterprofiler.html</code></td>
+<td>Per-contrast GSEA (+ overlap),
+<code>clusterprofiler.html</code></td>
 </tr>
 <tr class="odd">
 <td><code>wgcna/</code></td>
@@ -435,118 +480,126 @@ when enabled)</td>
 </tr>
 <tr class="even">
 <td><code>ppi/</code></td>
-<td>STRING PPI CSVs/PDFs (embedded in DE/WGCNA pages when
-<code>run_ppi = TRUE</code>)</td>
+<td>STRING PPI CSVs/PDFs (embedded in DE/WGCNA pages)</td>
 </tr>
 <tr class="odd">
+<td><code>multihit/</code></td>
+<td>Cross-analysis top genes (shown on the index page)</td>
+</tr>
+<tr class="even">
 <td><code>logs/</code></td>
 <td>Timestamped run log + JSON session record</td>
 </tr>
 </tbody>
 </table>
-<p><code>out</code> is a list with <code>dds</code>,
-<code>distance</code>, <code>diffexp</code>, <code>gsea</code>, optional
-<code>wgcna</code> / <code>decoupler</code> / <code>viper</code> /
-<code>ppi</code>, and <code>report_path</code> (named HTML paths).</p>
+<p>Local CollecTRI priors under
+<code>example_data/collectri_{human,mouse}.csv</code> are used
+automatically when present (no OmniPath download required).</p>
 </div>
-<div id="modular-usage" class="section level2">
-<h2>Modular usage</h2>
+<div id="one-command-lrt-pipeline" class="section level2">
+<h2>One-command LRT pipeline</h2>
+<p>For ordered time / trajectory designs, use
+<code>run_deseq2_lrt()</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">run_deseq2_lrt</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  <span class="at">dds =</span> dds,</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">var =</span> <span class="st">&quot;genotype&quot;</span>,       <span class="co"># or NULL for time-only</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">&quot;day&quot;</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">include_interactions =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">run_wgcna =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  <span class="at">run_decoupler =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="at">run_viper =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  <span class="at">run_ppi =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  <span class="at">run_cspa =</span> <span class="cn">TRUE</span>,        <span class="co"># top 10 CSPA genes per degPatterns cluster</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results_lrt&quot;</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>)</span></code></pre></div>
+<p>LRT mode fits nested full/reduced models, clusters significant genes
+with <strong>degPatterns</strong>, runs <strong>ORA</strong> (not ranked
+GSEA) per cluster, scores TFs per cluster, and shows per-cluster
+multihit tables on the index page.</p>
+</div>
+<div id="modular-usage-wald" class="section level2">
+<h2>Modular usage (Wald)</h2>
 <p>Each stage is a standalone function with the same arguments the
-pipeline uses. Typical workflow:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(deseq2reports)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">library</span>(DESeq2)</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>dds <span class="ot">&lt;-</span> <span class="fu">DESeqDataSetFromMatrix</span>(<span class="at">countData =</span> counts, <span class="at">colData =</span> coldata, <span class="at">design =</span> <span class="sc">~</span>condition)</span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co"># 1. QC / filtering</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>dds_qc <span class="ot">&lt;-</span> <span class="fu">run_qc</span>(</span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  dds, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="at">filter_method =</span> <span class="st">&quot;cpm&quot;</span>, <span class="at">cpm_percentile =</span> <span class="fl">0.05</span>,</span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/qc&quot;</span></span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>)</span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co"># 2. Sample similarity / PCA</span></span>
-<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>distance_out <span class="ot">&lt;-</span> <span class="fu">run_distance_pca</span>(</span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/distance&quot;</span></span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>)</span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co"># 3. Differential expression (all pairwise + one-vs-rest by default)</span></span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>diffexp_out <span class="ot">&lt;-</span> <span class="fu">run_diffexp_pipeline</span>(</span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>  <span class="at">shrinkage =</span> <span class="st">&quot;ashr&quot;</span>, <span class="at">ranking =</span> <span class="st">&quot;pxfc&quot;</span>,</span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/deseq2&quot;</span></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>)</span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a></span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="co"># 4. GSEA</span></span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>gsea_out <span class="ot">&lt;-</span> <span class="fu">run_gsea_pipeline</span>(</span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>  diffexp_out<span class="sc">$</span>results,</span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>  <span class="at">collections =</span> <span class="fu">c</span>(<span class="st">&quot;HALLMARK&quot;</span>, <span class="st">&quot;GOBP&quot;</span>, <span class="st">&quot;REACTOME&quot;</span>),</span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>  <span class="at">ranking =</span> <span class="st">&quot;pxfc&quot;</span>,</span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/clusterprofiler&quot;</span></span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>)</span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a></span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co"># 5. Optional modules</span></span>
-<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a>wgcna_out <span class="ot">&lt;-</span> <span class="fu">run_wgcna_pipeline</span>(dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>, <span class="at">save_dir =</span> <span class="st">&quot;results/wgcna&quot;</span>)</span>
-<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a>decoupler_out <span class="ot">&lt;-</span> <span class="fu">run_decoupler_pipeline</span>(</span>
-<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a>  dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>, <span class="at">diffexp_out =</span> diffexp_out,</span>
-<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/decoupler&quot;</span></span>
-<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a>)</span>
-<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a>viper_out <span class="ot">&lt;-</span> <span class="fu">run_viper_pipeline</span>(</span>
-<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a>  dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>, <span class="at">diffexp_out =</span> diffexp_out,</span>
-<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/viper&quot;</span></span>
-<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a>)</span>
-<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a>ppi_out <span class="ot">&lt;-</span> <span class="fu">run_ppi_pipeline</span>(</span>
-<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a>  <span class="at">diffexp_out =</span> diffexp_out, <span class="at">wgcna_out =</span> wgcna_out,</span>
-<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/ppi&quot;</span></span>
-<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a>)</span>
-<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a></span>
-<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a><span class="co"># 6. HTML report</span></span>
-<span id="cb2-50"><a href="#cb2-50" tabindex="-1"></a><span class="fu">render_report</span>(</span>
-<span id="cb2-51"><a href="#cb2-51" tabindex="-1"></a>  <span class="at">dds =</span> dds_qc,</span>
-<span id="cb2-52"><a href="#cb2-52" tabindex="-1"></a>  <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
-<span id="cb2-53"><a href="#cb2-53" tabindex="-1"></a>  <span class="at">distance_out =</span> distance_out,</span>
-<span id="cb2-54"><a href="#cb2-54" tabindex="-1"></a>  <span class="at">diffexp_out =</span> diffexp_out,</span>
-<span id="cb2-55"><a href="#cb2-55" tabindex="-1"></a>  <span class="at">gsea_out =</span> gsea_out,</span>
-<span id="cb2-56"><a href="#cb2-56" tabindex="-1"></a>  <span class="at">wgcna_out =</span> wgcna_out,</span>
-<span id="cb2-57"><a href="#cb2-57" tabindex="-1"></a>  <span class="at">decoupler_out =</span> decoupler_out,</span>
-<span id="cb2-58"><a href="#cb2-58" tabindex="-1"></a>  <span class="at">viper_out =</span> viper_out,</span>
-<span id="cb2-59"><a href="#cb2-59" tabindex="-1"></a>  <span class="at">ppi_out =</span> ppi_out,</span>
-<span id="cb2-60"><a href="#cb2-60" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results&quot;</span></span>
-<span id="cb2-61"><a href="#cb2-61" tabindex="-1"></a>)</span></code></pre></div>
-<p>You can stop after any stage, inspect CSVs/PDFs, tweak arguments, and
-continue. Omit optional outputs (<code>wgcna_out = NULL</code>, etc.)
-and those report pages are greyed out in the navigation bar rather than
-removed.</p>
+pipeline uses:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>dds_qc <span class="ot">&lt;-</span> <span class="fu">run_qc</span>(dds, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>, <span class="at">filter_method =</span> <span class="st">&quot;cpm&quot;</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>                 <span class="at">save_dir =</span> <span class="st">&quot;results/qc&quot;</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>distance_out <span class="ot">&lt;-</span> <span class="fu">run_distance_pca</span>(dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>                                 <span class="at">save_dir =</span> <span class="st">&quot;results/distance&quot;</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>diffexp_out <span class="ot">&lt;-</span> <span class="fu">run_diffexp_pipeline</span>(dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>                                    <span class="at">shrinkage =</span> <span class="st">&quot;ashr&quot;</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>                                    <span class="at">ranking =</span> <span class="st">&quot;log2FoldChange&quot;</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>                                    <span class="at">save_dir =</span> <span class="st">&quot;results/deseq2&quot;</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>gsea_out <span class="ot">&lt;-</span> <span class="fu">run_gsea_pipeline</span>(</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>  diffexp_out<span class="sc">$</span>results,</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>  <span class="at">collections =</span> <span class="fu">c</span>(<span class="st">&quot;HALLMARK&quot;</span>, <span class="st">&quot;GOBP&quot;</span>, <span class="st">&quot;REACTOME&quot;</span>),</span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>  <span class="at">ranking =</span> <span class="st">&quot;log2FoldChange&quot;</span>,</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/clusterprofiler&quot;</span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>)</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co"># Optional modules …</span></span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a>wgcna_out <span class="ot">&lt;-</span> <span class="fu">run_wgcna_pipeline</span>(dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>, <span class="at">save_dir =</span> <span class="st">&quot;results/wgcna&quot;</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a>decoupler_out <span class="ot">&lt;-</span> <span class="fu">run_decoupler_pipeline</span>(</span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a>  dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>, <span class="at">diffexp_out =</span> diffexp_out,</span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/decoupler&quot;</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a>)</span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a>viper_out <span class="ot">&lt;-</span> <span class="fu">run_viper_pipeline</span>(</span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>  dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>, <span class="at">diffexp_out =</span> diffexp_out,</span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/viper&quot;</span></span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a>)</span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>ppi_out <span class="ot">&lt;-</span> <span class="fu">run_ppi_pipeline</span>(</span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a>  <span class="at">diffexp_out =</span> diffexp_out, <span class="at">wgcna_out =</span> wgcna_out,</span>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results/ppi&quot;</span></span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a>)</span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>cspa_out <span class="ot">&lt;-</span> <span class="fu">run_cspa_marker_pipeline</span>(</span>
+<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a>  dds_qc, <span class="at">diffexp_out =</span> diffexp_out, <span class="at">save_dir =</span> <span class="st">&quot;results/deseq2/cspa&quot;</span></span>
+<span id="cb6-32"><a href="#cb6-32" tabindex="-1"></a>)</span>
+<span id="cb6-33"><a href="#cb6-33" tabindex="-1"></a>multihit_out <span class="ot">&lt;-</span> <span class="fu">run_multihit_pipeline</span>(</span>
+<span id="cb6-34"><a href="#cb6-34" tabindex="-1"></a>  diffexp_out, <span class="at">gsea_out =</span> gsea_out,</span>
+<span id="cb6-35"><a href="#cb6-35" tabindex="-1"></a>  <span class="at">viper_out =</span> viper_out, <span class="at">decoupler_out =</span> decoupler_out,</span>
+<span id="cb6-36"><a href="#cb6-36" tabindex="-1"></a>  <span class="at">cspa_out =</span> cspa_out, <span class="at">save_dir =</span> <span class="st">&quot;results/multihit&quot;</span></span>
+<span id="cb6-37"><a href="#cb6-37" tabindex="-1"></a>)</span>
+<span id="cb6-38"><a href="#cb6-38" tabindex="-1"></a></span>
+<span id="cb6-39"><a href="#cb6-39" tabindex="-1"></a><span class="fu">render_report</span>(</span>
+<span id="cb6-40"><a href="#cb6-40" tabindex="-1"></a>  <span class="at">dds =</span> dds_qc, <span class="at">var =</span> <span class="st">&quot;condition&quot;</span>,</span>
+<span id="cb6-41"><a href="#cb6-41" tabindex="-1"></a>  <span class="at">distance_out =</span> distance_out, <span class="at">diffexp_out =</span> diffexp_out,</span>
+<span id="cb6-42"><a href="#cb6-42" tabindex="-1"></a>  <span class="at">gsea_out =</span> gsea_out, <span class="at">multihit_out =</span> multihit_out,</span>
+<span id="cb6-43"><a href="#cb6-43" tabindex="-1"></a>  <span class="at">wgcna_out =</span> wgcna_out, <span class="at">decoupler_out =</span> decoupler_out,</span>
+<span id="cb6-44"><a href="#cb6-44" tabindex="-1"></a>  <span class="at">viper_out =</span> viper_out, <span class="at">ppi_out =</span> ppi_out, <span class="at">cspa_out =</span> cspa_out,</span>
+<span id="cb6-45"><a href="#cb6-45" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results&quot;</span></span>
+<span id="cb6-46"><a href="#cb6-46" tabindex="-1"></a>)</span></code></pre></div>
 </div>
 <div id="two-factor-designs" class="section level2">
 <h2>Two-factor designs</h2>
-<p>Pass two grouping columns to build interaction contrasts
-automatically:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">run_deseq2_pipeline</span>(</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  dds,</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">var =</span> <span class="fu">c</span>(<span class="st">&quot;Tissue&quot;</span>, <span class="st">&quot;Isotype&quot;</span>),</span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results_2factor&quot;</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>)</span></code></pre></div>
-<p>Or set <code>design = ~ Tissue * Isotype</code> (and optional
-<code>batch</code>) yourself via <code>design</code> /
-<code>resolve_design()</code>.</p>
+<p>Pass two grouping columns for within-factor contrasts (additive
+design by default). Set <code>include_interactions = TRUE</code> to use
+<code>~ A * B</code> and expand interaction contrasts:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">run_deseq2_wald</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  dds,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">var =</span> <span class="fu">c</span>(<span class="st">&quot;Tissue&quot;</span>, <span class="st">&quot;Isotype&quot;</span>),</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">include_interactions =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="at">save_dir =</span> <span class="st">&quot;results_2factor&quot;</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="example-runners" class="section level2">
+<h2>Example runners</h2>
+<p>In the package source tree:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">--vanilla</span> run_gse189410_wald.R    <span class="co"># single-factor isotype (Wald)</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">--vanilla</span> run_gse224465_wald.R    <span class="co"># genotype × celltype (Wald)</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">--vanilla</span> run_gse189410_lrt.R     <span class="co"># isotype as time axis (LRT)</span></span></code></pre></div>
 </div>
 <div id="reading-the-html-report" class="section level2">
 <h2>Reading the HTML report</h2>
-<p>Open <code>results/index.html</code>. Every section page is
-self-contained (<code>self_contained = TRUE</code>) with relative
-cross-links, so the folder tree can be copied offline. Each report
-section shows the <strong>minimal package call</strong> needed to
-reproduce that module’s results.</p>
+<p>Open <code>results/index.html</code> from the results folder (share
+the whole tree, including <code>lib/</code> and per-module CSVs). Pages
+use <code>self_contained = FALSE</code> with relative cross-links and
+on-disk CSV links. Each report section shows the <strong>minimal package
+call</strong> needed to reproduce that module’s results.</p>
 </div>
 <div id="next-reading" class="section level2">
 <h2>Next reading</h2>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">vignette</span>(<span class="st">&quot;deseq2reports-modules&quot;</span>, <span class="at">package =</span> <span class="st">&quot;deseq2reports&quot;</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">browseVignettes</span>(<span class="st">&quot;deseq2reports&quot;</span>)</span></code></pre></div>
-<p>The modules vignette walks through QC, distance/PCA, DE, GSEA, WGCNA,
-TF activity, VIPER, PPI, and report rendering in detail – what each
-function expects, what it returns, and which arguments matter most.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">vignette</span>(<span class="st">&quot;deseq2reports-analysis-flow&quot;</span>, <span class="at">package =</span> <span class="st">&quot;deseq2reports&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">vignette</span>(<span class="st">&quot;deseq2reports-modules&quot;</span>, <span class="at">package =</span> <span class="st">&quot;deseq2reports&quot;</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="fu">browseVignettes</span>(<span class="st">&quot;deseq2reports&quot;</span>)</span></code></pre></div>
 </div>
 
 

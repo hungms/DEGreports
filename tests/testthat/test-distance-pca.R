@@ -1,5 +1,4 @@
-# Tests for run_distance_pca() (sample distance / PCA stage) and the
-# QC-stage Pearson-correlation heatmap.
+# Tests for run_distance_pca() (sample distance / PCA stage).
 
 test_that("run_distance_pca returns the expected structure and writes outputs", {
     dds <- simulate_dds(n_genes = 100, n_per_group = 4)
@@ -225,30 +224,3 @@ test_that("plot_pca_scree caps n_pcs to the number of PCs available", {
     expect_lte(nrow(out$scree_plot$data), n_pcs_available)
 })
 
-test_that("plot_sample_correlation returns a pheatmap object and writes outputs", {
-    dds <- simulate_dds(n_genes = 60, n_per_group = 4)
-    save_dir <- withr::local_tempdir()
-
-    p <- plot_sample_correlation(dds, var = "condition", save_dir = save_dir)
-
-    cor_mat <- attr(p, "cor_matrix")
-    expect_true(is.matrix(cor_mat))
-    expect_equal(dim(cor_mat), c(ncol(dds), ncol(dds)))
-    expect_true(all(diag(cor_mat) > 0.999))  # self-correlation ~= 1
-    expect_true(file.exists(file.path(save_dir, "qc_sample_correlation_heatmap.pdf")))
-    expect_true(file.exists(file.path(save_dir, "qc_sample_correlation_matrix.csv")))
-})
-
-test_that("plot_sample_correlation validates var and transform arguments", {
-    dds <- simulate_dds(n_genes = 20, n_per_group = 2)
-    expect_error(
-        plot_sample_correlation(dds, var = "not_a_column", save_plot = FALSE,
-                                 save_dir = tempfile("corr_")),
-        "not_a_column|colData"
-    )
-    expect_error(
-        plot_sample_correlation(dds, var = "condition", transform = "bogus",
-                                 save_plot = FALSE, save_dir = tempfile("corr_")),
-        "vst.*rlog"
-    )
-})

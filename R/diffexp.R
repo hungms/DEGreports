@@ -25,7 +25,7 @@
 #'   abs(log2FoldChange) > lfc_threshold`); does not affect the DESeq2 test
 #'   itself. Default `0`.
 #' @param ranking Ranking metric added as a `rank_score` column, via
-#'   [compute_ranking_score()]. Default `"pxfc"`.
+#'   [compute_ranking_score()]. Default `"log2FoldChange"`.
 #' @param gene_col Name to give the gene-identifier column in the output
 #'   (row names of `dds` are used as the values). Default `"gene"`.
 #' @return A data frame of DESeq2 results (one row per gene) with additional
@@ -44,7 +44,7 @@ run_diffexp <- function(
     shrinkage = "ashr",
     alpha = 0.05,
     lfc_threshold = 0.5,
-    ranking = "pxfc",
+    ranking = "log2FoldChange",
     gene_col = "gene") {
 
     dds <- validate_dds(dds)
@@ -149,15 +149,19 @@ run_diffexp <- function(
 #'
 #' @inheritParams run_diffexp
 #' @param coef Coefficient name as in `resultsNames(dds)`.
+#' @param coef_subtract Optional second coefficient for a list contrast
+#'   `results(contrast = list(coef, coef_subtract))` (pairwise interaction
+#'   differences). Default `NULL`.
 #' @return A results data frame.
 #' @noRd
 run_diffexp_coef <- function(
     dds,
     coef,
+    coef_subtract = NULL,
     shrinkage = "ashr",
     alpha = 0.05,
     lfc_threshold = 0.5,
-    ranking = "pxfc",
+    ranking = "log2FoldChange",
     gene_col = "gene",
     comparison = coef) {
 
@@ -175,17 +179,47 @@ run_diffexp_coef <- function(
              paste(rn, collapse = ", "), call. = FALSE)
     }
 
-    res <- DESeq2::results(fit_dds, name = coef, alpha = alpha)
-    stat_col <- res$stat
-    unshrunken_lfc <- stats::setNames(as.numeric(res$log2FoldChange), rownames(res))
-    if (shrinkage != "none") {
-        res <- tryCatch({
-            DESeq2::lfcShrink(fit_dds, coef = coef, type = shrinkage, res = res, quiet = TRUE)
-        }, error = function(e) {
-            warning("LFC shrinkage (\"", shrinkage, "\") failed for \"", comparison,
-                    "\": ", conditionMessage(e), ". Returning unshrunken results.", call. = FALSE)
-            res
-        })
+    use_list <- !is.null(coef_subtract) && !is.na(coef_subtract) && nzchar(coef_subtract)
+    if (use_list) {
+        if (!coef_subtract %in% rn) {
+            stop("Coefficient \"", coef_subtract, "\" not in resultsNames(). Available: ",
+                 paste(rn, collapse = ", "), call. = FALSE)
+        }
+        contrast_list <- list(coef, coef_subtract)
+        res <- DESeq2::results(fit_dds, contrast = contrast_list, alpha = alpha)
+        shrink_type <- shrinkage
+        if (shrinkage == "apeglm") {
+            warning("apeglm cannot shrink list contrasts; using ashr for \"",
+                    comparison, "\".", call. = FALSE)
+            shrink_type <- "ashr"
+        }
+        stat_col <- res$stat
+        unshrunken_lfc <- stats::setNames(as.numeric(res$log2FoldChange), rownames(res))
+        if (shrink_type != "none") {
+            res <- tryCatch({
+                DESeq2::lfcShrink(fit_dds, contrast = contrast_list, type = shrink_type,
+                                  res = res, quiet = TRUE)
+            }, error = function(e) {
+                warning("LFC shrinkage (\"", shrink_type, "\") failed for \"", comparison,
+                        "\": ", conditionMessage(e), ". Returning unshrunken results.",
+                        call. = FALSE)
+                res
+            })
+        }
+    } else {
+        res <- DESeq2::results(fit_dds, name = coef, alpha = alpha)
+        stat_col <- res$stat
+        unshrunken_lfc <- stats::setNames(as.numeric(res$log2FoldChange), rownames(res))
+        if (shrinkage != "none") {
+            res <- tryCatch({
+                DESeq2::lfcShrink(fit_dds, coef = coef, type = shrinkage, res = res, quiet = TRUE)
+            }, error = function(e) {
+                warning("LFC shrinkage (\"", shrinkage, "\") failed for \"", comparison,
+                        "\": ", conditionMessage(e), ". Returning unshrunken results.",
+                        call. = FALSE)
+                res
+            })
+        }
     }
 
     res_df <- as.data.frame(res)
@@ -213,8 +247,9 @@ run_diffexp_coef <- function(
 #' auto-generated pairwise + one-vs-rest comparison if `comparisons` is
 #' `NULL`), writes one results CSV per comparison plus MA and volcano plots,
 #' and returns all results combined. With `var` of length 2, expands the
-#' within-A / within-B / interaction contrast grid via
-#' [expand_contrast_specs()] unless `comparisons` subsets those labels.
+#' within-A / within-B contrast grid via [expand_contrast_specs()], and
+#' includes interaction contrasts when `include_interactions = TRUE`,
+#' unless `comparisons` subsets those labels.
 #'
 #' @inheritParams run_diffexp
 #' @param comparisons Character vector of comparisons / contrast labels to
@@ -222,6 +257,9 @@ run_diffexp_coef <- function(
 #'   `NULL` (default) to auto-generate the full grid.
 #' @param batch Optional covariate column name(s) used when rebuilding the
 #'   design on within-stratum subsets in two-factor mode. Default `NULL`.
+#' @param include_interactions Logical. When `var` has length 2, include
+#'   interaction contrasts (reference and pairwise mutant–mutant) if
+#'   `TRUE`. Default `FALSE`. Passed to [expand_contrast_specs()].
 #' @param top_label_n Number of top genes (by `rank_score`) to label on the
 #'   volcano plot. Default `10`.
 #' @param save_dir Directory to write per-comparison subfolders to. Default
@@ -242,10 +280,11 @@ run_diffexp_pipeline <- function(
     var,
     comparisons = NULL,
     batch = NULL,
+    include_interactions = FALSE,
     shrinkage = "ashr",
     alpha = 0.05,
     lfc_threshold = 0.5,
-    ranking = "pxfc",
+    ranking = "log2FoldChange",
     gene_col = "gene",
     top_label_n = 10,
     save_dir = getwd(),
@@ -253,7 +292,10 @@ run_diffexp_pipeline <- function(
 
     dds <- validate_dds(dds)
     dds <- validate_var(dds, var)
-    comparisons <- validate_comparisons(dds, var, comparisons)
+    comparisons <- validate_comparisons(
+        dds, var, comparisons,
+        include_interactions = include_interactions
+    )
     validate_logical(save_plot, "save_plot")
     save_dir <- validate_save_dir(save_dir)
 
@@ -266,10 +308,14 @@ run_diffexp_pipeline <- function(
             stratum_level = NA_character_,
             test_var = var[1],
             comparison = comparisons,
+            coef_subtract = rep(NA_character_, length(comparisons)),
             stringsAsFactors = FALSE
         )
     } else {
         specs <- comparisons
+        if (!"coef_subtract" %in% names(specs)) {
+            specs$coef_subtract <- NA_character_
+        }
     }
 
     by_comparison <- list()
@@ -280,7 +326,9 @@ run_diffexp_pipeline <- function(
 
         if (identical(spec$class[[1]], "interaction")) {
             res_df <- run_diffexp_coef(
-                dds = dds, coef = spec$comparison[[1]],
+                dds = dds,
+                coef = spec$comparison[[1]],
+                coef_subtract = spec$coef_subtract[[1]],
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
                 ranking = ranking, gene_col = gene_col, comparison = label
             )
@@ -648,12 +696,9 @@ diffexp_top_bottom_table <- function(res_df, top_n = 15) {
 
 #' Interactive, sortable/searchable DEG table
 #'
-#' Wraps the **full** (unfiltered) differential expression result table for
-#' one comparison in a `DT::datatable()`, so a report reader can sort by
-#' any column (e.g. `padj`, `log2FoldChange`) and free-text search across
-#' genes, rather than being limited to a static top-N list. Numeric
-#' columns are rounded for display only (the underlying data/export is
-#' untouched).
+#' Wraps a differential expression result table (typically a top/bottom
+#' subset for HTML reports, or the full table for interactive exploration)
+#' in a `DT::datatable()`. Numeric columns are rounded for display only.
 #'
 #' @param res_df A data frame as returned by [run_diffexp()].
 #' @param digits Number of decimal places to round numeric columns to for

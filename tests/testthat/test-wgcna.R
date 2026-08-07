@@ -56,12 +56,20 @@ test_that("run_wgcna_pipeline returns a fully-populated, consistently-keyed resu
     expect_s3_class(out$module_trait_heatmap, "ggplot")
     expect_s3_class(out$module_eigengene_heatmap, "pheatmap")
 
-    # save_plot = TRUE writes the expected files to disk.
+    # save_plot = TRUE writes the expected run-level files to disk.
     expect_true(file.exists(file.path(tmp, "wgcna_soft_threshold.pdf")))
     expect_true(file.exists(file.path(tmp, "wgcna_module_sizes.pdf")))
     expect_true(file.exists(file.path(tmp, "wgcna_module_trait_heatmap.pdf")))
     expect_true(file.exists(file.path(tmp, "wgcna_module_eigengene_heatmap.pdf")))
     expect_true(file.exists(file.path(tmp, "wgcna_dendrogram.pdf")))
+
+    # Per-module artifacts land in sanitized subfolders (Module 1 -> Module_1/).
+    real_mods <- setdiff(unique(as.character(out$module_df$module)), "Unassigned")
+    for (mod in real_mods) {
+        mod_dir <- file.path(tmp, gsub("[^A-Za-z0-9]+", "_", mod))
+        expect_true(dir.exists(mod_dir))
+        expect_true(file.exists(file.path(mod_dir, "hub_genes.csv")))
+    }
 })
 
 test_that("run_wgcna_pipeline still returns plot objects when save_plot = FALSE", {

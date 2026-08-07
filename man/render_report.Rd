@@ -10,10 +10,15 @@ render_report(
   distance_out,
   diffexp_out,
   gsea_out,
+  gsea_overlap_out = NULL,
+  multihit_out = NULL,
   wgcna_out = NULL,
   decoupler_out = NULL,
   ppi_out = NULL,
   viper_out = NULL,
+  cspa_out = NULL,
+  degpatterns_out = NULL,
+  cluster_ora_out = NULL,
   alpha = 0.05,
   lfc_threshold = 0.5,
   run_args = NULL,
@@ -38,6 +43,13 @@ QC-filtered manually rather than via \code{\link[=run_qc]{run_qc()}}.}
 
 \item{gsea_out}{Output of \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}.}
 
+\item{gsea_overlap_out}{Output of \code{\link[=run_gsea_overlap_pipeline]{run_gsea_overlap_pipeline()}}, or
+\code{NULL} (default). When present, leading-edge overlap plots are shown
+at the bottom of the clusterProfiler page.}
+
+\item{multihit_out}{Output of \code{\link[=run_multihit_pipeline]{run_multihit_pipeline()}}, or \code{NULL}
+(default) to omit the index multi-hit section.}
+
 \item{wgcna_out}{Output of \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, or \code{NULL} (default)
 to omit the WGCNA page entirely (its link is greyed out, not removed,
 in the navigation bar of the other pages).}
@@ -50,6 +62,8 @@ omit PPI connectivity sections on the DE and WGCNA pages.}
 
 \item{viper_out}{Output of \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL} (default)
 to omit the VIPER page.}
+
+\item{cspa_out}{Output of \code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}, or \code{NULL}.}
 
 \item{alpha}{Significance threshold to display/use for report summaries.
 Default \code{0.05}.}
@@ -84,8 +98,10 @@ root:
 \item \code{decoupler/decoupler.html} (omitted when \code{decoupler_out = NULL})
 \item \code{viper/viper.html} (omitted when \code{viper_out = NULL})
 }
-Each file is self-contained (\code{self_contained = TRUE}); cross-links use
-relative paths so the folder tree can be copied and opened offline.
+Pages use folder-bundled delivery (\code{self_contained = FALSE}) with a
+shared \verb{lib/} asset directory under \code{save_dir}; cross-links and CSV
+downloads use relative paths so the whole results tree can be copied
+and opened offline (do not share a lone HTML file without its siblings).
 }
 \examples{
 \dontrun{

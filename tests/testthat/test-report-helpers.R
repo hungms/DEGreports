@@ -31,7 +31,7 @@ test_that("pheatmap_cell_size returns a single value clamped between floor and c
     expect_true(pheatmap_cell_size(8) >= 12 && pheatmap_cell_size(8) <= 40)
 })
 
-test_that("plot_sample_similarity and plot_sample_correlation render an aspect-ratio-1 data matrix", {
+test_that("plot_sample_similarity renders an aspect-ratio-1 data matrix", {
     dds <- simulate_dds(n_genes = 40, n_per_group = 3)
     out <- run_distance_pca(dds, var = "condition", save_plot = FALSE, save_dir = withr::local_tempdir())
 
@@ -40,14 +40,6 @@ test_that("plot_sample_similarity and plot_sample_correlation render an aspect-r
     w <- grid::convertWidth(gt$widths[gt$layout$l[idx]], "in", valueOnly = TRUE)
     h <- grid::convertHeight(gt$heights[gt$layout$t[idx]], "in", valueOnly = TRUE)
     expect_equal(w, h, tolerance = 1e-6)
-
-    p_corr <- plot_sample_correlation(dds, var = "condition", save_plot = FALSE,
-                                       save_dir = withr::local_tempdir())
-    gt2 <- p_corr$gtable
-    idx2 <- which(gt2$layout$name == "matrix")
-    w2 <- grid::convertWidth(gt2$widths[gt2$layout$l[idx2]], "in", valueOnly = TRUE)
-    h2 <- grid::convertHeight(gt2$heights[gt2$layout$t[idx2]], "in", valueOnly = TRUE)
-    expect_equal(w2, h2, tolerance = 1e-6)
 })
 
 test_that("plot_sample_similarity blanks the self-correlation diagonal (rendered grey, not on the correlation scale) but keeps the full matrix attached", {

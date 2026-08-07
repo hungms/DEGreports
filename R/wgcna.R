@@ -6,40 +6,89 @@
 #' `SFT.R.sq` clears `rsq_cutoff`) when available, falling back to the
 #' power with the single highest `SFT.R.sq` across `power_vector` when no
 #' power clears the cutoff (with a warning, since the resulting network
-#' may not be very scale-free).
+#' may not be very scale-free). Selection is restricted to powers
+#' `<= power_cap` (default `15`); the full `power_vector` is still
+#' evaluated so diagnostic plots can show the wider curve.
 #'
 #' @param datExpr Samples-by-genes numeric matrix (e.g. `t(vst_matrix)`).
-#' @param power_vector Candidate powers to evaluate. Default `1:10` plus
-#'   every even power from `12` to `20`.
+#' @param power_vector Candidate powers to evaluate (and plot). Default
+#'   `1:10` plus every even power from `12` to `20`.
+#' @param power_cap Maximum power allowed for the *selected* network
+#'   power. Default `15`. Diagnostic `fit_indices` still include higher
+#'   candidates from `power_vector`.
 #' @param rsq_cutoff Minimum scale-free-topology model fit (`SFT.R.sq`) to
 #'   accept. Default `0.85`.
 #' @param network_type One of `"signed"`, `"unsigned"`, `"signed hybrid"`,
 #'   passed to `WGCNA::pickSoftThreshold()`. Default `"signed"`.
 #' @return A list with elements `fit_indices` (the full per-power table
 #'   from `WGCNA::pickSoftThreshold()`), `power` (the resolved
-#'   recommended power), and `power_source` (`"estimated"` if
-#'   `powerEstimate` cleared the cutoff, `"fallback_best_fit"` otherwise).
+#'   recommended power, `<= power_cap`), `power_source`
+#'   (`"estimated"` / `"estimated_capped"` / `"fallback_best_fit"`), and
+#'   `power_cap`.
 #' @noRd
 pick_wgcna_power <- function(datExpr, power_vector = c(1:10, seq(12, 20, 2)),
+                              power_cap = 15,
                               rsq_cutoff = 0.85, network_type = "signed") {
     sft <- quiet(WGCNA::pickSoftThreshold(
         datExpr, powerVector = power_vector, networkType = network_type,
         RsquaredCut = rsq_cutoff, verbose = 0
     ))
     fit <- sft$fitIndices
-
-    if (!is.na(sft$powerEstimate)) {
-        return(list(fit_indices = fit, power = sft$powerEstimate, power_source = "estimated"))
+    power_cap <- as.numeric(power_cap)[1]
+    if (!is.finite(power_cap) || power_cap < 1) {
+        stop("`power_cap` must be a finite number >= 1.", call. = FALSE)
+    }
+    fit_cap <- fit[!is.na(fit$Power) & fit$Power <= power_cap, , drop = FALSE]
+    if (!nrow(fit_cap)) {
+        warning("No candidate powers <= power_cap (", power_cap,
+                "); using the full power_vector for selection.", call. = FALSE)
+        fit_cap <- fit
     }
 
-    best <- fit$Power[which.max(fit$SFT.R.sq)]
+    # Prefer WGCNA's estimate when it is within the cap
+    if (!is.na(sft$powerEstimate) && sft$powerEstimate <= power_cap) {
+        return(list(
+            fit_indices = fit, power = sft$powerEstimate,
+            power_source = "estimated", power_cap = power_cap
+        ))
+    }
+
+    # Estimate existed but was above the cap (or missing): pick smallest
+    # capped power that still clears the R^2 cutoff when possible
+    ok <- !is.na(fit_cap$SFT.R.sq) & fit_cap$SFT.R.sq >= rsq_cutoff
+    if (any(ok)) {
+        power <- min(fit_cap$Power[ok])
+        src <- if (!is.na(sft$powerEstimate) && sft$powerEstimate > power_cap) {
+            "estimated_capped"
+        } else {
+            "estimated"
+        }
+        if (identical(src, "estimated_capped")) {
+            message("Soft-threshold powerEstimate = ", sft$powerEstimate,
+                    " exceeds power_cap = ", power_cap,
+                    "; using power = ", power, " instead.")
+        }
+        return(list(
+            fit_indices = fit, power = power,
+            power_source = src, power_cap = power_cap
+        ))
+    }
+
+    best <- fit_cap$Power[which.max(fit_cap$SFT.R.sq)]
     warning(
-        "No candidate power reached the scale-free-topology fit cutoff (R.sq >= ", rsq_cutoff,
-        "); falling back to power = ", best, " (the best-fitting candidate, R.sq = ",
-        sprintf("%.2f", max(fit$SFT.R.sq)), "). Consider widening `power_vector` or relaxing `rsq_cutoff`.",
+        "No candidate power <= ", power_cap,
+        " reached the scale-free-topology fit cutoff (R.sq >= ", rsq_cutoff,
+        "); falling back to power = ", best, " (best fit among powers <= ",
+        power_cap, ", R.sq = ",
+        sprintf("%.2f", max(fit_cap$SFT.R.sq, na.rm = TRUE)),
+        "). Diagnostic curve still shows powers through ",
+        max(fit$Power, na.rm = TRUE), ".",
         call. = FALSE
     )
-    list(fit_indices = fit, power = best, power_source = "fallback_best_fit")
+    list(
+        fit_indices = fit, power = best,
+        power_source = "fallback_best_fit", power_cap = power_cap
+    )
 }
 
 #' Plot scale-free-topology fit and mean connectivity across candidate powers
@@ -122,8 +171,12 @@ plot_soft_threshold <- function(fit_indices, power, rsq_cutoff = 0.85) {
 #'   group of interest; module eigengenes are correlated against this.
 #' @param power Soft-thresholding power. Default `NULL` auto-selects via
 #'   `pick_wgcna_power()`.
-#' @param power_vector Candidate powers evaluated when `power = NULL`.
-#'   Default `c(1:10, seq(12, 20, 2))`.
+#' @param power_vector Candidate powers evaluated (and shown on the
+#'   soft-threshold diagnostic plot) when `power = NULL`. Default
+#'   `c(1:10, seq(12, 20, 2))`.
+#' @param power_cap Maximum power allowed for the *selected* network power
+#'   when auto-selecting. Default `15`. Higher powers in `power_vector`
+#'   are still plotted for diagnostics.
 #' @param rsq_cutoff Minimum scale-free-topology fit accepted when
 #'   auto-selecting `power`. Default `0.85`.
 #' @param network_type One of `"signed"` (default), `"unsigned"`, `"signed
@@ -162,7 +215,9 @@ plot_soft_threshold <- function(fit_indices, power, rsq_cutoff = 0.85) {
 #'   diagnostic plot, module dendrogram, module-trait heatmap, and one ORA
 #'   barplot per module to `save_dir`.
 #' @return A list with elements: `power` (the power used), `power_source`
-#'   (`"user"`, `"estimated"`, or `"fallback_best_fit"`), `fit_indices`
+#'   (`"user"`, `"estimated"`, `"estimated_capped"`, or
+#'   `"fallback_best_fit"`), `power_cap` (selection cap; default `15`),
+#'   `fit_indices`
 #'   (the soft-threshold candidate table), `module_df` (data frame: gene,
 #'   module color, module label), `MEs` (module eigengene data frame, one
 #'   row per sample), `module_trait_cor` (data frame: module, correlation
@@ -195,6 +250,7 @@ run_wgcna_pipeline <- function(
     var,
     power = NULL,
     power_vector = c(1:10, seq(12, 20, 2)),
+    power_cap = 15,
     rsq_cutoff = 0.85,
     network_type = "signed",
     min_module_size = 30,
@@ -236,18 +292,31 @@ run_wgcna_pipeline <- function(
     if (is.null(power)) {
         message("Selecting soft-thresholding power...")
         power_pick <- pick_wgcna_power(datExpr, power_vector = power_vector,
-                                        rsq_cutoff = rsq_cutoff, network_type = network_type)
+                                       power_cap = power_cap,
+                                       rsq_cutoff = rsq_cutoff, network_type = network_type)
         power <- power_pick$power
         power_source <- power_pick$power_source
         fit_indices <- power_pick$fit_indices
+        power_cap <- power_pick$power_cap
     } else {
         power_source <- "user"
         fit_indices <- quiet(WGCNA::pickSoftThreshold(
             datExpr, powerVector = sort(unique(c(power, power_vector))),
             networkType = network_type, RsquaredCut = rsq_cutoff, verbose = 0
         ))$fitIndices
+        if (!is.null(power_cap) && is.finite(power_cap) && power > power_cap) {
+            warning("User-supplied power = ", power, " exceeds power_cap = ",
+                    power_cap, "; using the user power as requested.",
+                    call. = FALSE)
+        }
     }
-    message("Using soft-thresholding power = ", power, " (", power_source, ").")
+    message("Using soft-thresholding power = ", power, " (", power_source,
+            if (!identical(power_source, "user")) {
+                paste0("; selection capped at ", power_cap)
+            } else {
+                ""
+            },
+            ").")
 
     message("Detecting co-expression modules (this can take a while)...")
     # WGCNA::blockwiseModules() internally calls a bare `cor()` (not
@@ -376,7 +445,9 @@ run_wgcna_pipeline <- function(
     }, numeric(1))
     write_output(module_df, file.path(save_dir, "wgcna_modules.csv"))
 
-    safe_file_tag <- function(mod) gsub("[^A-Za-z0-9]+", "_", mod)
+    # Per-module outputs land in sanitized subfolders (e.g. "Module 1" ->
+    # Module_1/), while run-level summaries stay at save_dir root.
+    safe_mod_dir <- function(mod) gsub("[^A-Za-z0-9]+", "_", mod)
     hub_genes <- stats::setNames(lapply(colnames(MEs), function(mod) {
         if (mod == "Unassigned") {
             empty <- data.frame(gene = character(0), kME = numeric(0), stringsAsFactors = FALSE)
@@ -387,7 +458,7 @@ run_wgcna_pipeline <- function(
         top <- utils::head(ord, top_n_hub_genes)
         df <- data.frame(gene = colnames(datExpr)[top], kME = kME[[mod]][top], stringsAsFactors = FALSE)
         colnames(df)[1] <- gene_col
-        write_output(df, file.path(save_dir, paste0("wgcna_hub_genes_", safe_file_tag(mod), ".csv")))
+        write_output(df, file.path(save_dir, safe_mod_dir(mod), "hub_genes.csv"))
         df
     }), colnames(MEs))
 
@@ -409,7 +480,8 @@ run_wgcna_pipeline <- function(
             res <- as.data.frame(fgsea::fora(pathways, genes = mod_genes, universe = universe))
             res <- res[order(res$padj), ]
             res$overlapGenes <- vapply(res$overlapGenes, paste, character(1), collapse = ",")
-            write_output(res, file.path(save_dir, paste0("wgcna_ora_", coll, "_", safe_file_tag(mod), ".csv")))
+            write_output(res, file.path(save_dir, safe_mod_dir(mod),
+                                        paste0("ora_", coll, ".csv")))
             res
         }), real_modules)
     }), ora_collection)
@@ -451,14 +523,16 @@ run_wgcna_pipeline <- function(
             for (mod in names(p_ora_by_module[[coll]])) {
                 p <- p_ora_by_module[[coll]][[mod]]
                 if (is.null(p)) next
-                save_ggplot(p, file.path(save_dir, paste0("wgcna_ora_dotplot_", coll, "_", safe_file_tag(mod), ".pdf")),
+                save_ggplot(p, file.path(save_dir, safe_mod_dir(mod),
+                                         paste0("ora_dotplot_", coll, ".pdf")),
                             width = 9, height = 4.8)
             }
         }
     }
 
     list(
-        power = power, power_source = power_source, fit_indices = fit_indices,
+        power = power, power_source = power_source, power_cap = power_cap,
+        fit_indices = fit_indices,
         module_df = module_df, MEs = MEs_out, module_trait_cor = module_trait_cor,
         hub_genes = hub_genes, ora_by_module = ora_by_module, net = net,
         soft_threshold_plot = p_power, module_size_plot = p_size,

@@ -1,0 +1,453 @@
+---
+title: "Analysis flow: genes, pathways, and modules"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis flow: genes, pathways, and modules}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE, purl = FALSE)
+```
+
+```{r mermaid-js, echo = FALSE, eval = TRUE, results = "asis", purl = FALSE}
+cat("<script type=\"module\">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+</script>
+<style>
+pre.mermaid {
+  background: #f7f7f7;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow-x: auto;
+  text-align: center;
+}
+</style>
+")
+```
+
+## Purpose
+
+This vignette walks through **each analysis section** in `deseq2reports` and
+shows **how genes, pathways, modules, and TF activities are computed and
+linked**. Companion vignettes:
+
+- `vignette("deseq2reports")` — how to run the package  
+- `vignette("deseq2reports-modules")` — function arguments and defaults  
+
+Organism (human / mouse) is inferred from gene symbols via
+`detect_organism()`; row names should be HGNC / MGI symbols.
+
+Flow diagrams below need a network connection once (Mermaid CDN) when viewing
+the knitted HTML.
+
+---
+
+## End-to-end pipeline flow
+
+`run_deseq2_wald()` runs stages in a fixed order. Optional modules are
+skipped when their `run_*` flag is `FALSE` (or when a stage errors and is
+caught). Use `run_deseq2_lrt()` for time-course designs (see LRT section
+below).
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  A[DESeqDataSet raw counts] --> B[run_qc]
+  B --> C[run_counts_export]
+  B --> D[run_distance_pca]
+  B --> E[run_diffexp_pipeline]
+  E --> F[run_cspa_marker_pipeline]
+  E --> G[run_gsea_pipeline]
+  G --> H[run_gsea_overlap_pipeline]
+  B --> I[run_wgcna_pipeline]
+  E --> J[run_decoupler_pipeline]
+  E --> K[run_viper_pipeline]
+  E --> L[run_ppi_pipeline]
+  I --> L
+  E --> M[run_multihit_pipeline]
+  G --> M
+  J --> M
+  K --> M
+  F --> M
+  B --> N[render_report + dds.rds]
+  D --> N
+  E --> N
+  F --> N
+  G --> N
+  H --> N
+  I --> N
+  J --> N
+  K --> N
+  L --> N
+  M --> N
+</pre>
+```
+
+**Artifact layout** (under `save_dir`):
+
+| Folder | Produced by |
+|---|---|
+| `qc/` | `run_qc()` |
+| `counts/` | `run_counts_export()` |
+| `distance/` | `run_distance_pca()` |
+| `deseq2/` (+ `deseq2/cspa/`) | DE + CSPA |
+| `clusterprofiler/<contrast>/` | GSEA + `gsea_overlap/` |
+| `wgcna/`, `decoupler/`, `viper/`, `ppi/`, `multihit/` | optional / summary modules |
+| `index.html`, `dds.rds` | report + QC-filtered object |
+
+---
+
+## 1. Quality control — which genes are kept?
+
+**Input.** Raw counts in a `DESeqDataSet`.  
+**Output.** Filtered `dds` (size factors estimated); QC tables / library plots.
+
+```{=html}
+<pre class="mermaid">
+flowchart LR
+  R[All genes] --> MT{remove_mt?}
+  MT -->|drop MT| VDJ{remove_vdj?}
+  MT -->|keep| VDJ
+  VDJ -->|drop BCR/TCR pattern| XY{remove_xy?}
+  VDJ -->|keep| XY
+  XY -->|drop X/Y via gene_chr| EXPR[Expression filter]
+  XY -->|keep| EXPR
+  EXPR -->|cpm: drop bottom percentile by mean CPM| KEEP[Retained genes]
+  EXPR -->|count: keep genes above min_count| KEEP
+  EXPR -->|NULL: no expr filter| KEEP
+  KEEP --> SF[estimateSizeFactors]
+</pre>
+```
+
+Defaults used by the orchestrator: `filter_method = "cpm"`,
+`cpm_percentile = 0.05`. Metadata is stored on
+`metadata(dds)$deseq2reports_qc` for the report.
+
+---
+
+## 2. Counts export and sample structure
+
+**Counts export** writes raw, VST, rlog, and CPM matrices (plus ComBat-seq
+corrected raw counts when `batch` is set). These are for downstream use; the
+DE model still uses the QC-filtered raw counts.
+
+**Distance / PCA** (`run_distance_pca`):
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  D[QC dds] --> V[VST]
+  V --> B{batch set?}
+  B -->|limma / combat on VST for viz only| P[PCA + scree + loadings]
+  B -->|none| P
+  V --> S[Sample Spearman similarity heatmap]
+</pre>
+```
+
+Batch correction here is **visualization-only**; it does not change the DE
+design matrix.
+
+---
+
+## 3. Differential expression — how are DEGs defined?
+
+**Contrasts.** From `var` (length 1 or 2), `expand_contrast_specs()` builds
+pairwise and one-vs-rest labels (plus interaction contrasts when requested).
+
+**Per contrast** (`run_diffexp` / `run_diffexp_pipeline`):
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  D[QC dds + design] --> FIT[DESeq fit]
+  FIT --> RES[results: LFC, SE, stat, pvalue, padj]
+  RES --> SHR{shrinkage}
+  SHR -->|ashr / apeglm / normal| LFC[Shrunk log2FoldChange]
+  SHR -->|none| LFC2[Unshrunken LFC]
+  LFC --> RANK[rank_score from ranking metric]
+  LFC2 --> RANK
+  RANK --> SIG["sig = padj less than alpha AND abs LFC greater than lfc_threshold"]
+  SIG --> DIR[direction up / down / ns from sign of LFC]
+  SIG --> PLOTS[MA, volcano, DEG table]
+</pre>
+```
+
+**Defaults.** `shrinkage = "ashr"`, `alpha = 0.05`, `lfc_threshold = 0.5`,
+`ranking = "log2FoldChange"` (so `rank_score ≈ LFC`).
+
+**Gene-level objects used later:**
+
+- Significant DEGs (`sig`) → CSPA selection, PPI seeds, multihit DEG bit  
+- Full ranked list (`rank_score`) → GSEA ranks  
+- Wald `stat` → contrast-level decoupleR / VIPER  
+
+---
+
+## 4. CSPA surface markers
+
+Among each contrast’s DEGs, intersect with Cell Surface Protein Atlas symbols
+(human list; mouse via orthologs), rank by `|rank_score|` / `|LFC|`, keep top
+`cspa_n_markers` (default **25**), and plot **all-sample** VST heatmaps
+(per contrast + combined union).
+
+```{=html}
+<pre class="mermaid">
+flowchart LR
+  DEG[sig DEGs] --> INT[Intersect CSPA gene list]
+  INT --> TOP[Top n_markers by abs rank_score]
+  TOP --> HM[VST heatmap all samples]
+</pre>
+```
+
+---
+
+## 5. GSEA — how are pathways scored?
+
+**Ranks.** For each contrast, genes are ordered by `rank_score` (same metric
+as DE). Duplicate symbols are collapsed (max |score|).
+
+**Gene sets.** MSigDB collections via `msigdbr` (human sets; mouse genes
+mapped with orthologs when needed). Default collections exclude HALLMARK
+unless you add it.
+
+**Enrichment.** Primary engine is `fgsea` (`run_gsea` / `run_gsea_pipeline`).
+Optional parallel `clusterProfiler::GSEA()` when `run_clusterprofiler = TRUE`.
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  DE[Per-contrast DE table] --> RK[Named rank vector]
+  RK --> FG[fgsea vs each MSigDB collection]
+  FG --> TAB[pathway NES padj leadingEdge]
+  TAB --> BP[Barplot top_n_plot up and down by NES]
+  TAB --> BC[Barcode panel]
+  TAB --> LE[leadingEdge gene members]
+</pre>
+```
+
+**Pathway significance** for downstream overlap uses `padj < alpha`
+(pipeline `alpha`, default `0.05`), pooling collections **within one
+contrast**.
+
+---
+
+## 6. GSEA leading-edge overlap
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  P[Significant pathways padj less than alpha] --> LE[Parse leadingEdge sets]
+  LE --> J[Pairwise Jaccard matrix]
+  J --> BC[binary_cut chooses k]
+  J --> HC[hclust on 1 minus Jaccard]
+  BC --> K[k]
+  K --> CT[cutree hc at k]
+  HC --> CT
+  CT --> HM[Square heatmap + dendrograms]
+  CT --> WC[Side word clouds]
+</pre>
+```
+
+Splits, dendrograms, and word clouds share the **same** `cutree` partition
+(`k` from binary_cut). Artifacts live under
+`clusterprofiler/<contrast>/gsea_overlap/`.
+
+---
+
+## 7. WGCNA — modules from co-expression (not DE)
+
+Independent of contrasts: uses **all samples’** VST profiles.
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  V[VST expression] --> SFT[pickSoftThreshold powers through 20]
+  SFT --> CAP[Select power at most power_cap 15]
+  CAP --> NET[blockwiseModules signed network]
+  NET --> MOD[Modules by size; grey to Unassigned]
+  MOD --> ME[Module eigengenes]
+  ME --> TR[Correlate MEs vs grouping var]
+  MOD --> HUB[Hub genes by abs kME]
+  MOD --> ORA[fora ORA per module and collection]
+</pre>
+```
+
+Unassigned / grey is excluded from ORA (not a coherent module).
+
+---
+
+## 8. TF activity — decoupleR (CollecTRI + ULM)
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  NET[CollecTRI TF to target network] --> S[Sample ULM on VST]
+  NET --> C[Contrast ULM on Wald stat]
+  S --> SH[Sample TF heatmap]
+  C --> CB[Contrast TF barplots]
+</pre>
+```
+
+---
+
+## 9. VIPER (bcellViper regulon)
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  REG[bcellViper human B-cell regulon] --> MAP{mouse?}
+  MAP -->|babelgene to human| VIP[viper on scaled VST]
+  MAP -->|human symbols| VIP
+  REG --> MS[msviper on contrast Wald stats]
+  VIP --> SH[Sample TF heatmap]
+  MS --> BC[Contrast barcode plots]
+</pre>
+```
+
+---
+
+## 10. STRING PPI
+
+Seeds = significant DEGs (or WGCNA module members) → map to STRING → induced
+subgraph → community / hub layout. Embedded on DE and WGCNA report pages.
+
+---
+
+## 11. Multi-hit genes — integrating layers
+
+Per contrast, each gene scores **+1** for each layer that hits it:
+
+| Layer | Hit rule |
+|---|---|
+| DEG | `sig` |
+| GSEA | In **any** significant pathway leading edge (0/1) |
+| VIPER | Significant TF after ortholog map (`padj < alpha`) |
+| decoupleR | Significant source (`p_value < alpha`) |
+| CSPA | Selected CSPA marker for that contrast |
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  G[Genes] --> S[score = deg + gsea + viper + decoupler + cspa]
+  S --> DIR[Split by DEG LFC sign up vs down]
+  DIR --> TOP[Top top_n per direction]
+  TOP --> PLOT[Bidirectional multihit barplot]
+</pre>
+```
+
+Shown at the **end of the index** page (after report section links).
+
+---
+
+## Data dependencies (who needs whom)
+
+```{=html}
+<pre class="mermaid">
+flowchart LR
+  QC[Filtered dds] --> DE[DE tables]
+  QC --> DIST[PCA]
+  QC --> WGCNA
+  QC --> CSPA
+  QC --> DEC[decoupleR]
+  QC --> VIP[VIPER]
+  DE --> GSEA
+  DE --> CSPA
+  DE --> DEC
+  DE --> VIP
+  DE --> PPI
+  DE --> MH[multihit]
+  GSEA --> OV[GSEA overlap]
+  GSEA --> MH
+  WGCNA --> PPI
+  CSPA --> MH
+  DEC --> MH
+  VIP --> MH
+</pre>
+```
+
+---
+
+## Report pages vs calculation modules
+
+| HTML page | Main calculations shown |
+|---|---|
+| Index | Run summary, multihit bars/tables, links |
+| QC | Library QC, PCA, similarity |
+| DESeq2 | Per-contrast MA / volcano / DEG table, PPI, CSPA |
+| clusterProfiler | Per-collection GSEA + leading-edge overlap (Wald) or cluster ORA (LRT) |
+| WGCNA | Soft-threshold, modules, trait heatmaps, ORA, module PPI |
+| decoupleR / VIPER | Sample TF activities + contrast (Wald) or per-cluster (LRT) TFs |
+
+Hub pages list contrasts; heavy figures live on **per-contrast HTML** under
+`deseq2/<contrast>/` and `clusterprofiler/<contrast>/`.
+
+---
+
+## LRT / time-course flow (`run_deseq2_lrt`)
+
+```{=html}
+<pre class="mermaid">
+flowchart TD
+  A[DESeqDataSet] --> B[run_qc]
+  B --> C[run_distance_pca]
+  B --> D[run_diffexp_lrt_pipeline]
+  D --> E[run_degpatterns_pipeline]
+  E --> F[run_lrt_cspa_heatmap]
+  E --> G[run_cluster_ora_pipeline]
+  E --> H[lrt_clusters_diffexp_for_tf]
+  H --> I[run_decoupler_pipeline]
+  H --> J[run_viper_pipeline]
+  E --> K[lrt_clusters_as_wgcna_like]
+  B --> L[run_wgcna_pipeline]
+  K --> M[run_ppi_pipeline]
+  L --> M
+  D --> M
+  E --> N[run_multihit_lrt_pipeline]
+  I --> N
+  J --> N
+  L --> N
+  B --> O[render_report]
+  C --> O
+  D --> O
+  E --> O
+  F --> O
+  G --> O
+  I --> O
+  J --> O
+  L --> O
+  M --> O
+  N --> O
+</pre>
+```
+
+Key differences from Wald mode:
+
+- Nested LRT full/reduced models via `expand_lrt_specs()` (no signed LFC
+  ranking → **no GSEA**; cluster ORA instead).
+- Significant genes clustered with **degPatterns**; PPI / CSPA / TF /
+  multihit are **per cluster**.
+- Index multihit shows **tables** (top 10 genes × LRT DEG / WGCNA /
+  decoupleR / VIPER), not directional barplots.
+- Default CSPA is top **10** genes per cluster.
+
+---
+
+## Minimal mental model
+
+1. **Filter genes** (QC) → expression universe for everything else.  
+2. **Test genes** (DESeq2 Wald or LRT) → `sig`, ranks / LRT `stat`.  
+3. **Test pathways** — GSEA on Wald ranks, or ORA on LRT clusters.  
+4. **Relate pathways** (Jaccard overlap, Wald) and **relate genes across
+   methods** (multihit).  
+5. **Optional structure**: co-expression modules (WGCNA), TF networks
+   (decoupleR / VIPER), protein networks (STRING), surfaceome (CSPA).
+
+```{r}
+# See also:
+vignette("deseq2reports", package = "deseq2reports")
+vignette("deseq2reports-modules", package = "deseq2reports")
+```

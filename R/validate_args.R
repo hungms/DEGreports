@@ -234,20 +234,25 @@ validate_pals <- function(dds, var, pals) {
 #'
 #' If `comparisons` is `NULL`, auto-expands the contrast grid via
 #' [expand_contrast_specs()] (pairwise + one-vs-rest for one factor; the
-#' full within-A / within-B / interaction grid for two factors). If supplied
-#' as a character vector, each entry must be either a simple `"A_vs_B"`
-#' string (single-factor) or a contrast `label` from the auto grid
-#' (two-factor), and the returned object is the filtered specs table (or
-#' the character vector for single-factor backward compatibility).
+#' within-A / within-B grid for two factors, plus interaction contrasts when
+#' `include_interactions = TRUE`). If supplied as a character vector, each
+#' entry must be either a simple `"A_vs_B"` string (single-factor) or a
+#' contrast `label` from the auto grid (two-factor), and the returned object
+#' is the filtered specs table (or the character vector for single-factor
+#' backward compatibility).
 #'
 #' @param dds A `DESeqDataSet` object.
 #' @param var Grouping column name(s), length 1 or 2.
 #' @param comparisons Character vector of comparison / label strings, or `NULL`.
+#' @param include_interactions Logical passed to [expand_contrast_specs()].
+#'   Default `FALSE`.
 #' @return For `length(var) == 1` and character `comparisons`/`NULL`: a
 #'   character vector. Otherwise a contrast-specs data frame.
 #' @noRd
-validate_comparisons <- function(dds, var, comparisons = NULL) {
-    specs <- expand_contrast_specs(dds, var)
+validate_comparisons <- function(dds, var, comparisons = NULL,
+                                 include_interactions = FALSE) {
+    specs <- expand_contrast_specs(dds, var,
+                                   include_interactions = include_interactions)
 
     if (is.null(comparisons)) {
         if (length(var) == 1) return(specs$comparison)

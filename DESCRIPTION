@@ -1,14 +1,14 @@
-Package: DESeq2Reports
+Package: deseq2reports
 Title: Modular DESeq2 Pipeline with Automated HTML Reports
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: 
     person(given = "Miu Shing", family = "Hung", email = "matthewhungms@gmail.com", role = c("aut", "cre"), comment = c(ORCID = "0009-0004-0412-4374"))
 Description: A self-contained, modular pipeline for RNA-seq differential expression
-    analysis built on DESeq2. Provides a single one-command entry point
-    (run_deseq2_pipeline()) that chains quality control, sample distance/PCA,
-    differential expression across all pairwise and one-vs-rest group comparisons,
-    gene set enrichment analysis (GSEA) against MSigDB collections, optional
-    WGCNA / TF-activity / VIPER (bcellViper) / STRING PPI connectivity modules,
+    analysis built on DESeq2. Provides one-command entry points
+    (run_deseq2_wald() / run_deseq2_lrt()) that chain quality control, sample distance/PCA,
+    differential expression (Wald contrasts or time-course LRT with degPatterns),
+    gene set enrichment or cluster ORA against MSigDB collections, optional
+    WGCNA / TF-activity / VIPER (bcellViper) / STRING PPI / CSPA modules,
     and a rendered HTML report -- as well as standalone modular functions for
     each stage so that individual steps can be run, inspected, or substituted
     independently. All behaviour that analysts commonly need to change
@@ -61,11 +61,17 @@ Suggests:
     knitr,
     OmnipathR,
     patchwork,
+    readxl,
     STRINGdb,
     testthat (>= 3.0.0),
     viper,
     WGCNA,
-    withr
+    withr,
+    wordcloud,
+    simplifyEnrichment,
+    ComplexHeatmap,
+    DEGreport,
+    circlize
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
 RoxygenNote: 7.3.3

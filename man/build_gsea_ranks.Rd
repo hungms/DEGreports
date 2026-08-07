@@ -4,7 +4,7 @@
 \alias{build_gsea_ranks}
 \title{Build a named, sorted rank vector for GSEA from a results data frame}
 \usage{
-build_gsea_ranks(res_df, gene_col = "gene", ranking = "pxfc")
+build_gsea_ranks(res_df, gene_col = "gene", ranking = "log2FoldChange")
 }
 \arguments{
 \item{res_df}{A data frame as for \code{\link[=compute_ranking_score]{compute_ranking_score()}}, additionally

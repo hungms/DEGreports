@@ -7,7 +7,7 @@
 run_gsea_pipeline(
   diffexp_results,
   collections = "HALLMARK",
-  ranking = "pxfc",
+  ranking = "log2FoldChange",
   gene_col = "gene",
   min_size = 15,
   max_size = 500,

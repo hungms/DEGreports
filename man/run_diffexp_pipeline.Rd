@@ -9,10 +9,11 @@ run_diffexp_pipeline(
   var,
   comparisons = NULL,
   batch = NULL,
+  include_interactions = FALSE,
   shrinkage = "ashr",
   alpha = 0.05,
   lfc_threshold = 0.5,
-  ranking = "pxfc",
+  ranking = "log2FoldChange",
   gene_col = "gene",
   top_label_n = 10,
   save_dir = getwd(),
@@ -32,6 +33,10 @@ run, a contrast-specs data frame from \code{\link[=expand_contrast_specs]{expand
 \item{batch}{Optional covariate column name(s) used when rebuilding the
 design on within-stratum subsets in two-factor mode. Default \code{NULL}.}
 
+\item{include_interactions}{Logical. When \code{var} has length 2, include
+interaction contrasts (reference and pairwise mutant–mutant) if
+\code{TRUE}. Default \code{FALSE}. Passed to \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
+
 \item{shrinkage}{LFC shrinkage method: one of \code{"ashr"} (default; the only
 method that supports the pooled contrasts this package generates),
 \code{"apeglm"} (only valid for simple two-group contrasts, not pooled ones),
@@ -45,7 +50,7 @@ independent filtering / \code{results()} call. Default \code{0.05}.}
 itself. Default \code{0}.}
 
 \item{ranking}{Ranking metric added as a \code{rank_score} column, via
-\code{\link[=compute_ranking_score]{compute_ranking_score()}}. Default \code{"pxfc"}.}
+\code{\link[=compute_ranking_score]{compute_ranking_score()}}. Default \code{"log2FoldChange"}.}
 
 \item{gene_col}{Name to give the gene-identifier column in the output
 (row names of \code{dds} are used as the values). Default \code{"gene"}.}
@@ -70,8 +75,9 @@ Loops \code{\link[=run_diffexp]{run_diffexp()}} over every comparison in \code{c
 auto-generated pairwise + one-vs-rest comparison if \code{comparisons} is
 \code{NULL}), writes one results CSV per comparison plus MA and volcano plots,
 and returns all results combined. With \code{var} of length 2, expands the
-within-A / within-B / interaction contrast grid via
-\code{\link[=expand_contrast_specs]{expand_contrast_specs()}} unless \code{comparisons} subsets those labels.
+within-A / within-B contrast grid via \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}, and
+includes interaction contrasts when \code{include_interactions = TRUE},
+unless \code{comparisons} subsets those labels.
 }
 \examples{
 \dontrun{

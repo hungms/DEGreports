@@ -20,12 +20,11 @@ An \code{htmltools} tag (invisibly printable in a knitr \code{results = 'asis'} 
 normal chunk).
 }
 \description{
-Thin wrapper around \code{downloadthis::download_this()} that renders a
-small self-contained "Download CSV" button, for embedding next to any
-table shown in the bundled HTML report (or in any Rmd of your own).
-The button embeds the data directly (\code{self_contained = TRUE}) so it
-works in the fully offline, single-file HTML report this package
-produces -- no server or external file is involved.
+Thin wrapper around \code{downloadthis::download_this()} that embeds a
+data frame as a self-contained "Download CSV" button. Prefer
+\code{\link[=link_output_file]{link_output_file()}} for large tables that already exist on disk in
+the results folder; use this helper for small / ad-hoc frames that
+are not written as separate CSVs.
 }
 \examples{
 \dontrun{

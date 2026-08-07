@@ -10,7 +10,7 @@ run_ppi_pipeline(
   org = NULL,
   top_n_hubs = 10L,
   max_genes = Inf,
-  max_plot_nodes = 100L,
+  max_plot_nodes = 50L,
   score_threshold = 400L,
   gene_col = "gene",
   alpha = 0.05,
@@ -36,7 +36,7 @@ integer to cap by \code{rank_score} / \verb{|kME|}.}
 
 \item{max_plot_nodes}{Maximum nodes drawn per plot. When more genes have
 STRING edges among the seed set, the highest-degree genes are kept.
-Default \code{100}.}
+Default \code{50}.}
 
 \item{score_threshold}{Minimum STRING combined score (0--1000). Default
 \code{400}.}

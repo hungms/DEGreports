@@ -18,10 +18,7 @@ display. Default \code{4}.}
 A \code{DT::datatable} htmlwidget.
 }
 \description{
-Wraps the \strong{full} (unfiltered) differential expression result table for
-one comparison in a \code{DT::datatable()}, so a report reader can sort by
-any column (e.g. \code{padj}, \code{log2FoldChange}) and free-text search across
-genes, rather than being limited to a static top-N list. Numeric
-columns are rounded for display only (the underlying data/export is
-untouched).
+Wraps a differential expression result table (typically a top/bottom
+subset for HTML reports, or the full table for interactive exploration)
+in a \code{DT::datatable()}. Numeric columns are rounded for display only.
 }

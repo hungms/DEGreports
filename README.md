@@ -2,11 +2,10 @@
 
 A self-contained, modular R package for RNA-seq differential expression
 analysis built on DESeq2 -- quality control, sample distance/PCA,
-differential expression across pairwise and one-vs-rest comparisons, gene
-set enrichment analysis (GSEA) against MSigDB, optional WGCNA, TF
-activity, VIPER (bcellViper), and STRING PPI analysis, and a multi-page
-HTML report -- all through a single one-command entry point or as
-standalone modules.
+differential expression (Wald or LRT), GSEA / cluster ORA, optional WGCNA,
+TF activity, VIPER (bcellViper), STRING PPI, CSPA surface markers, and a
+multi-page HTML report -- through one-command entry points or standalone
+modules.
 
 ## Install
 
@@ -23,32 +22,42 @@ library(DESeq2)
 
 dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
 
-out <- run_deseq2_pipeline(
+# Group contrasts (Wald)
+out <- run_deseq2_wald(
   dds = dds,
   var = "condition",
   save_dir = "results"
 )
+
+# Time-course / ordered trajectory (LRT + degPatterns)
+# out <- run_deseq2_lrt(dds, var = NULL, time = "day", save_dir = "results_lrt")
 ```
+
+(`run_deseq2_pipeline()` is a deprecated alias of `run_deseq2_wald()`.)
 
 Organism (human/mouse) is auto-detected from gene symbols -- there is no
 `org` argument. By default this writes per-module folders under `results/`
 (`qc/`, `distance/`, `counts/`, `deseq2/`, `clusterprofiler/`) plus `index.html`
-and linked section pages (`qc/qc.html`, `deseq2/deseq2.html`, …). Optional
-stages add `wgcna/`, `decoupler/`, and `viper/` when `run_wgcna = TRUE` /
-`run_decoupler = TRUE` / `run_viper = TRUE`.
+and linked section pages. Optional stages add `wgcna/`, `decoupler/`,
+`viper/`, `ppi/`, and `multihit/` when enabled.
+
+From nf-core/rnaseq outputs:
+
+```r
+dds <- load_nfcore("path/to/dds.RData", "path/to/tx2gene.tsv")
+```
 
 ## Documentation
 
 ```r
-vignette("deseq2reports", package = "deseq2reports")           # one-command + modular usage
-vignette("deseq2reports-modules", package = "deseq2reports") # detailed module reference (HTML)
+vignette("deseq2reports", package = "deseq2reports")                 # one-command + modular usage
+vignette("deseq2reports-modules", package = "deseq2reports")         # module reference
+vignette("deseq2reports-analysis-flow", package = "deseq2reports")   # calculation flow
 browseVignettes("deseq2reports")
 ```
 
-Standalone modules: `run_qc()`, `run_distance_pca()`,
-`run_diffexp_pipeline()`, `run_gsea_pipeline()`, `run_wgcna_pipeline()`,
-`run_decoupler_pipeline()`, `run_viper_pipeline()`, `run_ppi_pipeline()`,
-`render_report()`.
+Example runners in the source tree: `run_gse189410_wald.R`,
+`run_gse224465_wald.R`, `run_gse189410_lrt.R`.
 
 ## Design notes
 
@@ -57,16 +66,12 @@ Standalone modules: `run_qc()`, `run_distance_pca()`,
   count filtering (`filter_method = "cpm"` / `"count"` / `NULL`), batch-
   correction method for PCA, LFC shrinkage estimator
   (`ashr`/`apeglm`/`normal`/`none`), significance thresholds, DEG ranking
-  metric (`pxfc`/`padj`/`log2FoldChange`/`stat`), and MSigDB collections.
+  metric (`log2FoldChange`/`pxfc`/`padj`/`stat`), and MSigDB collections.
 * **Rank-deficiency guard**: `assert_full_rank_model_matrix()` checks the
-  model matrix before fitting, so a comparison that would make the design
-  singular fails immediately with an actionable message.
-* **Exact-match level merging** for pooled one-vs-rest comparisons (never
-  regex/substring matching), avoiding mis-mapping when one group name is a
-  substring of another.
-* CSV outputs throughout (no TSV), a multi-page self-contained HTML report
-  per run, and a plain-text + JSON reproducibility log
-  (`logs/run_<timestamp>.{log,json}`).
+  model matrix before fitting.
+* **Exact-match level merging** for pooled one-vs-rest comparisons.
+* CSV outputs throughout, multi-page HTML reports with relative `lib/`
+  assets, and a plain-text + JSON reproducibility log.
 
 ## License
 

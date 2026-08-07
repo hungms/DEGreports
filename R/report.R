@@ -97,12 +97,12 @@ report_page_hrefs <- function(from = "Index") {
 #' Build the shared top-of-page navigation bar for the multi-page HTML report
 #'
 #' Renders a single-line strip of cross-links between the report's HTML
-#' pages (`index`, `qc`, `deseq2`, `clusterProfiler`, `wgcna`,
-#' `decoupleR`, `viper`), used identically at the top of every page so a
-#' reader can jump between sections. The current page is shown as plain
-#' bold text (not a link to itself); any page named in `disabled` (e.g.
-#' `"WGCNA"` when `wgcna_out` was `NULL` and that page was never rendered)
-#' is shown greyed out instead of linked.
+#' pages (`index`, `qc`, `deseq2`, `clusterProfiler`, `wgcna`, `decoupleR`,
+#' `viper`), used identically at the top of every page so a reader can jump
+#' between sections. The current page is shown as plain bold text (not a
+#' link to itself); any page named in `disabled` (e.g. `"WGCNA"` when
+#' `wgcna_out` was `NULL` and that page was never rendered) is shown
+#' greyed out instead of linked.
 #'
 #' @param current One of `"Index"`, `"QC"`, `"DESeq2"`, `"clusterProfiler"`,
 #'   `"WGCNA"`, `"decoupleR"`, `"VIPER"` -- the page this bar is being
@@ -262,12 +262,23 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
     decoupler_out = NULL,
     ppi_out = NULL,
     viper_out = NULL,
+    cspa_out = NULL,
     alpha = 0.05,
     lfc_threshold = 0.5,
     run_args = NULL,
-    disabled_labels = character(0)) {
+    disabled_labels = character(0),
+    gsea_overlap_out = NULL,
+    multihit_out = NULL,
+    degpatterns_out = NULL,
+    cluster_ora_out = NULL) {
 
     org_guess <- tryCatch(gsea_out$results$org[1], error = function(e) NA_character_)
+    if (is.null(org_guess) || is.na(org_guess)) {
+        org_guess <- tryCatch(gsea_out$org, error = function(e) NA_character_)
+    }
+    if (is.null(org_guess) || is.na(org_guess)) {
+        org_guess <- tryCatch(cluster_ora_out$org, error = function(e) NA_character_)
+    }
     if (is.null(org_guess) || is.na(org_guess)) {
         org_guess <- tryCatch(decoupler_out$org, error = function(e) NA_character_)
     }
@@ -276,6 +287,12 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
     }
     if (is.null(org_guess) || is.na(org_guess)) {
         org_guess <- tryCatch(ppi_out$org, error = function(e) NA_character_)
+    }
+    if (is.null(org_guess) || is.na(org_guess)) {
+        org_guess <- tryCatch(cspa_out$org, error = function(e) NA_character_)
+    }
+    if (is.null(org_guess) || is.na(org_guess)) {
+        org_guess <- tryCatch(multihit_out$org, error = function(e) NA_character_)
     }
     list(
         var = var,
@@ -287,10 +304,15 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
         distance_out = distance_out,
         diffexp_out = diffexp_out,
         gsea_out = gsea_out,
+        gsea_overlap_out = gsea_overlap_out,
+        multihit_out = multihit_out,
+        degpatterns_out = degpatterns_out,
+        cluster_ora_out = cluster_ora_out,
         wgcna_out = wgcna_out,
         decoupler_out = decoupler_out,
         ppi_out = ppi_out,
         viper_out = viper_out,
+        cspa_out = cspa_out,
         alpha = alpha,
         lfc_threshold = lfc_threshold,
         run_args = run_args,
@@ -322,22 +344,86 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
     } else {
         validate_save_dir(file.path(save_dir, spec$dir))
     }
-    page_params <- c(
+    page_params <- utils::modifyList(
         shared_params,
         list(
             current_page = label,
-            page_hrefs = report_page_hrefs(label)
+            page_hrefs = report_page_hrefs(label),
+            contrast = NULL
         )
     )
+    # Folder-bundled delivery: each HTML lives next to its own `lib/` so
+    # rmarkdown 2.x `relativeTo(output_dir, lib_dir)` stays valid (a parent
+    # shared lib, or a symlink into it, is normalized to a non-descendant
+    # path and fails). Offline browsing still works via relative `lib/` hrefs.
+    lib_dir <- file.path(out_dir, "lib")
     rmarkdown::render(
         input = .report_template_path(spec$template),
         output_file = spec$file,
         output_dir = out_dir,
+        output_options = list(
+            self_contained = FALSE,
+            lib_dir = lib_dir
+        ),
         params = page_params,
         envir = new.env(parent = globalenv()),
         quiet = TRUE
     )
     normalizePath(file.path(out_dir, spec$file), mustWork = TRUE)
+}
+
+#' Render one per-contrast HTML under a module folder
+#'
+#' Writes `save_dir/<module_dir>/<contrast>/<contrast>.html` using the same
+#' Rmd template as the module hub page, with `params$contrast` set.
+#'
+#' @noRd
+.contrast_page_hrefs <- function(module_dir) {
+    pages <- .report_pages()
+    stats::setNames(
+        vapply(names(pages), function(lab) {
+            to <- pages[[lab]]
+            if (identical(to$dir, ".")) {
+                return(paste("..", "..", to$file, sep = "/"))
+            }
+            if (identical(to$dir, module_dir)) {
+                return(paste("..", to$file, sep = "/"))
+            }
+            paste("..", "..", to$dir, to$file, sep = "/")
+        }, character(1)),
+        names(pages)
+    )
+}
+
+.render_contrast_report_page <- function(module_key, contrast, shared_params, save_dir) {
+    pages <- .report_pages()
+    by_key <- stats::setNames(names(pages), vapply(pages, `[[`, character(1), "key"))
+    label <- by_key[[module_key]]
+    spec <- pages[[label]]
+    out_dir <- validate_save_dir(file.path(save_dir, spec$dir, contrast))
+    page_params <- utils::modifyList(
+        shared_params,
+        list(
+            current_page = label,
+            page_hrefs = .contrast_page_hrefs(spec$dir),
+            contrast = contrast
+        )
+    )
+    lib_dir <- file.path(out_dir, "lib")
+    outfile <- paste0(contrast, ".html")
+    rmarkdown::render(
+        input = .report_template_path(spec$template),
+        output_file = outfile,
+        output_dir = out_dir,
+        output_options = list(
+            self_contained = FALSE,
+            lib_dir = lib_dir
+        ),
+        params = page_params,
+        envir = new.env(parent = globalenv()),
+        quiet = TRUE
+    )
+    normalizePath(file.path(out_dir, outfile), mustWork = TRUE)
 }
 
 #' Render the Index HTML page into `save_dir`
@@ -347,13 +433,13 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
 #' @export
 render_index_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL, cspa_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
         disabled_labels
     )
     .render_report_page("Index", shared, save_dir)
@@ -365,13 +451,13 @@ render_index_page <- function(
 #' @export
 render_qc_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL, cspa_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
         disabled_labels
     )
     .render_report_page("QC", shared, save_dir)
@@ -383,13 +469,13 @@ render_qc_page <- function(
 #' @export
 render_deseq2_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL, cspa_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
         disabled_labels
     )
     .render_report_page("DESeq2", shared, save_dir)
@@ -405,13 +491,13 @@ render_diffexp_page <- render_deseq2_page
 #' @export
 render_clusterProfiler_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL, cspa_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
         disabled_labels
     )
     .render_report_page("clusterProfiler", shared, save_dir)
@@ -427,7 +513,7 @@ render_pathway_page <- render_clusterProfiler_page
 #' @export
 render_wgcna_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL, cspa_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     if (is.null(wgcna_out)) {
@@ -436,7 +522,7 @@ render_wgcna_page <- function(
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
         disabled_labels
     )
     .render_report_page("WGCNA", shared, save_dir)
@@ -448,7 +534,7 @@ render_wgcna_page <- function(
 #' @export
 render_decoupleR_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL, cspa_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     if (is.null(decoupler_out)) {
@@ -458,7 +544,7 @@ render_decoupleR_page <- function(
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
         disabled_labels
     )
     .render_report_page("decoupleR", shared, save_dir)
@@ -474,7 +560,7 @@ render_tf_activity_page <- render_decoupleR_page
 #' @export
 render_viper_page <- function(
     dds, var, distance_out, diffexp_out, gsea_out,
-    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL,
+    wgcna_out = NULL, decoupler_out = NULL, ppi_out = NULL, viper_out = NULL, cspa_out = NULL,
     alpha = 0.05, lfc_threshold = 0.5, run_args = NULL,
     disabled_labels = character(0), save_dir = getwd()) {
     if (is.null(viper_out)) {
@@ -484,7 +570,7 @@ render_viper_page <- function(
     save_dir <- validate_save_dir(save_dir)
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
         disabled_labels
     )
     .render_report_page("VIPER", shared, save_dir)
@@ -507,8 +593,10 @@ render_viper_page <- function(
 #'   \item `decoupler/decoupler.html` (omitted when `decoupler_out = NULL`)
 #'   \item `viper/viper.html` (omitted when `viper_out = NULL`)
 #' }
-#' Each file is self-contained (`self_contained = TRUE`); cross-links use
-#' relative paths so the folder tree can be copied and opened offline.
+#' Pages use folder-bundled delivery (`self_contained = FALSE`) with a
+#' shared `lib/` asset directory under `save_dir`; cross-links and CSV
+#' downloads use relative paths so the whole results tree can be copied
+#' and opened offline (do not share a lone HTML file without its siblings).
 #'
 #' @param dds The (QC-filtered) `DESeqDataSet`, used to report sample/gene
 #'   counts and the design formula in the report header. If it carries
@@ -522,6 +610,11 @@ render_viper_page <- function(
 #' @param distance_out Output of [run_distance_pca()].
 #' @param diffexp_out Output of [run_diffexp_pipeline()].
 #' @param gsea_out Output of [run_gsea_pipeline()].
+#' @param gsea_overlap_out Output of [run_gsea_overlap_pipeline()], or
+#'   `NULL` (default). When present, leading-edge overlap plots are shown
+#'   at the bottom of the clusterProfiler page.
+#' @param multihit_out Output of [run_multihit_pipeline()], or `NULL`
+#'   (default) to omit the index multi-hit section.
 #' @param wgcna_out Output of [run_wgcna_pipeline()], or `NULL` (default)
 #'   to omit the WGCNA page entirely (its link is greyed out, not removed,
 #'   in the navigation bar of the other pages).
@@ -531,6 +624,7 @@ render_viper_page <- function(
 #'   omit PPI connectivity sections on the DE and WGCNA pages.
 #' @param viper_out Output of [run_viper_pipeline()], or `NULL` (default)
 #'   to omit the VIPER page.
+#' @param cspa_out Output of [run_cspa_marker_pipeline()], or `NULL`.
 #' @param alpha Significance threshold to display/use for report summaries.
 #'   Default `0.05`.
 #' @param lfc_threshold Log2 fold-change threshold used for up/down
@@ -555,10 +649,15 @@ render_report <- function(
     distance_out,
     diffexp_out,
     gsea_out,
+    gsea_overlap_out = NULL,
+    multihit_out = NULL,
     wgcna_out = NULL,
     decoupler_out = NULL,
     ppi_out = NULL,
     viper_out = NULL,
+    cspa_out = NULL,
+    degpatterns_out = NULL,
+    cluster_ora_out = NULL,
     alpha = 0.05,
     lfc_threshold = 0.5,
     run_args = NULL,
@@ -580,24 +679,64 @@ render_report <- function(
 
     shared <- .report_shared_params(
         dds, var, distance_out, diffexp_out, gsea_out,
-        wgcna_out, decoupler_out, ppi_out, viper_out, alpha, lfc_threshold, run_args,
-        disabled_labels
+        wgcna_out, decoupler_out, ppi_out, viper_out, cspa_out, alpha, lfc_threshold, run_args,
+        disabled_labels,
+        gsea_overlap_out = gsea_overlap_out,
+        multihit_out = multihit_out,
+        degpatterns_out = degpatterns_out,
+        cluster_ora_out = cluster_ora_out
     )
 
-    # Module pages first, then index (so the landing page is written last).
+    # Module hubs first, then per-contrast pages for heavy modules, then
+    # remaining modules, then index last.
     render_order <- c("qc", "deseq2", "clusterProfiler")
     if (!is.null(wgcna_out)) render_order <- c(render_order, "wgcna")
     if (!is.null(decoupler_out)) render_order <- c(render_order, "decoupleR")
     if (!is.null(viper_out)) render_order <- c(render_order, "viper")
     render_order <- c(render_order, "index")
 
-    out_paths <- stats::setNames(character(length(render_order)), render_order)
+    out_paths <- stats::setNames(rep(NA_character_, length(render_order)), render_order)
     for (key in render_order) {
-        out_paths[[key]] <- .render_report_page(key, shared, save_dir)
+        message("  Rendering HTML page: ", key, " ...")
+        path <- tryCatch(
+            .render_report_page(key, shared, save_dir),
+            error = function(e) {
+                stop("Failed to render report page \"", key, "\": ",
+                     conditionMessage(e), call. = FALSE)
+            }
+        )
+        out_paths[[key]] <- path
+        invisible(gc())
+
+        # Per-contrast / per-LRT pages (memory-friendly split)
+        if (key %in% c("deseq2", "clusterProfiler")) {
+            comps <- if (identical(key, "deseq2")) {
+                names(diffexp_out$by_comparison)
+            } else if (!is.null(cluster_ora_out) &&
+                       !is.null(cluster_ora_out$ora_by_lrt) &&
+                       length(cluster_ora_out$ora_by_lrt)) {
+                names(cluster_ora_out$ora_by_lrt)
+            } else if (!is.null(gsea_out) && !is.null(gsea_out$by_comparison)) {
+                names(gsea_out$by_comparison)
+            } else {
+                character(0)
+            }
+            for (comp in comps) {
+                message("  Rendering HTML page: ", key, " / ", comp, " ...")
+                tryCatch(
+                    .render_contrast_report_page(key, comp, shared, save_dir),
+                    error = function(e) {
+                        stop("Failed to render ", key, " page \"", comp, "\": ",
+                             conditionMessage(e), call. = FALSE)
+                    }
+                )
+                invisible(gc())
+            }
+        }
     }
 
     message("HTML report written to: ", out_paths[["index"]],
-            " (+ ", length(out_paths) - 1,
+            " (+ ", max(0L, length(out_paths) - 1L),
             " linked section page(s) in per-module folders)")
     invisible(out_paths)
 }

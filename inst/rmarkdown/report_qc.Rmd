@@ -7,7 +7,7 @@ output:
     toc_float: true
     theme: flatly
     df_print: paged
-    self_contained: true
+    self_contained: false
     mathjax: null
 params:
   var: NULL
@@ -19,10 +19,15 @@ params:
   distance_out: NULL
   diffexp_out: NULL
   gsea_out: NULL
+  gsea_overlap_out: NULL
+  multihit_out: NULL
+  degpatterns_out: NULL
+  cluster_ora_out: NULL
   wgcna_out: NULL
   decoupler_out: NULL
   ppi_out: NULL
   viper_out: NULL
+  cspa_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL

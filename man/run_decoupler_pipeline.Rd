@@ -12,6 +12,7 @@ run_decoupler_pipeline(
   n_tfs_heatmap = 50,
   minsize = 5,
   gene_col = "gene",
+  collectri_file = NULL,
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -35,6 +36,11 @@ activity heatmap. Default \code{50}.}
 \code{decoupleR::run_ulm}). Default \code{5}.}
 
 \item{gene_col}{Gene-id column name in diffexp tables. Default \code{"gene"}.}
+
+\item{collectri_file}{Optional path to a local CollecTRI CSV with columns
+\code{source}, \code{target}, \code{mor}. Default \code{NULL} looks under \verb{example_data/}
+(\code{collectri_human.csv} / \code{collectri_mouse.csv}) then downloads via
+OmniPath if needed.}
 
 \item{save_dir}{Output directory. Default \code{getwd()}.}
 

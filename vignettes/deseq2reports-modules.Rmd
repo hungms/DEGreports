@@ -20,6 +20,8 @@ only code and narrative.
 
 For a short “how do I run it?” guide, see
 `vignette("deseq2reports", package = "deseq2reports")`.
+For calculation / dependency flow diagrams, see
+`vignette("deseq2reports-analysis-flow", package = "deseq2reports")`.
 
 ```{r}
 library(deseq2reports)
@@ -30,16 +32,19 @@ library(DESeq2)
 
 ---
 
-## Pipeline orchestration: `run_deseq2_pipeline()`
+## Pipeline orchestration: `run_deseq2_wald()` / `run_deseq2_lrt()`
 
 **Role.** Chains every stage below into one call and (by default) renders the
-multi-page HTML report.
+multi-page HTML report. Prefer `run_deseq2_wald()` for group contrasts and
+`run_deseq2_lrt()` for time / ordered trajectories.
+`run_deseq2_pipeline()` is a deprecated alias of `run_deseq2_wald()`.
 
 ```{r}
-out <- run_deseq2_pipeline(
+out <- run_deseq2_wald(
   dds,
   var = "condition",          # required; length 2 → two-factor mode
-  design = NULL,              # NULL → resolve_design(var, batch)
+  design = NULL,              # NULL → resolve_design(var, batch, include_interactions)
+  include_interactions = FALSE, # TRUE → ~ A * B + interaction contrasts
   comparisons = NULL,         # NULL → full pairwise + one-vs-rest grid
   batch = NULL,
   batch_method = "limma",     # PCA viz only: "limma" | "combat" | "none"
@@ -48,15 +53,14 @@ out <- run_deseq2_pipeline(
   shrinkage = "ashr",
   alpha = 0.05,
   lfc_threshold = 0.5,
-  ranking = "pxfc",
-  collections = c("GOBP", "GOCC", "GOMF",
+  ranking = "log2FoldChange",
+  collections = c("HALLMARK", "GOBP", "GOCC", "GOMF",
                   "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID"),
   n_scree_pcs = 10,
   n_loading_pcs = 6,
   n_top_genes = 10,
   top_label_n = 5,            # volcano labels per direction
   top_n_plot = 10,            # GSEA barplot pathways per NES direction
-  run_clusterprofiler = FALSE,
   run_wgcna = FALSE,
   wgcna_power = NULL,
   wgcna_min_module_size = 30,
@@ -66,22 +70,68 @@ out <- run_deseq2_pipeline(
   viper_n_tfs = 10,
   run_ppi = TRUE,
   ppi_top_n_hubs = 10,
+  run_cspa = TRUE,
+  cspa_n_markers = 25,
   render_html = TRUE,
   save_dir = getwd()
 )
 ```
 
-**Stages (in order).** `run_qc()` → `run_distance_pca()` →
-`run_diffexp_pipeline()` → `run_gsea_pipeline()` → optional
-`run_wgcna_pipeline()` / `run_decoupler_pipeline()` / `run_viper_pipeline()` /
-`run_ppi_pipeline()` → optional `render_report()`.
+**Wald stages (in order).** `run_qc()` → `run_distance_pca()` →
+`run_diffexp_pipeline()` → `run_cspa_marker_pipeline()` →
+`run_gsea_pipeline()` (+ overlap) → optional WGCNA / decoupleR / VIPER /
+PPI → `run_multihit_pipeline()` → `render_report()`.
 
-**Return value.** List with `dds`, `distance`, `diffexp`, `gsea`, optional
-`wgcna` / `decoupler` / `viper` / `ppi`, and `report_path`.
+**LRT entry point.**
+
+```{r}
+out <- run_deseq2_lrt(
+  dds,
+  var = "genotype",             # or NULL for time-only
+  time = "day",
+  include_interactions = FALSE,
+  run_wgcna = TRUE,
+  run_decoupler = TRUE,
+  run_viper = TRUE,
+  run_ppi = TRUE,
+  run_cspa = TRUE,
+  cspa_n_markers = 10,          # top CSPA genes per degPatterns cluster
+  degpatterns_minc = 15,
+  save_dir = "results_lrt"
+)
+```
+
+LRT stages: QC → distance → LRT grid (`run_diffexp_lrt_pipeline()`) →
+degPatterns → CSPA-by-cluster → cluster ORA → optional WGCNA →
+per-cluster TF (decoupleR / VIPER) → PPI →
+`run_multihit_lrt_pipeline()` → report. Ranked GSEA is **not** used in LRT
+mode.
+
+**Return value.** List with `dds`, `distance`, `diffexp`, optional
+`degpatterns` / `cluster_ora` / `gsea` / `wgcna` / `decoupler` / `viper` /
+`ppi` / `cspa` / `multihit`, and `report_path`.
 
 **Helpers used by the orchestrator.** `resolve_design()`,
-`validate_comparisons()` / `expand_contrast_specs()`, `detect_organism()`,
-`log_output()`.
+`validate_comparisons()` / `expand_contrast_specs()` / `expand_lrt_specs()`,
+`detect_organism()`, `log_output()`.
+
+---
+
+## Loading helpers: `load_nfcore()` / `summarize_genes_dds()`
+
+**Role.** Build a gene-symbol-level `DESeqDataSet` from nf-core outputs or
+from an object whose `rowData` already carries symbols.
+
+```{r}
+# nf-core/rnaseq .RData (object named `dds`) + 3-column tx2gene TSV
+dds <- load_nfcore("salmon.merged.gene_counts.RData", "tx2gene.tsv")
+
+# Or collapse an existing object by rowData symbol column
+dds <- summarize_genes_dds(dds, gene_sym_col = "gene")
+```
+
+`summarize_genes()` sums count rows that share a gene symbol (used
+internally by both helpers).
 
 ---
 
@@ -104,9 +154,7 @@ dds_qc <- run_qc(
   gene_chr = NULL,                # needed if remove_xy = TRUE
   remove_vdj = NULL,              # NULL/FALSE | TRUE/"both" | "BCR" | "TCR"
   save_dir = getwd(),
-  save_plot = TRUE,
-  add_correlation_heatmap = FALSE,
-  correlation_transform = "vst"   # or "rlog" if heatmap enabled
+  save_plot = TRUE
 )
 ```
 
@@ -116,7 +164,6 @@ dds_qc <- run_qc(
 |---|---|
 | `plot_library_size(dds, var)` | Per-sample library sizes by group |
 | `plot_count_distribution(...)` | Pre/post filter density; cutoff line |
-| `plot_sample_correlation(dds, var, transform = "vst")` | Optional Pearson heatmap |
 | `detect_organism(genes, min_fraction = 0.5)` | `"human"` / `"mouse"` from symbols |
 
 **Return value.** Filtered `DESeqDataSet`; QC metadata in
@@ -174,12 +221,13 @@ diffexp_out <- run_diffexp_pipeline(
   var = "condition",
   comparisons = NULL,         # NULL → generate_comparisons() / expand_contrast_specs()
   batch = NULL,               # added to design when set
+  include_interactions = FALSE, # two-factor: interaction contrasts when TRUE
   shrinkage = "ashr",         # "ashr" | "apeglm" | "normal" | "none"
   alpha = 0.05,
   lfc_threshold = 0.5,
-  ranking = "pxfc",           # "pxfc" | "padj" | "log2FoldChange" | "stat"
+  ranking = "log2FoldChange",           # "pxfc" | "padj" | "log2FoldChange" | "stat"
   gene_col = "gene",
-  top_label_n = 10,           # pipeline wrapper uses 5 when called via run_deseq2_pipeline()
+  top_label_n = 10,           # pipeline wrapper uses 5 when called via run_deseq2_wald()
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -191,10 +239,10 @@ diffexp_out <- run_diffexp_pipeline(
 |---|---|
 | `run_diffexp(dds, contrast, shrinkage = "ashr", ...)` | Single-contrast fit |
 | `generate_comparisons(levels)` | All pairwise + one-vs-rest labels |
-| `expand_contrast_specs(dds, var)` | Two-factor within-/interaction specs |
+| `expand_contrast_specs(dds, var, include_interactions = FALSE)` | Two-factor within-/optional interaction specs |
 | `classify_comparison_type(labels)` | `"pairwise"` vs `"one_vs_all"` |
 | `assert_full_rank_model_matrix(mm)` | Fail early on singular designs |
-| `compute_ranking_score(res, ranking = "pxfc")` | Gene ranking metric |
+| `compute_ranking_score(res, ranking = "log2FoldChange")` | Gene ranking metric |
 | `plot_ma(res, alpha = 0.05, lfc_threshold = 0.5)` | MA plot |
 | `plot_volcano(res, alpha = 0.05, lfc_threshold = 0.5, top_label_n = 5)` | Volcano |
 | `diffexp_top_bottom_table(res, top_n = 10)` | Top up/down table helper |
@@ -216,7 +264,7 @@ write CSVs, NES barplots, and barcode panels.
 gsea_out <- run_gsea_pipeline(
   diffexp_out$results,
   collections = "HALLMARK",   # pipeline default is broader (see above)
-  ranking = "pxfc",
+  ranking = "log2FoldChange",
   gene_col = "gene",
   min_size = 15,
   max_size = 500,
@@ -234,7 +282,7 @@ gsea_out <- run_gsea_pipeline(
 | `detect_organism(genes, min_fraction = 0.5)` | Species for MSigDB |
 | `import_msigdbr(org, collection)` | Named gene-set list |
 | `import_msigdbr_term2gene(org, collection)` | For clusterProfiler path |
-| `build_gsea_ranks(res, gene_col = "gene", ranking = "pxfc")` | Named rank vector |
+| `build_gsea_ranks(res, gene_col = "gene", ranking = "log2FoldChange")` | Named rank vector |
 | `run_gsea(ranks, gene_sets, min_size = 15, max_size = 500, eps = 1e-10)` | `fgsea` wrapper |
 | `run_clusterprofiler_gsea(ranks, term2gene, min_size = 15, max_size = 500)` | Optional |
 | `plot_gsea_barplot(res, top_n = 10, signif_only = FALSE)` | NES barplot |
@@ -247,6 +295,42 @@ gsea_out <- run_gsea_pipeline(
 
 **Return value.** `results`, `by_comparison`, `ranks_by_comparison`,
 `gene_sets`, `ranking`, `org`.
+
+---
+
+## GSEA leading-edge overlap: `run_gsea_overlap_pipeline()`
+
+**Role.** Pool significant pathways (`padj < alpha`) across collections per
+contrast; Jaccard similarity of leading-edge gene sets; `binary_cut`
+clustering with a no-label heatmap and side word clouds (Suggests
+`simplifyEnrichment`). Shown at the bottom of the **clusterProfiler** HTML
+page.
+
+```{r}
+gsea_overlap_out <- run_gsea_overlap_pipeline(
+  gsea_out, alpha = 0.05,
+  save_dir = "results/clusterprofiler"  # → <comp>/gsea_overlap/
+)
+```
+
+## Cross-analysis gene hits: `run_multihit_pipeline()` / `run_multihit_lrt_pipeline()`
+
+**Role (Wald).** Per contrast, rank genes by hit count across DEG, GSEA
+leading edges (at most +1), VIPER, decoupleR, and CSPA; top-10 stacked
+barplots on the index page.
+
+```{r}
+multihit_out <- run_multihit_pipeline(
+  diffexp_out, gsea_out = gsea_out,
+  viper_out = viper_out, decoupler_out = decoupler_out,
+  cspa_out = cspa_out,
+  top_n = 10, save_dir = "results/multihit"
+)
+```
+
+**Role (LRT).** Per degPatterns cluster, top-10 table of genes co-occurring
+across LRT DEG membership, WGCNA modules, decoupleR TFs, and VIPER TFs
+(`run_multihit_lrt_pipeline()`).
 
 ---
 
@@ -321,9 +405,12 @@ decoupler_out <- run_decoupler_pipeline(
 | `plot_tf_sample_heatmap(sample_acts, n_tfs = 50)` | Sample × TF heatmap |
 | `plot_tf_contrast_barplot(acts, n_tfs = 25, title = NULL)` | Contrast TF barplot |
 
-Sample scores use blind VST; contrast scores use DESeq2 Wald `stat`.
+Sample scores use blind VST; contrast scores use DESeq2 Wald `stat`
+(or LRT cluster `stat` when `diffexp_out` comes from
+`lrt_clusters_diffexp_for_tf()`). Prefer a local CollecTRI CSV under
+`example_data/collectri_{human,mouse}.csv` or pass `collectri_file=`.
 
-**Requires.** Suggests `decoupleR`, `OmnipathR`.
+**Requires.** Suggests `decoupleR` (OmnipathR only needed if no local network).
 
 ---
 
@@ -432,7 +519,7 @@ render_report(
 | `report_nav_links(current, disabled = character(0), hrefs = NULL)` | Top nav bar |
 | `emit_code_block(..., lang = "r", caption = NULL)` | Minimal reproduce-me code |
 | `emit_plot_with_download(plot, filename, width = 7, height = 5, dpi = 150)` | Figure + PDF button |
-| `download_table_button(...)` / `download_plot_button(...)` | Offline downloads |
+| `download_table_button(...)` / `download_plot_button(...)` / `link_output_file(...)` | Offline downloads / on-disk CSV links |
 | `make_interactive(...)` / `make_interactive_ppi(...)` | Interactive widgets |
 
 Each report section shows the **minimal package module call** to reproduce it.
@@ -444,11 +531,11 @@ Each report section shows the **minimal package module call** to reproduce it.
 | Function | Defaults / role |
 |---|---|
 | `detect_organism(genes, min_fraction = 0.5)` | `"human"` / `"mouse"` |
-| `resolve_design(var, batch = NULL, design = NULL)` | Auto design formula |
+| `resolve_design(var, batch = NULL, design = NULL, include_interactions = FALSE)` | Auto design formula |
 | `generate_comparisons(levels)` | Pairwise + one-vs-rest labels |
-| `expand_contrast_specs(dds, var)` | Contrast inventory data frame |
-| `compute_ranking_score(res, ranking = "pxfc")` | Ranking metric |
-| `build_gsea_ranks(res, gene_col = "gene", ranking = "pxfc")` | Named ranks |
+| `expand_contrast_specs(dds, var, include_interactions = FALSE)` | Contrast inventory data frame |
+| `compute_ranking_score(res, ranking = "log2FoldChange")` | Ranking metric |
+| `build_gsea_ranks(res, gene_col = "gene", ranking = "log2FoldChange")` | Named ranks |
 | `import_msigdbr(org, collection)` | MSigDB gene sets |
 | `save_ggplot(plot, path, width = 7, height = 5)` | PDF writer |
 | `write_output(x, path, format = "csv")` | Table writer |
@@ -486,5 +573,5 @@ render_report(
 Or:
 
 ```{r}
-out <- run_deseq2_pipeline(dds, var = "condition", save_dir = "results")
+out <- run_deseq2_wald(dds, var = "condition", save_dir = "results")
 ```

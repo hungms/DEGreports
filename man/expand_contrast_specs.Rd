@@ -4,12 +4,18 @@
 \alias{expand_contrast_specs}
 \title{Expand the automatic contrast grid for one- or two-factor \code{var}}
 \usage{
-expand_contrast_specs(dds, var)
+expand_contrast_specs(dds, var, include_interactions = FALSE)
 }
 \arguments{
 \item{dds}{A \code{DESeqDataSet}.}
 
 \item{var}{Character vector of length 1 or 2.}
+
+\item{include_interactions}{Logical. When \code{var} has length 2, include
+interaction contrasts if \code{TRUE}. Default \code{FALSE}. Interaction rows
+cover (i) each non-reference level of \code{var[1]} × each non-reference
+level of \code{var[2]} vs the reference interaction, and (ii) all pairwise
+differences among those non-reference interactions (e.g. CK vs C × CC).}
 }
 \value{
 A data frame of contrast specs (0 rows only if somehow no levels).
@@ -25,6 +31,8 @@ Returns a data frame of contrast specifications consumed by
 \item{stratum_level}{Level of \code{stratum_var}, else \code{NA}}
 \item{test_var}{Column used for the contrast (or first of \code{var} for interaction)}
 \item{comparison}{\code{"A_vs_B"} / \code{"A_vs_B+C"} string for within / single;
-interaction coefficient name for interaction rows}
+primary interaction coefficient name for interaction rows}
+\item{coef_subtract}{For pairwise interaction contrasts, the second
+coefficient subtracted from \code{comparison}; otherwise \code{NA}}
 }
 }

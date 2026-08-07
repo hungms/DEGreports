@@ -31,7 +31,7 @@
 #' )
 #' compute_ranking_score(df, "pxfc")
 #' @export
-compute_ranking_score <- function(res_df, ranking = "pxfc") {
+compute_ranking_score <- function(res_df, ranking = "log2FoldChange") {
     ranking <- validate_ranking(ranking)
     required <- c("log2FoldChange", "pvalue", "padj", "stat")
     missing <- setdiff(required, colnames(res_df))
@@ -85,7 +85,7 @@ compute_ranking_score <- function(res_df, ranking = "pxfc") {
 #'   `NA`/duplicate gene identifiers removed (keeping the first, highest
 #'   |score|, occurrence of any duplicate).
 #' @export
-build_gsea_ranks <- function(res_df, gene_col = "gene", ranking = "pxfc") {
+build_gsea_ranks <- function(res_df, gene_col = "gene", ranking = "log2FoldChange") {
     if (!gene_col %in% colnames(res_df)) {
         stop("`gene_col` (\"", gene_col, "\") is not a column of `res_df`.", call. = FALSE)
     }

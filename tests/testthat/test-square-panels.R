@@ -5,7 +5,7 @@
 #      data panel as an exact square via `ggplot2::theme(aspect.ratio = 1)`
 #      (`square_panel_theme()`): plot_pca, plot_pca_scree,
 #      plot_pca_top_loadings, plot_ma, plot_volcano, plot_library_size,
-#      plot_count_distribution, and the sample-similarity/sample-correlation
+#      plot_count_distribution, and the sample-similarity
 #      pheatmaps (test-report-helpers.R). Squaring these -- PCA/QC/DE
 #      overview plots users compare side-by-side, plus the two
 #      symmetric sample x sample matrices -- makes cross-plot comparison
@@ -47,7 +47,7 @@
 #
 # Functions covered elsewhere (not repeated here): plot_pca, plot_ma,
 # plot_volcano (test-distance-pca.R / test-diffexp-plots.R), and the
-# square-count sample-similarity/sample-correlation pheatmaps
+# square-count sample-similarity pheatmaps
 # (test-report-helpers.R).
 
 test_that("zero_expansion() returns exactly zero multiplicative and additive expansion", {

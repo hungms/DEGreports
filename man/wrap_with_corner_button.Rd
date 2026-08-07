@@ -12,8 +12,9 @@ wrap_with_corner_button(content, button, center = TRUE)
 \code{plotly} widget, \code{DT::datatable}, or similar).}
 
 \item{button}{One button tag (from \code{\link[=download_table_button]{download_table_button()}},
-\code{\link[=download_plot_button]{download_plot_button()}}, or \code{\link[=download_grid_plot_button]{download_grid_plot_button()}}), or a
-list of several, to place in the row above the figure/table.}
+\code{\link[=download_plot_button]{download_plot_button()}}, \code{\link[=download_grid_plot_button]{download_grid_plot_button()}}, or
+\code{\link[=link_output_file]{link_output_file()}}), or a list of several, to place in the row
+above the figure/table.}
 
 \item{center}{If \code{TRUE} (the default), the figure/table content is
 centered on the page. Download buttons are always right-aligned to
