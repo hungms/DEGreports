@@ -23,9 +23,9 @@
 #'   `decoupleR::run_ulm`). Default `5`.
 #' @param gene_col Gene-id column name in diffexp tables. Default `"gene"`.
 #' @param collectri_file Optional path to a local CollecTRI CSV with columns
-#'   `source`, `target`, `mor`. Default `NULL` looks under `example_data/`
-#'   (`collectri_human.csv` / `collectri_mouse.csv`) then downloads via
-#'   OmniPath if needed.
+#'   `source`, `target`, `mor`. Default `NULL` loads the date-stamped network
+#'   shipped under `inst/extdata/` (or downloads it from the GitHub repo),
+#'   then falls back to OmniPath only if that fails.
 #' @param save_dir Output directory. Default `getwd()`.
 #' @param save_plot Logical; write PDFs alongside CSVs. Default `TRUE`.
 #' @return A list with `net`, `sample_acts`, `contrast_acts` (named list),
@@ -137,27 +137,6 @@ run_decoupler_pipeline <- function(
     )
 }
 
-#' Resolve a local CollecTRI CSV (example_data / extdata)
-#' @noRd
-.collectri_default_path <- function(organism = c("human", "mouse")) {
-    organism <- match.arg(organism)
-    fname <- paste0("collectri_", organism, ".csv")
-    pkg_path <- tryCatch(find.package("deseq2reports"), error = function(e) "")
-    for (cand in c(
-        system.file("extdata", fname, package = "deseq2reports"),
-        file.path(pkg_path, "extdata", fname),
-        file.path(pkg_path, "inst", "extdata", fname),
-        file.path(pkg_path, "example_data", fname),
-        file.path("inst", "extdata", fname),
-        file.path("example_data", fname)
-    )) {
-        if (nzchar(cand) && file.exists(cand)) {
-            return(normalizePath(cand, mustWork = TRUE))
-        }
-    }
-    NULL
-}
-
 #' Read a local CollecTRI CSV (source/target/mor)
 #' @noRd
 .read_collectri_file <- function(file) {
@@ -177,7 +156,7 @@ run_decoupler_pipeline <- function(
 
 #' Fetch CollecTRI as source/target/mor, with local + OmniPath fallbacks
 #'
-#' Order: explicit `file` → bundled/example_data CSV →
+#' Order: explicit `file` → bundled/GitHub `inst/extdata` CSV →
 #' [decoupleR::get_collectri()] → OmniPath REST API.
 #' @noRd
 .get_collectri_network <- function(organism = c("human", "mouse"),
@@ -188,9 +167,15 @@ run_decoupler_pipeline <- function(
         message("Loading CollecTRI from ", file, " ...")
         return(.read_collectri_file(file))
     }
-    local <- .collectri_default_path(organism)
+    local <- tryCatch(
+        .collectri_default_path(organism, download = TRUE),
+        error = function(e) {
+            message("Bundled CollecTRI unavailable (", conditionMessage(e), ").")
+            NULL
+        }
+    )
     if (!is.null(local)) {
-        message("Loading local CollecTRI from ", local, " ...")
+        message("Loading CollecTRI from ", local, " ...")
         return(.read_collectri_file(local))
     }
 

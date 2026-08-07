@@ -114,8 +114,9 @@ Under `results/` this writes per-module folders plus `index.html`:
 | `multihit/` | Cross-analysis top genes (shown on the index page) |
 | `logs/` | Timestamped run log + JSON session record |
 
-Local CollecTRI priors under `example_data/collectri_{human,mouse}.csv` are
-used automatically when present (no OmniPath download required).
+Local CollecTRI priors under `inst/extdata/collectri_{human,mouse}_*.csv`
+(shipped with the GitHub install; auto-downloaded from the repo if missing)
+are used automatically before OmniPath.
 
 ## One-command LRT pipeline
 

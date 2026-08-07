@@ -408,7 +408,7 @@ decoupler_out <- run_decoupler_pipeline(
 Sample scores use blind VST; contrast scores use DESeq2 Wald `stat`
 (or LRT cluster `stat` when `diffexp_out` comes from
 `lrt_clusters_diffexp_for_tf()`). Prefer a local CollecTRI CSV under
-`example_data/collectri_{human,mouse}.csv` or pass `collectri_file=`.
+`inst/extdata/collectri_{human,mouse}_*.csv` (GitHub package default) or pass `collectri_file=`.
 
 **Requires.** Suggests `decoupleR` (OmnipathR only needed if no local network).
 

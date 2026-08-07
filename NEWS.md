@@ -14,14 +14,16 @@
 * Loading helpers: `summarize_genes()`, `summarize_genes_dds()`, and
   `load_nfcore()` to collapse transcript/feature IDs to gene symbols
   (including nf-core/rnaseq `.RData` + `tx2gene` TSV).
-* Local CollecTRI priors: `example_data/collectri_{human,mouse}.csv` are
-  preferred by `run_decoupler_pipeline()` before OmniPath download;
-  optional `collectri_file=` override.
+* Packaged reference data under `inst/extdata/` (GitHub install default):
+  - CSPA S3 workbook `CSPA_pone.0121314.s003.xlsx`
+  - Date-stamped CollecTRI networks
+    `collectri_{human,mouse}_2026-08-06.csv`
+  - Auto-resolve via installed package path, else download from this
+    GitHub repo into the user cache (`DATA_SOURCES.md`).
 * Suggests `DEGreport` for temporal clustering.
 * Example runners: `run_gse189410_wald.R`, `run_gse224465_wald.R`,
   `run_gse189410_lrt.R`.
-* Vignettes updated for Wald / LRT entry points, loading helpers, and
-  analysis-flow diagrams.
+* Vignettes / README updated (Wald / LRT, loaders, citations).
 
 # deseq2reports (development notes prior to 0.2.0)
 

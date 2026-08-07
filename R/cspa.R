@@ -1,27 +1,3 @@
-#' Path to the bundled CSPA supplementary table (Bausch-Fluck et al.)
-#' @noRd
-.cspa_default_path <- function() {
-    path <- system.file(
-        "extdata", "CSPA_pone.0121314.s003.xlsx",
-        package = "deseq2reports"
-    )
-    if (!nzchar(path) || !file.exists(path)) {
-        # Dev / load_all: fall back to source tree
-        pkg_path <- tryCatch(find.package("deseq2reports"), error = function(e) "")
-        for (cand in c(
-            file.path(pkg_path, "extdata", "CSPA_pone.0121314.s003.xlsx"),
-            file.path(pkg_path, "inst", "extdata", "CSPA_pone.0121314.s003.xlsx"),
-            file.path("inst", "extdata", "CSPA_pone.0121314.s003.xlsx"),
-            file.path("example_data", "CSPA_pone.0121314.s003.xlsx")
-        )) {
-            if (nzchar(cand) && file.exists(cand)) return(normalizePath(cand, mustWork = TRUE))
-        }
-        stop("Bundled CSPA file not found. Reinstall deseq2reports or pass `cspa_file`.",
-             call. = FALSE)
-    }
-    normalizePath(path, mustWork = TRUE)
-}
-
 #' Load CSPA cell-surface gene symbols (Human / Mouse)
 #'
 #' Reads the Cell Surface Protein Atlas supplementary tables from
@@ -33,7 +9,8 @@
 #'
 #' @param organism `"human"` or `"mouse"`.
 #' @param file Path to the CSPA Excel workbook. Default `NULL` uses the
-#'   file shipped under `inst/extdata/`.
+#'   file shipped under `inst/extdata/` (or downloads it from the GitHub
+#'   repo into the user cache).
 #' @param categories Optional character vector of `CSPA category` values to
 #'   keep. Default `NULL` keeps every category.
 #' @return A character vector of unique gene symbols (as stored in the
@@ -47,7 +24,11 @@ load_cspa_genes <- function(organism = c("human", "mouse"),
         stop("Package \"readxl\" is required to read the CSPA Excel table. ",
              "Install with install.packages(\"readxl\").", call. = FALSE)
     }
-    file <- if (is.null(file)) .cspa_default_path() else normalizePath(file, mustWork = TRUE)
+    file <- if (is.null(file)) {
+        .cspa_default_path(download = TRUE)
+    } else {
+        normalizePath(file, mustWork = TRUE)
+    }
     sheets <- readxl::excel_sheets(file)
     if (length(sheets) < 2L) {
         stop("CSPA workbook must have at least 2 sheets (human, mouse); found ",
