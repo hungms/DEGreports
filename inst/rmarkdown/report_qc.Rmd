@@ -141,7 +141,9 @@ deseq2reports::emit_code_block(
 ### PCA scatter {.tabset}
 
 ```{r pca-has-batch, include=FALSE}
-pca_has_batch <- !is.null(params$distance_out$pca_plot_uncorrected_interactive)
+# Keyed on the static plot, since the interactive one is NULL whenever plotly
+# could not convert it (see make_interactive()).
+pca_has_batch <- !is.null(params$distance_out$pca_plot_uncorrected)
 # Name the method in the tab labels, so a reader can tell a ComBat-seq report
 # from a ComBat one. Falls back to the generic wording when no batch was given.
 corr_method <- params$distance_out$batch_correction
@@ -172,11 +174,17 @@ if (pca_has_batch) {
 
 ```{r pca-after-plot, results='asis'}
 if (!is.null(params$distance_out$pca_plot)) {
-  btn <- deseq2reports::download_plot_button(
-    params$distance_out$pca_plot, filename = "pca_plot",
-    widget = params$distance_out$pca_plot_interactive
-  )
-  deseq2reports::emit_widget_with_download(params$distance_out$pca_plot_interactive, btn, center = TRUE)
+  pca_int <- params$distance_out$pca_plot_interactive
+  if (is.null(pca_int)) {
+    deseq2reports::emit_plot_with_download(params$distance_out$pca_plot,
+                                           filename = "pca_plot",
+                                           width = 5, height = 5)
+  } else {
+    btn <- deseq2reports::download_plot_button(
+      params$distance_out$pca_plot, filename = "pca_plot", widget = pca_int
+    )
+    deseq2reports::emit_widget_with_download(pca_int, btn, center = TRUE)
+  }
 }
 ```
 
@@ -217,11 +225,17 @@ if (pca_has_batch) {
 pca_uncorr <- if (pca_has_batch) params$distance_out$pca_plot_uncorrected else params$distance_out$pca_plot
 pca_uncorr_interactive <- if (pca_has_batch) params$distance_out$pca_plot_uncorrected_interactive else params$distance_out$pca_plot_interactive
 if (!is.null(pca_uncorr)) {
-  btn <- deseq2reports::download_plot_button(
-    pca_uncorr, filename = "pca_plot_uncorrected",
-    widget = pca_uncorr_interactive
-  )
-  deseq2reports::emit_widget_with_download(pca_uncorr_interactive, btn, center = TRUE)
+  if (is.null(pca_uncorr_interactive)) {
+    deseq2reports::emit_plot_with_download(pca_uncorr,
+                                           filename = "pca_plot_uncorrected",
+                                           width = 5, height = 5)
+  } else {
+    btn <- deseq2reports::download_plot_button(
+      pca_uncorr, filename = "pca_plot_uncorrected",
+      widget = pca_uncorr_interactive
+    )
+    deseq2reports::emit_widget_with_download(pca_uncorr_interactive, btn, center = TRUE)
+  }
 }
 ```
 

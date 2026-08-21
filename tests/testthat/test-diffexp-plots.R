@@ -213,6 +213,21 @@ test_that("make_interactive wraps a ggplot into a plotly widget with the modebar
     expect_false(pl$x$config$displaylogo)
 })
 
+test_that("make_interactive warns and returns NULL when plotly cannot convert the plot", {
+    skip_if_not_installed("plotly")
+    df <- data.frame(x = 1:5, y = 1:5, lab = paste0("s", 1:5))
+    p <- ggplot2::ggplot(df, ggplot2::aes(x = x, y = y, text = lab)) + ggplot2::geom_point()
+    # Stands in for a plotly older than the installed ggplot2, which errors on
+    # the changed Guides$train() signature. Losing the widget must not abort a
+    # pipeline; the templates show the static figure instead.
+    local_mocked_bindings(
+        ggplotly = function(...) stop("unused argument (list(\"x\", \"y\"))"),
+        .package = "plotly"
+    )
+    expect_warning(out <- make_interactive(p), "version mismatch")
+    expect_null(out)
+})
+
 test_that("make_deg_datatable returns a DT::datatable over the result table", {
     skip_if_not_installed("DT")
     res_df <- mock_res_df()

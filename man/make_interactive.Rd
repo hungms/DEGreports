@@ -22,7 +22,8 @@ the final canvas size when \code{square = FALSE}. Default \code{550}.}
 }
 \value{
 A \code{plotly} htmlwidget object, always with a fixed (non-responsive)
-pixel size.
+pixel size, or \code{NULL} with a warning if \code{plotly} could not convert the
+plot (see Details).
 }
 \description{
 Thin wrapper around \code{\link[plotly:ggplotly]{plotly::ggplotly()}} that shows only the mapped
@@ -51,4 +52,11 @@ When \code{print()}-ing the returned widget from inside a knitr
 \code{results='asis'} loop (as the bundled report template's per-comparison
 loop does), use \code{\link[=emit_widget]{emit_widget()}} rather than \code{print()}/\code{tagList()}
 directly -- see that function's documentation for why.
+
+A failing conversion returns \code{NULL} with a warning rather than raising an
+error, and the bundled templates then show the static figure instead. The
+failure this guards against is an installed plotly older than the installed
+ggplot2: plotly reaches into ggplot2 internals whose signatures change
+between releases (e.g. plotly 4.10.x calls
+\code{guides$train(scales, theme$legend.direction, plot$labels)}, which ggplot2= 3.5 rejects as an unused argument), and the two packages do not constraineach other's versions. Losing hover tooltips is not worth aborting apipeline that has already computed every analysis, so the run continues.
 }

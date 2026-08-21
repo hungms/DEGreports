@@ -780,6 +780,16 @@ plot_pca <- function(pca_df, var, shape_var = NULL, pals = NULL, percent_var = N
 #' loop does), use [emit_widget()] rather than `print()`/`tagList()`
 #' directly -- see that function's documentation for why.
 #'
+#' A failing conversion returns `NULL` with a warning rather than raising an
+#' error, and the bundled templates then show the static figure instead. The
+#' failure this guards against is an installed plotly older than the installed
+#' ggplot2: plotly reaches into ggplot2 internals whose signatures change
+#' between releases (e.g. plotly 4.10.x calls
+#' `guides$train(scales, theme$legend.direction, plot$labels)`, which ggplot2
+#' >= 3.5 rejects as an unused argument), and the two packages do not constrain
+#' each other's versions. Losing hover tooltips is not worth aborting a
+#' pipeline that has already computed every analysis, so the run continues.
+#'
 #' @param gg_plot A `ggplot` object whose mapping includes a `text`
 #'   aesthetic (e.g. as added by [plot_pca()], [plot_ma()], [plot_volcano()]).
 #' @param tooltip Passed to `plotly::ggplotly(tooltip = )`. Default
@@ -790,13 +800,35 @@ plot_pca <- function(pca_df, var, shape_var = NULL, pals = NULL, percent_var = N
 #' @param base_size Canvas height (px) for the square-solving pass; also
 #'   the final canvas size when `square = FALSE`. Default `550`.
 #' @return A `plotly` htmlwidget object, always with a fixed (non-responsive)
-#'   pixel size.
+#'   pixel size, or `NULL` with a warning if `plotly` could not convert the
+#'   plot (see Details).
 #' @export
 make_interactive <- function(gg_plot, tooltip = "text", square = TRUE, base_size = 550) {
     if (!requireNamespace("plotly", quietly = TRUE)) {
         stop("Package \"plotly\" is required for interactive plots. Install it with ",
              "`install.packages(\"plotly\")`.", call. = FALSE)
     }
+    tryCatch(
+        .make_interactive_impl(gg_plot, tooltip = tooltip, square = square,
+                               base_size = base_size),
+        error = function(e) {
+            warning("Could not build the interactive version of this plot (",
+                    conditionMessage(e), "). Falling back to the static figure. ",
+                    "This is usually a plotly / ggplot2 version mismatch -- ",
+                    "installed plotly ", utils::packageVersion("plotly"),
+                    " against ggplot2 ", utils::packageVersion("ggplot2"),
+                    "; try install.packages(\"plotly\").", call. = FALSE)
+            NULL
+        }
+    )
+}
+
+#' Build the plotly widget for [make_interactive()]
+#'
+#' Separated so the caller can catch a failing `ggplotly()` conversion --
+#' see [make_interactive()]'s Details for why that is not fatal.
+#' @noRd
+.make_interactive_impl <- function(gg_plot, tooltip, square, base_size) {
     if (isTRUE(square)) {
         dims <- .square_plotly_canvas(gg_plot, tooltip = tooltip, base_size = base_size)
         p <- plotly::ggplotly(gg_plot, tooltip = tooltip, width = dims$width, height = dims$height)

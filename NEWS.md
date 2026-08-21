@@ -1,5 +1,21 @@
 # deseq2reports 0.3.0
 
+* **Fix (a stale plotly took down the whole run):** `plotly` reaches into
+  ggplot2 internals whose signatures change between releases, and neither
+  package constrains the other's version, so an environment carrying an old
+  plotly beside a current ggplot2 errors inside `ggplotly()` --
+  `unused argument (list("PC2: 26.7% variance", ...))`, from plotly 4.10.x
+  calling `guides$train(scales, theme$legend.direction, plot$labels)` on a
+  ggplot2 (>= 3.5) that no longer takes the middle argument. Any plot with a
+  legend hits it, so `run_deseq2_lrt()` died on the first interactive PCA,
+  three steps into a fifteen-step run, with QC already computed and nothing
+  written. `make_interactive()` now warns and returns `NULL` instead of
+  erroring, naming both installed versions, and the QC / DESeq2 templates fall
+  back to the static figure for the PCA, MA and volcano panels -- losing hover
+  tooltips rather than the run. `DESCRIPTION` additionally requires
+  `plotly (>= 4.12.0)`, so a too-old install fails at install time rather than
+  mid-pipeline. `report_qc.Rmd` also keys its before/after batch tabset off the
+  **static** uncorrected PCA, which a missing widget no longer hides.
 * **Ligand–receptor pairs are now scored per degPatterns cluster in LRT mode.**
   decoupleR-CCC was the last LRT module still working off the whole-test
   signature, so its barplot ranked pairs by a statistic pooled over every

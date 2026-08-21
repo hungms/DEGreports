@@ -324,9 +324,15 @@ emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold,
 
   cat("\n\n##### MA plot\n\nHover over a point to see its gene name, log2 fold-change, and adjusted p-value.\n\n")
   ma_plot <- deseq2reports::plot_ma(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
+  # A NULL interactive means plotly could not convert the plot; show the static
+  # figure rather than an empty section (see make_interactive()).
   ma_int <- deseq2reports::make_interactive(ma_plot)
-  ma_btn <- deseq2reports::download_plot_button(ma_plot, filename = paste0(stem, "_MA_plot"), widget = ma_int)
-  deseq2reports::emit_widget_with_download(ma_int, ma_btn, center = TRUE)
+  if (is.null(ma_int)) {
+    deseq2reports::emit_plot_with_download(ma_plot, filename = paste0(stem, "_MA_plot"))
+  } else {
+    ma_btn <- deseq2reports::download_plot_button(ma_plot, filename = paste0(stem, "_MA_plot"), widget = ma_int)
+    deseq2reports::emit_widget_with_download(ma_int, ma_btn, center = TRUE)
+  }
 
   cat("\n\n##### Volcano plot\n\nHover over a point to see its gene name, log2 fold-change, and adjusted p-value. ",
       "x-axis uses shrunken log2 fold-changes (only super-extreme outliers are clipped); ",
@@ -334,8 +340,12 @@ emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold,
       "Points are coloured up/down only when padj < alpha and |log2FC| > ", lfc_threshold, ".\n\n", sep = "")
   volcano_plot <- deseq2reports::plot_volcano(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
   volcano_int <- deseq2reports::make_interactive(volcano_plot)
-  volcano_btn <- deseq2reports::download_plot_button(volcano_plot, filename = paste0(stem, "_volcano_plot"), widget = volcano_int)
-  deseq2reports::emit_widget_with_download(volcano_int, volcano_btn, center = TRUE)
+  if (is.null(volcano_int)) {
+    deseq2reports::emit_plot_with_download(volcano_plot, filename = paste0(stem, "_volcano_plot"))
+  } else {
+    volcano_btn <- deseq2reports::download_plot_button(volcano_plot, filename = paste0(stem, "_volcano_plot"), widget = volcano_int)
+    deseq2reports::emit_widget_with_download(volcano_int, volcano_btn, center = TRUE)
+  }
 
   cat("\n\n##### DEG table\n\n")
   cat("\n\nTop ", 10, " up- and top ", 10,
