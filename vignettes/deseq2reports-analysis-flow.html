@@ -393,7 +393,7 @@ flowchart TD
   E --&gt; G[run_gsea_pipeline]
   G --&gt; H[run_gsea_overlap_pipeline]
   B --&gt; I[run_wgcna_pipeline]
-  E --&gt; J[run_decoupler_pipeline]
+  E --&gt; J[run_decoupler_tf_pipeline]
   E --&gt; K[run_viper_pipeline]
   E --&gt; L[run_ppi_pipeline]
   I --&gt; L
@@ -429,30 +429,30 @@ flowchart TD
 <tbody>
 <tr class="odd">
 <td><code>qc/</code></td>
-<td><code>run_qc()</code></td>
+<td><code>run_qc()</code>, <code>run_counts_export()</code>
+(<code>counts/</code>), <code>run_distance_pca()</code>
+(<code>distance/</code>)</td>
 </tr>
 <tr class="even">
-<td><code>counts/</code></td>
-<td><code>run_counts_export()</code></td>
-</tr>
-<tr class="odd">
-<td><code>distance/</code></td>
-<td><code>run_distance_pca()</code></td>
-</tr>
-<tr class="even">
-<td><code>deseq2/</code> (+ <code>deseq2/cspa/</code>)</td>
-<td>DE + CSPA</td>
+<td><code>deseq2/</code></td>
+<td>DE + per-contrast CSPA (<code>&lt;contrast&gt;/cspa/</code>) + PPI
+(<code>&lt;contrast&gt;/ppi/</code>)</td>
 </tr>
 <tr class="odd">
 <td><code>clusterprofiler/&lt;contrast&gt;/</code></td>
 <td>GSEA + <code>gsea_overlap/</code></td>
 </tr>
 <tr class="even">
-<td><code>wgcna/</code>, <code>decoupler/</code>, <code>viper/</code>,
-<code>ppi/</code>, <code>multihit/</code></td>
-<td>optional / summary modules</td>
+<td><code>wgcna/</code> (incl. <code>&lt;Module_N&gt;/ppi/</code>),
+<code>decoupler-tf/</code>, <code>decoupler-ccc/</code>,
+<code>viper/</code>, <code>gsva/</code></td>
+<td>optional modules</td>
 </tr>
 <tr class="odd">
+<td><code>ppi/</code>, <code>multihit/</code></td>
+<td>LRT-cluster PPI + summary</td>
+</tr>
+<tr class="even">
 <td><code>index.html</code>, <code>dds.rds</code></td>
 <td>report + QC-filtered object</td>
 </tr>
@@ -465,7 +465,8 @@ flowchart TD
 <p><strong>Input.</strong> Raw counts in a
 <code>DESeqDataSet</code>.<br />
 <strong>Output.</strong> Filtered <code>dds</code> (size factors
-estimated); QC tables / library plots.</p>
+estimated); QC tables / library plots; per-sample detected-gene and
+total-transcript counts (Sample QC).</p>
 <pre class="mermaid">
 flowchart LR
   R[All genes] --&gt; MT{remove_mt?}
@@ -483,33 +484,52 @@ flowchart LR
 <p>Defaults used by the orchestrator:
 <code>filter_method = &quot;cpm&quot;</code>, <code>cpm_percentile = 0.05</code>.
 Metadata is stored on <code>metadata(dds)$deseq2reports_qc</code> for
-the report.</p>
+the report (including <code>sample_qc_table</code>).</p>
 <hr />
 </div>
 <div id="counts-export-and-sample-structure" class="section level2">
 <h2>2. Counts export and sample structure</h2>
 <p><strong>Counts export</strong> writes raw, VST, rlog, and CPM
-matrices (plus ComBat-seq corrected raw counts when <code>batch</code>
-is set). These are for downstream use; the DE model still uses the
-QC-filtered raw counts.</p>
+matrices (plus a batch-corrected matrix when <code>batch</code> is set:
+ComBat-seq corrected raw counts for <code>platform = &quot;rnaseq&quot;</code>, a
+ComBat-corrected VST matrix for <code>platform = &quot;microarray&quot;</code>).
+These are for downstream use; the DE model still uses the QC-filtered
+raw counts.</p>
 <p><strong>Distance / PCA</strong> (<code>run_distance_pca</code>):</p>
 <pre class="mermaid">
 flowchart TD
   D[QC dds] --&gt; V[VST]
   V --&gt; B{batch set?}
-  B --&gt;|limma / combat on VST for viz only| P[PCA + scree + loadings]
+  B --&gt;|ComBat-seq / ComBat for viz only| P[PCA + scree + loadings]
   B --&gt;|none| P
+  P --&gt; A[PC–covariate association heatmap top 15 PCs]
   V --&gt; S[Sample Spearman similarity heatmap]
 </pre>
-<p>Batch correction here is <strong>visualization-only</strong>; it does
-not change the DE design matrix.</p>
+<p>Batch correction here does not change the DE design matrix – DESeq2
+keeps using raw counts with <code>batch</code> as a covariate. The
+corrected matrix is shared with the sample-level modules (WGCNA, GSVA,
+ULM, VIPER, CSPA), so the PCA and those modules always agree on what was
+corrected. Association heatmap tests PC scores vs <code>batch</code> /
+grouping <code>var</code> / <code>time</code> (LRT) when those columns
+are passed as <code>assoc_vars</code>.</p>
 <hr />
 </div>
 <div id="differential-expression-how-are-degs-defined" class="section level2">
 <h2>3. Differential expression — how are DEGs defined?</h2>
-<p><strong>Contrasts.</strong> From <code>var</code> (length 1 or 2),
+<p><strong>Contrasts.</strong> From <code>var</code> (length 1–3),
 <code>expand_contrast_specs()</code> builds pairwise and one-vs-rest
-labels (plus interaction contrasts when requested).</p>
+labels. With two or three factors, each factor’s <strong>main
+effect</strong> is always expanded — its comparisons taken across every
+level of the other factors (<code>C_vs_noC</code>), fitted on all
+samples with an additive design so the other factors are adjusted for.
+<code>include_interactions = TRUE</code> adds
+<strong>difference-of-differences</strong> contrasts on top
+(<code>C_vs_noC_x_K_vs_noK_in_CB</code>: does the K effect differ
+between C and noC inside CB), each a combination of coefficients from a
+single fit of the product design on all samples. A factor with three or
+more levels is compared one-vs-rest
+(<code>CA_vs_CB+CC_x_K_vs_noK_in_C</code>), the pooled side being a mean
+of coefficients with equal weight per level.</p>
 <p><strong>Per contrast</strong> (<code>run_diffexp</code> /
 <code>run_diffexp_pipeline</code>):</p>
 <pre class="mermaid">
@@ -525,10 +545,12 @@ flowchart TD
   SIG --&gt; DIR[direction up / down / ns from sign of LFC]
   SIG --&gt; PLOTS[MA, volcano, DEG table]
 </pre>
-<p><strong>Defaults.</strong> <code>shrinkage = &quot;ashr&quot;</code>,
-<code>alpha = 0.05</code>, <code>lfc_threshold = 0.5</code>,
-<code>ranking = &quot;log2FoldChange&quot;</code> (so
-<code>rank_score ≈ LFC</code>).</p>
+<p><strong>Fixed by the pipeline.</strong> shrinkage
+<code>&quot;ashr&quot;</code>, <code>alpha = 0.05</code>,
+<code>lfc_threshold = 0.5</code>. <code>ranking</code> is still an
+argument and defaults to <code>&quot;log2FoldChange&quot;</code> (so
+<code>rank_score ≈ LFC</code>). Call <code>run_diffexp_pipeline()</code>
+directly to change the fixed values.</p>
 <p><strong>Gene-level objects used later:</strong></p>
 <ul>
 <li>Significant DEGs (<code>sig</code>) → CSPA selection, PPI seeds,
@@ -544,10 +566,10 @@ multihit DEG bit<br />
 <h2>4. CSPA surface markers</h2>
 <p>Among each contrast’s DEGs, intersect with Cell Surface Protein Atlas
 symbols (human list; mouse via orthologs), rank by
-<code>|rank_score|</code> / <code>|LFC|</code>, keep top
-<code>cspa_n_markers</code> (default <strong>25</strong>), and plot
-<strong>all-sample</strong> VST heatmaps (per contrast + combined
-union).</p>
+<code>|rank_score|</code> / <code>|LFC|</code>, keep the top
+<strong>25</strong> per contrast (<strong>10</strong> per degPatterns
+cluster in LRT mode), and plot <strong>all-sample</strong> VST heatmaps
+(per contrast + combined union).</p>
 <pre class="mermaid">
 flowchart LR
   DEG[sig DEGs] --&gt; INT[Intersect CSPA gene list]
@@ -689,13 +711,13 @@ that hits it:</p>
 </table>
 <pre class="mermaid">
 flowchart TD
-  G[Genes] --&gt; S[score = deg + gsea + viper + decoupler + cspa]
+  G[Genes] --&gt; S[score = deg + gsea + viper + decoupler-tf + decoupler-ccc + cspa]
   S --&gt; DIR[Split by DEG LFC sign up vs down]
   DIR --&gt; TOP[Top top_n per direction]
   TOP --&gt; PLOT[Bidirectional multihit barplot]
 </pre>
-<p>Shown at the <strong>end of the index</strong> page (after report
-section links).</p>
+<p>Shown on the dedicated <strong>Multihit</strong> HTML page
+(<code>multihit/multihit.html</code>, after VIPER in the nav).</p>
 <hr />
 </div>
 <div id="data-dependencies-who-needs-whom" class="section level2">
@@ -739,20 +761,22 @@ flowchart LR
 <tbody>
 <tr class="odd">
 <td>Index</td>
-<td>Run summary, multihit bars/tables, links</td>
+<td>Run summary, links to section pages</td>
 </tr>
 <tr class="even">
 <td>QC</td>
-<td>Library QC, PCA, similarity</td>
+<td>Sample QC table, library QC, PCA (+ association heatmap),
+similarity</td>
 </tr>
 <tr class="odd">
 <td>DESeq2</td>
-<td>Per-contrast MA / volcano / DEG table, PPI, CSPA</td>
+<td>Hub: up/down DEG summary; per-contrast MA / volcano / DEG table,
+PPI, CSPA</td>
 </tr>
 <tr class="even">
 <td>clusterProfiler</td>
-<td>Per-collection GSEA + leading-edge overlap (Wald) or cluster ORA
-(LRT)</td>
+<td>Hub: up/down pathway summary; per-collection GSEA + overlap (Wald)
+or cluster ORA (LRT)</td>
 </tr>
 <tr class="odd">
 <td>WGCNA</td>
@@ -762,11 +786,17 @@ flowchart LR
 <td>decoupleR / VIPER</td>
 <td>Sample TF activities + contrast (Wald) or per-cluster (LRT) TFs</td>
 </tr>
+<tr class="odd">
+<td>Multihit</td>
+<td>Cross-analysis top genes (Wald barplots / LRT tables)</td>
+</tr>
 </tbody>
 </table>
-<p>Hub pages list contrasts; heavy figures live on <strong>per-contrast
-HTML</strong> under <code>deseq2/&lt;contrast&gt;/</code> and
-<code>clusterprofiler/&lt;contrast&gt;/</code>.</p>
+<p>Hub pages list contrasts, grouped into main effects and interactions;
+heavy figures live on <strong>per-contrast HTML</strong> under
+<code>deseq2/&lt;contrast&gt;/</code> and
+<code>clusterprofiler/&lt;contrast&gt;/</code> (e.g.
+<code>deseq2/C_vs_noC_x_K_vs_noK_in_CB/</code>).</p>
 <hr />
 </div>
 <div id="lrt-time-course-flow-run_deseq2_lrt" class="section level2">
@@ -780,7 +810,7 @@ flowchart TD
   E --&gt; F[run_lrt_cspa_heatmap]
   E --&gt; G[run_cluster_ora_pipeline]
   E --&gt; H[lrt_clusters_diffexp_for_tf]
-  H --&gt; I[run_decoupler_pipeline]
+  H --&gt; I[run_decoupler_tf_pipeline]
   H --&gt; J[run_viper_pipeline]
   E --&gt; K[lrt_clusters_as_wgcna_like]
   B --&gt; L[run_wgcna_pipeline]
@@ -810,7 +840,7 @@ flowchart TD
 instead).</li>
 <li>Significant genes clustered with <strong>degPatterns</strong>; PPI /
 CSPA / TF / multihit are <strong>per cluster</strong>.</li>
-<li>Index multihit shows <strong>tables</strong> (top 10 genes × LRT DEG
+<li>Multihit page shows <strong>tables</strong> (top 10 genes × LRT DEG
 / WGCNA / decoupleR / VIPER), not directional barplots.</li>
 <li>Default CSPA is top <strong>10</strong> genes per cluster.</li>
 </ul>

@@ -1,21 +1,22 @@
 Package: deseq2reports
 Title: Modular DESeq2 Pipeline with Automated HTML Reports
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: 
     person(given = "Miu Shing", family = "Hung", email = "matthewhungms@gmail.com", role = c("aut", "cre"), comment = c(ORCID = "0009-0004-0412-4374"))
 Description: A self-contained, modular pipeline for RNA-seq differential expression
     analysis built on DESeq2. Provides one-command entry points
-    (run_deseq2_wald() / run_deseq2_lrt()) that chain quality control, sample distance/PCA,
-    differential expression (Wald contrasts or time-course LRT with degPatterns),
-    gene set enrichment or cluster ORA against MSigDB collections, optional
-    WGCNA / TF-activity / VIPER (bcellViper) / STRING PPI / CSPA modules,
-    and a rendered HTML report -- as well as standalone modular functions for
-    each stage so that individual steps can be run, inspected, or substituted
-    independently. All behaviour that analysts commonly need to change
-    per-analysis (count filtering thresholds, batch correction method, LFC
-    shrinkage estimator, significance thresholds, ranking metric, MSigDB
-    collections, colour palettes) is exposed as explicit function arguments
-    with validated defaults.
+    (run_deseq2_wald() / run_deseq2_lrt() / run_deseq2_deg()) that chain quality
+    control, sample distance/PCA, differential expression (Wald contrasts,
+    time-course LRT with degPatterns, or a precomputed merged DEG table),
+    gene set enrichment or cluster ORA against MSigDB collections, WGCNA /
+    TF-activity / VIPER (bcellViper) / STRING PPI / CSPA modules (declared as
+    Imports so they install with the package), and a rendered HTML report --
+    as well as standalone modular functions for each stage so that individual
+    steps can be run, inspected, or substituted independently. All behaviour
+    that analysts commonly need to change per-analysis (count filtering
+    thresholds, batch correction method, LFC shrinkage estimator, significance
+    thresholds, ranking metric, MSigDB collections, colour palettes) is exposed
+    as explicit function arguments with validated defaults.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -24,54 +25,59 @@ VignetteBuilder: knitr
 Depends: 
     R (>= 4.1)
 Imports:
+    apeglm,
+    ashr,
+    babelgene,
+    bcellViper,
+    circlize,
+    clusterProfiler,
+    ComplexHeatmap,
+    DEGreport,
+    decoupleR,
     DESeq2,
+    downloadthis,
     dplyr,
     DT,
     fgsea,
     ggplot2,
     ggrepel,
+    GSVA,
     grDevices,
     grid,
-    jsonlite,
-    limma,
-    MatrixGenerics,
-    methods,
-    msigdbr,
-    pheatmap,
-    plotly,
-    rlang,
-    rmarkdown,
-    S4Vectors,
-    stats,
-    SummarizedExperiment,
-    sva,
-    tidyr,
-    utils
-Suggests:
-    apeglm,
-    ashr,
-    babelgene,
-    bcellViper,
-    clusterProfiler,
-    decoupleR,
-    downloadthis,
     gridExtra,
     htmltools,
     igraph,
-    knitr,
+    jsonlite,
+    MatrixGenerics,
+    methods,
+    msigdbr,
     OmnipathR,
     patchwork,
+    pheatmap,
+    plotly,
     readxl,
+    rlang,
+    rmarkdown,
+    S4Vectors,
+    simplifyEnrichment,
+    stats,
     STRINGdb,
-    testthat (>= 3.0.0),
+    SummarizedExperiment,
+    sva,
+    tidyr,
+    utils,
     viper,
     WGCNA,
     withr,
-    wordcloud,
-    simplifyEnrichment,
-    ComplexHeatmap,
-    DEGreport,
-    circlize
+    wordcloud
+Suggests:
+    future,
+    future.apply,
+    knitr,
+    liana,
+    pkgload,
+    targets,
+    testthat (>= 3.0.0)
 Config/testthat/edition: 3
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.0
 RoxygenNote: 7.3.3

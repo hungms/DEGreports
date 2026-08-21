@@ -64,7 +64,7 @@ flowchart TD
   E --> G[run_gsea_pipeline]
   G --> H[run_gsea_overlap_pipeline]
   B --> I[run_wgcna_pipeline]
-  E --> J[run_decoupler_pipeline]
+  E --> J[run_decoupler_tf_pipeline]
   E --> K[run_viper_pipeline]
   E --> L[run_ppi_pipeline]
   I --> L
@@ -91,12 +91,11 @@ flowchart TD
 
 | Folder | Produced by |
 |---|---|
-| `qc/` | `run_qc()` |
-| `counts/` | `run_counts_export()` |
-| `distance/` | `run_distance_pca()` |
-| `deseq2/` (+ `deseq2/cspa/`) | DE + CSPA |
+| `qc/` | `run_qc()`, `run_counts_export()` (`counts/`), `run_distance_pca()` (`distance/`) |
+| `deseq2/` | DE + per-contrast CSPA (`<contrast>/cspa/`) + PPI (`<contrast>/ppi/`) |
 | `clusterprofiler/<contrast>/` | GSEA + `gsea_overlap/` |
-| `wgcna/`, `decoupler/`, `viper/`, `ppi/`, `multihit/` | optional / summary modules |
+| `wgcna/` (incl. `<Module_N>/ppi/`), `decoupler-tf/`, `decoupler-ccc/`, `viper/`, `gsva/` | optional modules |
+| `ppi/`, `multihit/` | LRT-cluster PPI + summary |
 | `index.html`, `dds.rds` | report + QC-filtered object |
 
 ---
@@ -104,7 +103,8 @@ flowchart TD
 ## 1. Quality control — which genes are kept?
 
 **Input.** Raw counts in a `DESeqDataSet`.  
-**Output.** Filtered `dds` (size factors estimated); QC tables / library plots.
+**Output.** Filtered `dds` (size factors estimated); QC tables / library
+plots; per-sample detected-gene and total-transcript counts (Sample QC).
 
 ```{=html}
 <pre class="mermaid">
@@ -125,15 +125,18 @@ flowchart LR
 
 Defaults used by the orchestrator: `filter_method = "cpm"`,
 `cpm_percentile = 0.05`. Metadata is stored on
-`metadata(dds)$deseq2reports_qc` for the report.
+`metadata(dds)$deseq2reports_qc` for the report (including
+`sample_qc_table`).
 
 ---
 
 ## 2. Counts export and sample structure
 
-**Counts export** writes raw, VST, rlog, and CPM matrices (plus ComBat-seq
-corrected raw counts when `batch` is set). These are for downstream use; the
-DE model still uses the QC-filtered raw counts.
+**Counts export** writes raw, VST, rlog, and CPM matrices (plus a
+batch-corrected matrix when `batch` is set: ComBat-seq corrected raw counts
+for `platform = "rnaseq"`, a ComBat-corrected VST matrix for
+`platform = "microarray"`). These are for downstream use; the DE model still
+uses the QC-filtered raw counts.
 
 **Distance / PCA** (`run_distance_pca`):
 
@@ -142,21 +145,35 @@ DE model still uses the QC-filtered raw counts.
 flowchart TD
   D[QC dds] --> V[VST]
   V --> B{batch set?}
-  B -->|limma / combat on VST for viz only| P[PCA + scree + loadings]
+  B -->|ComBat-seq / ComBat for viz only| P[PCA + scree + loadings]
   B -->|none| P
+  P --> A[PC–covariate association heatmap top 15 PCs]
   V --> S[Sample Spearman similarity heatmap]
 </pre>
 ```
 
-Batch correction here is **visualization-only**; it does not change the DE
-design matrix.
+Batch correction here does not change the DE design matrix -- DESeq2 keeps
+using raw counts with `batch` as a covariate. The corrected matrix is shared
+with the sample-level modules (WGCNA, GSVA, ULM, VIPER, CSPA), so the PCA and
+those modules always agree on what was corrected. Association heatmap tests PC
+scores vs `batch` / grouping `var` / `time` (LRT) when those columns are passed
+as `assoc_vars`.
 
 ---
 
 ## 3. Differential expression — how are DEGs defined?
 
-**Contrasts.** From `var` (length 1 or 2), `expand_contrast_specs()` builds
-pairwise and one-vs-rest labels (plus interaction contrasts when requested).
+**Contrasts.** From `var` (length 1–3), `expand_contrast_specs()` builds
+pairwise and one-vs-rest labels. With two or three factors, each factor's
+**main effect** is always expanded — its comparisons taken across every level
+of the other factors (`C_vs_noC`), fitted on all samples with an additive
+design so the other factors are adjusted for. `include_interactions = TRUE`
+adds **difference-of-differences** contrasts on top
+(`C_vs_noC_x_K_vs_noK_in_CB`: does the K effect differ between C and noC inside
+CB), each a combination of coefficients from a single fit of the product design
+on all samples. A factor with three or more levels is compared one-vs-rest
+(`CA_vs_CB+CC_x_K_vs_noK_in_C`), the pooled side being a mean of coefficients
+with equal weight per level.
 
 **Per contrast** (`run_diffexp` / `run_diffexp_pipeline`):
 
@@ -176,8 +193,10 @@ flowchart TD
 </pre>
 ```
 
-**Defaults.** `shrinkage = "ashr"`, `alpha = 0.05`, `lfc_threshold = 0.5`,
-`ranking = "log2FoldChange"` (so `rank_score ≈ LFC`).
+**Fixed by the pipeline.** shrinkage `"ashr"`, `alpha = 0.05`,
+`lfc_threshold = 0.5`. `ranking` is still an argument and defaults to
+`"log2FoldChange"` (so `rank_score ≈ LFC`). Call `run_diffexp_pipeline()`
+directly to change the fixed values.
 
 **Gene-level objects used later:**
 
@@ -190,9 +209,9 @@ flowchart TD
 ## 4. CSPA surface markers
 
 Among each contrast’s DEGs, intersect with Cell Surface Protein Atlas symbols
-(human list; mouse via orthologs), rank by `|rank_score|` / `|LFC|`, keep top
-`cspa_n_markers` (default **25**), and plot **all-sample** VST heatmaps
-(per contrast + combined union).
+(human list; mouse via orthologs), rank by `|rank_score|` / `|LFC|`, keep the
+top **25** per contrast (**10** per degPatterns cluster in LRT mode), and plot
+**all-sample** VST heatmaps (per contrast + combined union).
 
 ```{=html}
 <pre class="mermaid">
@@ -332,14 +351,15 @@ Per contrast, each gene scores **+1** for each layer that hits it:
 ```{=html}
 <pre class="mermaid">
 flowchart TD
-  G[Genes] --> S[score = deg + gsea + viper + decoupler + cspa]
+  G[Genes] --> S[score = deg + gsea + viper + decoupler-tf + decoupler-ccc + cspa]
   S --> DIR[Split by DEG LFC sign up vs down]
   DIR --> TOP[Top top_n per direction]
   TOP --> PLOT[Bidirectional multihit barplot]
 </pre>
 ```
 
-Shown at the **end of the index** page (after report section links).
+Shown on the dedicated **Multihit** HTML page (`multihit/multihit.html`,
+after VIPER in the nav).
 
 ---
 
@@ -375,15 +395,18 @@ flowchart LR
 
 | HTML page | Main calculations shown |
 |---|---|
-| Index | Run summary, multihit bars/tables, links |
-| QC | Library QC, PCA, similarity |
-| DESeq2 | Per-contrast MA / volcano / DEG table, PPI, CSPA |
-| clusterProfiler | Per-collection GSEA + leading-edge overlap (Wald) or cluster ORA (LRT) |
+| Index | Run summary, links to section pages |
+| QC | Sample QC table, library QC, PCA (+ association heatmap), similarity |
+| DESeq2 | Hub: up/down DEG summary; per-contrast MA / volcano / DEG table, PPI, CSPA |
+| clusterProfiler | Hub: up/down pathway summary; per-collection GSEA + overlap (Wald) or cluster ORA (LRT) |
 | WGCNA | Soft-threshold, modules, trait heatmaps, ORA, module PPI |
 | decoupleR / VIPER | Sample TF activities + contrast (Wald) or per-cluster (LRT) TFs |
+| Multihit | Cross-analysis top genes (Wald barplots / LRT tables) |
 
-Hub pages list contrasts; heavy figures live on **per-contrast HTML** under
-`deseq2/<contrast>/` and `clusterprofiler/<contrast>/`.
+Hub pages list contrasts, grouped into main effects and interactions; heavy
+figures live on **per-contrast HTML** under `deseq2/<contrast>/` and
+`clusterprofiler/<contrast>/` (e.g.
+`deseq2/C_vs_noC_x_K_vs_noK_in_CB/`).
 
 ---
 
@@ -399,7 +422,7 @@ flowchart TD
   E --> F[run_lrt_cspa_heatmap]
   E --> G[run_cluster_ora_pipeline]
   E --> H[lrt_clusters_diffexp_for_tf]
-  H --> I[run_decoupler_pipeline]
+  H --> I[run_decoupler_tf_pipeline]
   H --> J[run_viper_pipeline]
   E --> K[lrt_clusters_as_wgcna_like]
   B --> L[run_wgcna_pipeline]
@@ -430,7 +453,7 @@ Key differences from Wald mode:
   ranking → **no GSEA**; cluster ORA instead).
 - Significant genes clustered with **degPatterns**; PPI / CSPA / TF /
   multihit are **per cluster**.
-- Index multihit shows **tables** (top 10 genes × LRT DEG / WGCNA /
+- Multihit page shows **tables** (top 10 genes × LRT DEG / WGCNA /
   decoupleR / VIPER), not directional barplots.
 - Default CSPA is top **10** genes per cluster.
 

@@ -23,15 +23,17 @@ Two one-command entry points:
 
 | Function | When to use |
 |---|---|
-| `run_deseq2_wald()` | Standard group contrasts (pairwise / one-vs-rest / two-factor) |
+| `run_deseq2_wald()` | Group contrasts (1–3 factors; pairwise / main effects / interactions) |
 | `run_deseq2_lrt()` | Time-course / ordered trajectory (LRT + degPatterns clusters) |
+| `run_deseq2_deg()` | Precomputed **merged DEG table** (no counts); GSEA / TF / PPI / HTML |
 
 (`run_deseq2_pipeline()` remains as a **deprecated alias** of `run_deseq2_wald()`.)
 
 Modules cover quality control, sample distance/PCA, differential expression,
-GSEA (Wald) or cluster ORA (LRT), optional WGCNA, CollecTRI/ULM TF activity,
-VIPER (bcellViper), STRING PPI, CSPA surface markers, cross-analysis gene
-hits, and a multi-page HTML report.
+GSEA (Wald / DEG-table) or cluster ORA (LRT), STRING PPI, CSPA surface
+markers, optional GSVA / WGCNA / decoupler-tf / decoupler-ccc / VIPER, cross-analysis
+gene hits, and a multi-page HTML report.
+
 
 Companion vignettes:
 
@@ -86,14 +88,13 @@ out <- run_deseq2_wald(
   var = "condition",
   filter_method = "cpm",
   cpm_percentile = 0.05,
-  shrinkage = "ashr",
   ranking = "log2FoldChange",
   collections = c("HALLMARK", "GOBP", "REACTOME"),
+  run_gsva = TRUE,
   run_wgcna = TRUE,
-  run_decoupler = TRUE,
+  run_decoupler_tf = TRUE,
+  run_decoupler_ccc = TRUE,
   run_viper = TRUE,
-  run_ppi = TRUE,
-  run_cspa = TRUE,
   render_html = TRUE,
   save_dir = "results"
 )
@@ -103,15 +104,16 @@ Under `results/` this writes per-module folders plus `index.html`:
 
 | Path | Contents |
 |---|---|
-| `qc/` | Filtering summaries, library QC plots, `qc.html` |
-| `distance/` | PCA / similarity artifacts (shown on the QC page) |
-| `deseq2/` (+ `deseq2/cspa/`) | Per-contrast DE tables & plots, CSPA, `deseq2.html` |
-| `clusterprofiler/` | Per-contrast GSEA (+ overlap), `clusterprofiler.html` |
-| `wgcna/` | Modules, ORA, `wgcna.html` (if `run_wgcna = TRUE`) |
-| `decoupler/` | CollecTRI/ULM, `decoupler.html` (if `run_decoupler = TRUE`) |
+| `qc/` | Sample QC + library QC + PCA page (`qc.html`); `counts/` and `distance/` subfolders |
+| `deseq2/` | Per-contrast DE tables & plots, CSPA (`<contrast>/cspa/`), PPI (`<contrast>/ppi/`), hub `deseq2.html` |
+| `clusterprofiler/` | Per-contrast GSEA (+ overlap), hub `clusterprofiler.html` |
+| `gsva/` | Sample GSVA scores / heatmaps (if `run_gsva = TRUE`) |
+| `wgcna/` | Modules, ORA, per-module `ppi/`, `wgcna.html` (if `run_wgcna = TRUE`) |
+| `decoupler-tf/` | CollecTRI/ULM, `decoupleR-TF.html` (if `run_decoupler_tf = TRUE`) |
+| `decoupler-ccc/` | LIANA/ULM ligand–receptor, `decoupleR-CCC.html` (if `run_decoupler_ccc = TRUE`) |
 | `viper/` | bcellViper/VIPER, `viper.html` (if `run_viper = TRUE`) |
-| `ppi/` | STRING PPI CSVs/PDFs (embedded in DE/WGCNA pages) |
-| `multihit/` | Cross-analysis top genes (shown on the index page) |
+| `multihit/` | Cross-analysis top genes + `multihit.html` (own nav tab) |
+| `ppi/` | STRING PPI for LRT temporal clusters (`<cluster>/ppi/`; contrast PPI under `deseq2/`) |
 | `logs/` | Timestamped run log + JSON session record |
 
 Local CollecTRI priors under `inst/extdata/collectri_{human,mouse}_*.csv`
@@ -128,18 +130,41 @@ out <- run_deseq2_lrt(
   var = "genotype",       # or NULL for time-only
   time = "day",
   include_interactions = TRUE,
+  run_gsva = TRUE,
   run_wgcna = TRUE,
-  run_decoupler = TRUE,
+  run_decoupler_tf = TRUE,
+  run_decoupler_ccc = TRUE,
   run_viper = TRUE,
-  run_ppi = TRUE,
-  run_cspa = TRUE,        # top 10 CSPA genes per degPatterns cluster
   save_dir = "results_lrt"
 )
 ```
 
 LRT mode fits nested full/reduced models, clusters significant genes with
 **degPatterns**, runs **ORA** (not ranked GSEA) per cluster, scores TFs per
-cluster, and shows per-cluster multihit tables on the index page.
+cluster, and writes per-cluster multihit tables to the **Multihit** HTML page.
+
+## One-command DEG-table pipeline
+
+When you already have differential-expression results (no raw counts), pass a
+**merged** table with a `comparison` column:
+
+```{r}
+# Required columns: gene, comparison, log2FoldChange, padj (or pvalue)
+# Example comparison labels: "groupA_vs_groupB", "groupA_vs_groupC"
+out <- run_deseq2_deg(
+  deg_table = "all_contrasts_deg.csv",
+  collections = c("HALLMARK", "GOBP"),
+  run_decoupler_tf = TRUE,
+  run_decoupler_ccc = TRUE,
+  run_viper = TRUE,
+  save_dir = "results_from_deg"
+)
+```
+
+This runs GSEA, GSEA leading-edge overlap, CSPA marker tables (no VST heatmap),
+contrast-level ULM / msVIPER, DEG PPI, multihit ranking, and HTML. QC, WGCNA,
+and sample-level TF heatmaps are skipped. See `?prepare_diffexp_from_deg` for
+column aliases.
 
 ## Modular usage (Wald)
 
@@ -163,7 +188,7 @@ gsea_out <- run_gsea_pipeline(
 
 # Optional modules …
 wgcna_out <- run_wgcna_pipeline(dds_qc, var = "condition", save_dir = "results/wgcna")
-decoupler_out <- run_decoupler_pipeline(
+decoupler_tf_out <- run_decoupler_tf_pipeline(
   dds_qc, var = "condition", diffexp_out = diffexp_out,
   save_dir = "results/decoupler"
 )
@@ -173,14 +198,16 @@ viper_out <- run_viper_pipeline(
 )
 ppi_out <- run_ppi_pipeline(
   diffexp_out = diffexp_out, wgcna_out = wgcna_out,
-  save_dir = "results/ppi"
+  save_dir = "results/deseq2",
+  module_save_dir = "results/ppi",
+  wgcna_module_save_dir = "results/wgcna"
 )
 cspa_out <- run_cspa_marker_pipeline(
-  dds_qc, diffexp_out = diffexp_out, save_dir = "results/deseq2/cspa"
+  dds_qc, diffexp_out = diffexp_out, save_dir = "results/deseq2"
 )
 multihit_out <- run_multihit_pipeline(
   diffexp_out, gsea_out = gsea_out,
-  viper_out = viper_out, decoupler_out = decoupler_out,
+  viper_out = viper_out, decoupler_tf_out = decoupler_tf_out,
   cspa_out = cspa_out, save_dir = "results/multihit"
 )
 
@@ -188,24 +215,67 @@ render_report(
   dds = dds_qc, var = "condition",
   distance_out = distance_out, diffexp_out = diffexp_out,
   gsea_out = gsea_out, multihit_out = multihit_out,
-  wgcna_out = wgcna_out, decoupler_out = decoupler_out,
+  wgcna_out = wgcna_out, decoupler_tf_out = decoupler_tf_out,
   viper_out = viper_out, ppi_out = ppi_out, cspa_out = cspa_out,
   save_dir = "results"
 )
 ```
 
-## Two-factor designs
+## Two- and three-factor designs
 
-Pass two grouping columns for within-factor contrasts (additive design by
-default). Set `include_interactions = TRUE` to use `~ A * B` and expand
-interaction contrasts:
+With two or three grouping columns, every factor's **main effect** is tested:
+its pairwise (and, with ≥ 3 levels, one-vs-rest) comparisons across all levels
+of the other factors. So for `var = c("v1", "v2", "v3")` you get
+`v1l1_vs_v1l2+v1l3` regardless of `v2` and `v3`, `v2l1_vs_v2l2` regardless of
+`v1` and `v3`, and so on. These are fitted on every sample with an additive
+design (`~ [batch +] other factors + tested factor`), so the factors not under
+test are adjusted for rather than left in the residual. The design is additive
+and the labels flat:
 
 ```{r}
 out <- run_deseq2_wald(
   dds,
   var = c("Tissue", "Isotype"),
-  include_interactions = TRUE,
   save_dir = "results_2factor"
+)
+```
+
+`include_interactions = TRUE` switches the design to the full product
+(`~ A * B`, `~ A * B * C`) and adds **difference-of-differences** contrasts to
+the main effects. Each asks whether one factor's effect differs between two
+levels of another — "does the K effect differ between C and noC, within CB" —
+which is the same question as "does the C effect differ between K and noK,
+within CB", so each factor pair contributes one contrast per stratum rather
+than two:
+
+```text
+deseq2/C_vs_noC/C_vs_noC_diffexp.csv     # main effect: C vs noC, all celltypes and K states
+deseq2/C_vs_noC_x_K_vs_noK_in_CB/...     # C x K interaction within CB
+deseq2/CC_vs_CB_x_K_vs_noK_in_C/...      # celltype x K interaction within C
+deseq2/CC_vs_CB_x_C_vs_noC_x_K_vs_noK/…  # three-way: does C x K differ between CC and CB
+```
+
+Every interaction contrast is a combination of coefficients from **one** fit of
+the product design on all samples, so they share the dispersion estimates and
+sample size of the main effects. A factor with three or more levels is compared
+one-vs-rest rather than pairwise (`CA_vs_CB+CC_x_K_vs_noK_in_C`: does the K
+effect differ between CA and the average of CB and CC, within C), which keeps
+the grid linear in the number of levels and matches how that factor's main
+effects read. The pooled side is a mean of coefficients — each level weighted
+`1/(k - 1)` regardless of its sample count — fitted from a numeric weight
+vector over `resultsNames()`. Two-level factors keep the pairwise direction of
+**factor level order** (non-reference vs reference), not alphabetical sorting.
+
+The hub page (`deseq2.html`) lists every interaction row with the question it
+answers and what a positive `log2FoldChange` means for it, since a difference
+of differences is easy to misread as a plain group comparison.
+
+```{r}
+out <- run_deseq2_wald(
+  dds,
+  var = c("celltype", "C_mutation", "K_mutation"),
+  include_interactions = TRUE,   # main effects + interaction contrasts
+  save_dir = "results_3factor"
 )
 ```
 
@@ -215,7 +285,7 @@ In the package source tree:
 
 ```bash
 Rscript --vanilla run_gse189410_wald.R    # single-factor isotype (Wald)
-Rscript --vanilla run_gse224465_wald.R    # genotype × celltype (Wald)
+Rscript --vanilla run_gse224465_wald.R    # celltype × C × K (Wald, nested folders)
 Rscript --vanilla run_gse189410_lrt.R     # isotype as time axis (LRT)
 ```
 
@@ -223,8 +293,22 @@ Rscript --vanilla run_gse189410_lrt.R     # isotype as time axis (LRT)
 
 Open `results/index.html` from the results folder (share the whole tree,
 including `lib/` and per-module CSVs). Pages use `self_contained = FALSE`
-with relative cross-links and on-disk CSV links. Each report section shows
-the **minimal package call** needed to reproduce that module's results.
+with relative cross-links and on-disk CSV links. Nav order:
+
+`Index` → `QC` → `DESeq2` → `clusterProfiler` → `GSVA` → `WGCNA` → `decoupleR-TF` → `decoupleR-CCC` →
+`VIPER` → `Multihit`.
+
+Notable report sections:
+
+- **QC**: Sample QC (detected genes / total transcripts) → Library QC →
+  PCA (scatter, scree, loadings, PC–covariate association heatmap) →
+  sample similarity.
+- **DESeq2 / clusterProfiler hubs**: summary tables of significant
+  up/down DEGs or pathways (n and %), then links to per-contrast pages.
+- **Multihit**: own page after VIPER (not embedded on the index).
+
+Each report section shows the **minimal package call** needed to reproduce
+that module's results.
 
 ## Next reading
 

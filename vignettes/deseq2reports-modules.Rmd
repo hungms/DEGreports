@@ -32,55 +32,60 @@ library(DESeq2)
 
 ---
 
-## Pipeline orchestration: `run_deseq2_wald()` / `run_deseq2_lrt()`
+## Pipeline orchestration: `run_deseq2_wald()` / `run_deseq2_lrt()` / `run_deseq2_deg()`
 
 **Role.** Chains every stage below into one call and (by default) renders the
-multi-page HTML report. Prefer `run_deseq2_wald()` for group contrasts and
-`run_deseq2_lrt()` for time / ordered trajectories.
+multi-page HTML report. Prefer `run_deseq2_wald()` for group contrasts,
+`run_deseq2_lrt()` for time / ordered trajectories, and `run_deseq2_deg()`
+when starting from a merged DEG table (no `DESeqDataSet`).
 `run_deseq2_pipeline()` is a deprecated alias of `run_deseq2_wald()`.
 
 ```{r}
 out <- run_deseq2_wald(
   dds,
-  var = "condition",          # required; length 2 → two-factor mode
+  var = "condition",          # length 1–3
   design = NULL,              # NULL → resolve_design(var, batch, include_interactions)
-  include_interactions = FALSE, # TRUE → ~ A * B + interaction contrasts
+  include_interactions = FALSE, # TRUE → adds difference-of-differences contrasts
   comparisons = NULL,         # NULL → full pairwise + one-vs-rest grid
   batch = NULL,
-  batch_method = "limma",     # PCA viz only: "limma" | "combat" | "none"
+  platform = "rnaseq",        # batch correction: "rnaseq" → ComBat-seq,
+                              #                   "microarray" → ComBat
   filter_method = "cpm",
   cpm_percentile = 0.05,
-  shrinkage = "ashr",
-  alpha = 0.05,
-  lfc_threshold = 0.5,
   ranking = "log2FoldChange",
   collections = c("HALLMARK", "GOBP", "GOCC", "GOMF",
-                  "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID"),
+                  "KEGG", "REACTOME", "PID"),
   n_scree_pcs = 10,
   n_loading_pcs = 6,
   n_top_genes = 10,
   top_label_n = 5,            # volcano labels per direction
   top_n_plot = 10,            # GSEA barplot pathways per NES direction
+  # Optional modules (default FALSE):
+  run_gsva = FALSE,
   run_wgcna = FALSE,
-  wgcna_power = NULL,
-  wgcna_min_module_size = 30,
-  run_decoupler = FALSE,
-  decoupler_n_tfs = 25,
+  run_decoupler_tf = FALSE,
+  run_decoupler_ccc = FALSE,
   run_viper = FALSE,
-  viper_n_tfs = 10,
-  run_ppi = TRUE,
-  ppi_top_n_hubs = 10,
+  # Default-on:
   run_cspa = TRUE,
-  cspa_n_markers = 25,
   render_html = TRUE,
+  parallel_render = FALSE,    # knit contrast pages in parallel (future.apply)
+  render_workers = NULL,      # NULL → min(4, detectCores() - 1)
+  use_targets = FALSE,        # TRUE → render_report_targets() (resumable)
   save_dir = getwd()
 )
 ```
 
+Statistical and plotting thresholds -- LFC shrinkage, `alpha`, the LFC
+cutoff, GSVA heatmap size, WGCNA minimum module size, and the hub / TF /
+marker counts -- are fixed by the pipeline so runs stay comparable. Call the
+module functions below directly to change them.
+
 **Wald stages (in order).** `run_qc()` → `run_distance_pca()` →
 `run_diffexp_pipeline()` → `run_cspa_marker_pipeline()` →
-`run_gsea_pipeline()` (+ overlap) → optional WGCNA / decoupleR / VIPER /
-PPI → `run_multihit_pipeline()` → `render_report()`.
+`run_gsea_pipeline()` (+ overlap) → optional GSVA / WGCNA / decoupler-tf /
+decoupler-ccc / VIPER → `run_multihit_pipeline()` → `render_report()`.
+PPI and CSPA run by default.
 
 **LRT entry point.**
 
@@ -90,12 +95,11 @@ out <- run_deseq2_lrt(
   var = "genotype",             # or NULL for time-only
   time = "day",
   include_interactions = FALSE,
+  run_gsva = TRUE,
   run_wgcna = TRUE,
-  run_decoupler = TRUE,
+  run_decoupler_tf = TRUE,
+  run_decoupler_ccc = TRUE,
   run_viper = TRUE,
-  run_ppi = TRUE,
-  run_cspa = TRUE,
-  cspa_n_markers = 10,          # top CSPA genes per degPatterns cluster
   degpatterns_minc = 15,
   save_dir = "results_lrt"
 )
@@ -103,13 +107,14 @@ out <- run_deseq2_lrt(
 
 LRT stages: QC → distance → LRT grid (`run_diffexp_lrt_pipeline()`) →
 degPatterns → CSPA-by-cluster → cluster ORA → optional WGCNA →
-per-cluster TF (decoupleR / VIPER) → PPI →
-`run_multihit_lrt_pipeline()` → report. Ranked GSEA is **not** used in LRT
-mode.
+per-cluster TF (decoupler-tf / VIPER) and optional decoupler-ccc (scored per
+test *and* per cluster) → PPI → `run_multihit_lrt_pipeline()` → report.
+Ranked GSEA is **not** used in LRT mode.
 
-**Return value.** List with `dds`, `distance`, `diffexp`, optional
-`degpatterns` / `cluster_ora` / `gsea` / `wgcna` / `decoupler` / `viper` /
-`ppi` / `cspa` / `multihit`, and `report_path`.
+**Return value.** List with `dds`, `distance`, `diffexp`, `gsea` /
+PPI / CSPA (default-on), optional `gsva` / `wgcna` / `decoupler_tf` /
+`decoupler_ccc` / `viper`, plus `multihit` and `report_path`. LRT also
+returns `degpatterns` / `cluster_ora`.
 
 **Helpers used by the orchestrator.** `resolve_design()`,
 `validate_comparisons()` / `expand_contrast_specs()` / `expand_lrt_specs()`,
@@ -138,7 +143,9 @@ internally by both helpers).
 ## Quality control: `run_qc()`
 
 **Role.** Filter genes, estimate size factors, write QC summaries / plots, and
-attach metadata for the report.
+attach metadata for the report. The HTML **Sample QC** section (before Library
+QC) reports per-sample detected genes and total transcripts from the input
+count matrix (`qc_sample_summary.csv`).
 
 ```{r}
 dds_qc <- run_qc(
@@ -167,21 +174,24 @@ dds_qc <- run_qc(
 | `detect_organism(genes, min_fraction = 0.5)` | `"human"` / `"mouse"` from symbols |
 
 **Return value.** Filtered `DESeqDataSet`; QC metadata in
-`S4Vectors::metadata(dds_qc)$deseq2reports_qc`.
+`S4Vectors::metadata(dds_qc)$deseq2reports_qc` (includes
+`sample_qc_table`, `steps_summary`, and diagnostic plots).
 
 ---
 
 ## Sample distance / PCA: `run_distance_pca()`
 
-**Role.** VST (or rlog), PCA, scree, top loadings, sample-similarity heatmap;
-optional visualization-only batch correction.
+**Role.** VST (or rlog), PCA, scree, top loadings, sample-similarity heatmap,
+and a **PC–covariate association** heatmap for the leading PCs vs `batch` /
+grouping factors / `time` (when passed via `assoc_vars`); optional
+visualization-only batch correction.
 
 ```{r}
 distance_out <- run_distance_pca(
   dds_qc,
   var = "condition",
   batch = NULL,
-  batch_method = "limma",     # "limma" | "combat" | "none"
+  platform = "rnaseq",        # "rnaseq" → ComBat-seq | "microarray" → ComBat
   transform = "vst",          # or "rlog"
   pals = NULL,
   shape_var = NULL,
@@ -189,6 +199,8 @@ distance_out <- run_distance_pca(
   n_scree_pcs = 10,
   n_loading_pcs = 6,
   n_top_genes = 10,           # genes labelled per PC in loadings plot
+  assoc_vars = NULL,          # NULL → unique(c(var, batch)); LRT runners pass time too
+  n_assoc_pcs = 15,           # PCs in the covariate association heatmap
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -201,12 +213,16 @@ distance_out <- run_distance_pca(
 | `plot_pca(pca_df, var, shape_var = NULL, pals = NULL)` | PC1 vs PC2 scatter |
 | `plot_pca_scree(..., n_scree_pcs = 10)` | % variance per PC |
 | `plot_pca_top_loadings(..., n_loading_pcs = 6, n_top_genes = 10)` | Top loading genes |
+| `pca_covariate_association(pca_df, assoc_vars, n_pcs = 15)` | PC × covariate p-values |
+| `plot_pca_covariate_heatmap(assoc_df)` | −log₁₀(p) association heatmap |
 | `plot_sample_similarity(...)` | Spearman sample×sample heatmap |
 | `compute_pca_loadings(...)` / `top_genes_per_pc(...)` | Loading tables |
 | `make_interactive(gg, tooltip = "text", square = TRUE, base_size = 550)` | plotly widget |
 
 Batch correction (when `batch` is set) is for **plots only** -- not the DE
-model. Corrected and uncorrected PCA panels are both returned.
+model (`~ batch + var` / `~ batch + time` is used for DEG instead). Corrected
+and uncorrected PCA panels **and** PC–covariate association heatmaps are both
+returned.
 
 ---
 
@@ -221,7 +237,7 @@ diffexp_out <- run_diffexp_pipeline(
   var = "condition",
   comparisons = NULL,         # NULL → generate_comparisons() / expand_contrast_specs()
   batch = NULL,               # added to design when set
-  include_interactions = FALSE, # two-factor: interaction contrasts when TRUE
+  include_interactions = FALSE, # two-/three-factor: interaction contrasts when TRUE
   shrinkage = "ashr",         # "ashr" | "apeglm" | "normal" | "none"
   alpha = 0.05,
   lfc_threshold = 0.5,
@@ -239,7 +255,7 @@ diffexp_out <- run_diffexp_pipeline(
 |---|---|
 | `run_diffexp(dds, contrast, shrinkage = "ashr", ...)` | Single-contrast fit |
 | `generate_comparisons(levels)` | All pairwise + one-vs-rest labels |
-| `expand_contrast_specs(dds, var, include_interactions = FALSE)` | Two-factor within-/optional interaction specs |
+| `expand_contrast_specs(dds, var, include_interactions = FALSE)` | Main-effect specs per factor; `TRUE` adds difference-of-differences interaction specs (one-vs-rest for factors with 3+ levels) |
 | `classify_comparison_type(labels)` | `"pairwise"` vs `"one_vs_all"` |
 | `assert_full_rank_model_matrix(mm)` | Fail early on singular designs |
 | `compute_ranking_score(res, ranking = "log2FoldChange")` | Gene ranking metric |
@@ -302,9 +318,9 @@ gsea_out <- run_gsea_pipeline(
 
 **Role.** Pool significant pathways (`padj < alpha`) across collections per
 contrast; Jaccard similarity of leading-edge gene sets; `binary_cut`
-clustering with a no-label heatmap and side word clouds (Suggests
-`simplifyEnrichment`). Shown at the bottom of the **clusterProfiler** HTML
-page.
+clustering with a no-label heatmap and side word clouds
+(`simplifyEnrichment`, imported with the package). Shown at the bottom of
+the **clusterProfiler** HTML page.
 
 ```{r}
 gsea_overlap_out <- run_gsea_overlap_pipeline(
@@ -313,16 +329,60 @@ gsea_overlap_out <- run_gsea_overlap_pipeline(
 )
 ```
 
+---
+
+## Sample-level pathway scores (GSVA): `run_gsva_pipeline()`
+
+**Role.** Score every gene set in each sample rather than testing a ranked
+contrast, so pathways can be compared sample by sample on the **GSVA** HTML
+page. Independent of the GSEA module above.
+
+```{r}
+gsva_out <- run_gsva_pipeline(
+  dds_qc,
+  var = "condition",
+  collections = c("HALLMARK", "GOBP", "GOCC", "GOMF",
+                  "KEGG", "REACTOME", "PID"),
+  n_heatmap = 50,             # heatmap rows for non-HALLMARK collections
+  min_size = 10,              # min overlapping genes per set
+  gene_sets = NULL,           # supply to bypass msigdbr (tests)
+  batch = NULL,
+  platform = "rnaseq",        # ComBat-seq (or ComBat) when batch is set
+  save_dir = "results/gsva",
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_gsva_heatmap(scores, group, var_label = "group", keep = NULL, collection = NULL)` | Row-scaled sample × pathway heatmap |
+
+Scores come from blind VST (batch-corrected first when `batch` is set). Every
+collection is scored in full to CSV; HALLMARK is heatmapped in full, while the
+large collections are heatmapped as the top `n_heatmap` pathways by
+Kruskal–Wallis association with `var` -- a GSEA-style `padj` cutoff does not
+apply here, since every set gets a score.
+
+**Return value.** `org`, `collections`, `scores` (pathway × sample matrices),
+`stats` (ranking tables), `heatmaps`, `n_heatmap`, `min_size`, `var`.
+
+**Requires.** Import `GSVA`.
+
+---
+
 ## Cross-analysis gene hits: `run_multihit_pipeline()` / `run_multihit_lrt_pipeline()`
 
 **Role (Wald).** Per contrast, rank genes by hit count across DEG, GSEA
 leading edges (at most +1), VIPER, decoupleR, and CSPA; top-10 stacked
-barplots on the index page.
+barplots on the dedicated **Multihit** HTML page (`multihit/multihit.html`,
+after VIPER in the nav).
 
 ```{r}
 multihit_out <- run_multihit_pipeline(
   diffexp_out, gsea_out = gsea_out,
-  viper_out = viper_out, decoupler_out = decoupler_out,
+  viper_out = viper_out, decoupler_tf_out = decoupler_tf_out,
   cspa_out = cspa_out,
   top_n = 10, save_dir = "results/multihit"
 )
@@ -330,7 +390,7 @@ multihit_out <- run_multihit_pipeline(
 
 **Role (LRT).** Per degPatterns cluster, top-10 table of genes co-occurring
 across LRT DEG membership, WGCNA modules, decoupleR TFs, and VIPER TFs
-(`run_multihit_lrt_pipeline()`).
+(`run_multihit_lrt_pipeline()`), also on the Multihit page.
 
 ---
 
@@ -353,7 +413,7 @@ wgcna_out <- run_wgcna_pipeline(
   cor_type = "pearson",
   top_n_hub_genes = 10,
   ora_collection = c("GOBP", "GOCC", "GOMF",
-                     "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID"),
+                     "KEGG", "REACTOME", "PID"),
   top_n_ora = 10,
   gene_col = "gene",
   save_dir = getwd(),
@@ -375,17 +435,17 @@ Modules are renamed `"Module 1"`, `"Module 2"`, … by size; WGCNA grey →
 `"Unassigned"` (excluded from ORA). HTML module-gene tables list **all**
 members by `|kME|` (top 10 rows shown by default).
 
-**Requires.** Suggests `WGCNA`, `withr`.
+**Requires.** Imports `WGCNA`, `withr` (installed with the package).
 
 ---
 
-## TF activity (CollecTRI + ULM): `run_decoupler_pipeline()`
+## TF activity (CollecTRI + ULM): `run_decoupler_tf_pipeline()`
 
 **Role.** Sample- and contrast-level TF activities via decoupleR ULM on
 CollecTRI.
 
 ```{r}
-decoupler_out <- run_decoupler_pipeline(
+decoupler_tf_out <- run_decoupler_tf_pipeline(
   dds_qc,
   var = "condition",
   diffexp_out = diffexp_out,
@@ -410,7 +470,58 @@ Sample scores use blind VST; contrast scores use DESeq2 Wald `stat`
 `lrt_clusters_diffexp_for_tf()`). Prefer a local CollecTRI CSV under
 `inst/extdata/collectri_{human,mouse}_*.csv` (GitHub package default) or pass `collectri_file=`.
 
-**Requires.** Suggests `decoupleR` (OmnipathR only needed if no local network).
+**Requires.** Imports `decoupleR` (`OmnipathR` only used if no local network).
+
+---
+
+## Ligand–receptor activity (cell–cell communication): `run_decoupler_ccc_pipeline()`
+
+**Role.** Score LIANA-style ligand–receptor pairs as a decoupleR network
+(`source` = the pair, `target` = its ligand or receptor gene, `mor = 1`) with
+ULM on each contrast's `stat` vector, on the **decoupleR-CCC** page. Separate
+module from CollecTRI TF activity above.
+
+```{r}
+decoupler_ccc_out <- run_decoupler_ccc_pipeline(
+  diffexp_out = diffexp_out,
+  cluster_diffexp = NULL,     # or lrt_clusters_diffexp_for_tf() output (LRT)
+  n_lr = 10,                  # top pairs per direction in the barplot
+  minsize = 2,                # a ligand and a receptor
+  gene_col = "gene",
+  lr_file = NULL,             # local CSV (source, target, mor)
+  lr_net = NULL,              # pre-built network; skips any fetch (tests)
+  save_dir = "results/decoupler-ccc",
+  save_plot = TRUE
+)
+```
+
+**Supporting functions (defaults).**
+
+| Function | Defaults / role |
+|---|---|
+| `plot_lr_contrast_barplot(contrast_acts, n_lr = 10, title = NULL)` | Top 10 up / 10 down pairs per comparison |
+
+The L–R resource is resolved in order: local `lr_file` CSV, then `liana`'s
+Consensus resource if that package is installed, then OmniPath
+ligand–receptor-extra interactions. Whatever is used is written out as
+`liana_lr_network.csv`.
+
+**LRT clusters.** Passing `cluster_diffexp` (the same
+`lrt_clusters_diffexp_for_tf()` object decoupler-tf and VIPER consume) runs one
+extra ULM per degPatterns cluster into `<lrt>/cluster_<n>/`. Because a cluster
+signature holds only that cluster's genes, `minsize = 2` means a pair surfaces
+for a cluster only when **both** partners are members of it -- which is the
+attribution the whole-test fit cannot make, and also why a cluster may
+legitimately score no pair at all. `run_deseq2_lrt()` passes it automatically,
+and the report then shows one tab per cluster with the pooled whole-test table
+kept below.
+
+**Return value.** `org`, `net`, `contrast_acts`, `contrast_barplots`, `n_lr`,
+`minsize`, plus `cluster_acts` / `cluster_barplots` / `clusters_by_test` when
+`cluster_diffexp` was supplied.
+
+**Requires.** Import `decoupleR`; `liana` (Suggests) or `OmnipathR` for the
+network unless `lr_file` / `lr_net` is given.
 
 ---
 
@@ -442,7 +553,7 @@ viper_out <- run_viper_pipeline(
 
 Mouse genes are mapped to human orthologs with `babelgene` before scoring.
 
-**Requires.** Suggests `viper`, `bcellViper`, and (mouse) `babelgene`.
+**Requires.** Imports `viper`, `bcellViper`, and (mouse) `babelgene`.
 
 ---
 
@@ -463,7 +574,9 @@ ppi_out <- run_ppi_pipeline(
   gene_col = "gene",
   alpha = 0.05,                 # DE direction annotation only
   lfc_threshold = 0.5,
-  save_dir = getwd(),
+  save_dir = "results/deseq2",
+  module_save_dir = "results/ppi",
+  wgcna_module_save_dir = "results/wgcna",
   save_plot = TRUE
 )
 ```
@@ -479,14 +592,14 @@ ppi_out <- run_ppi_pipeline(
 `max_plot_nodes` by degree. Degree **tables** keep all genes with edges (HTML
 shows top 10 by default).
 
-**Requires.** Suggests `STRINGdb`, `igraph`. Embedded in DE / WGCNA pages (no
+**Requires.** Imports `STRINGdb`, `igraph`. Embedded in DE / WGCNA pages (no
 separate nav page).
 
 ---
 
 ## HTML report: `render_report()`
 
-**Role.** Knit bundled Rmds into a multi-page, self-contained report tree.
+**Role.** Knit bundled Rmds into a multi-page, folder-bundled report tree.
 
 ```{r}
 render_report(
@@ -495,30 +608,72 @@ render_report(
   distance_out = distance_out,
   diffexp_out = diffexp_out,
   gsea_out = gsea_out,
+  gsea_overlap_out = NULL,
+  multihit_out = NULL,
   wgcna_out = NULL,
-  decoupler_out = NULL,
+  decoupler_tf_out = NULL,
   ppi_out = NULL,
   viper_out = NULL,
+  cspa_out = NULL,
+  gsva_out = NULL,
+  decoupler_ccc_out = NULL,
+  degpatterns_out = NULL,       # LRT: clusters and their plots
+  cluster_ora_out = NULL,       # LRT: per-cluster ORA
   alpha = 0.05,
   lfc_threshold = 0.5,
   run_args = NULL,              # optional list shown on the index page
-  save_dir = getwd()
+  save_dir = getwd(),
+  parallel_render = FALSE,      # knit contrast pages across render_workers
+  render_workers = NULL,        # NULL → min(4, detectCores() - 1)
+  contrasts_only = FALSE        # skip hub pages (used by render_report_targets)
 )
 ```
 
-**Pages.** `index.html`, `qc/qc.html`, `deseq2/deseq2.html`,
-`clusterprofiler/clusterprofiler.html`, optional `wgcna/`, `decoupler/`,
-`viper/`.
+**Pages.** `index.html`, `qc/qc.html`, `deseq2/deseq2.html` (+ per-contrast
+pages), `clusterprofiler/clusterprofiler.html` (+ per-contrast), optional
+`wgcna/`, `decoupler-tf/`, `decoupler-ccc/`, `viper/`, `multihit/`. Missing optional modules are
+greyed out in the nav. Pass `dds = NULL` to skip / grey out QC (DEG-table
+pipeline).
+
+**Speed and resumability.** With `parallel_render = TRUE` the per-contrast
+pages are knitted concurrently through **future.apply**; each worker gets its
+own `intermediates_dir`, and a page whose pandoc step dies in a worker is
+retried once alone in the main session before it is given up as a gap in the
+report. `render_report_targets()` is a drop-in alternative that makes each hub
+page a **targets** target, so re-rendering skips the pages whose inputs have not
+changed and contrast pages follow via `contrasts_only = TRUE`; the entry points
+reach it through `use_targets = TRUE`.
+
+**Portability.** Pages are folder-bundled (`self_contained = FALSE`): assets go
+to a `lib/` beside each page, figures to `<page>_figures/`, and every nav link,
+figure and CSV/PDF download is a relative path. The results tree can therefore
+be moved, copied or archived and still opened offline, as long as it moves as a
+whole.
+
+**Hub summaries.** DESeq2 and clusterProfiler hubs include
+`summarize_deg_contrasts()` / `summarize_gsea_contrasts()` tables (n and %
+significant up/down). Multi-factor contrasts are grouped by
+`emit_contrast_nav()` under "Main effects" and "Interactions (difference of
+differences)" headings, and the DESeq2 hub adds an
+`interaction_question_table()` stating each interaction as a question with the
+meaning of a positive `log2FoldChange`.
 
 **Supporting functions (defaults).**
 
 | Function | Defaults / role |
 |---|---|
-| `render_index_page(...)` / `render_qc_page(...)` / … | Single-page knitters |
+| `render_index_page(...)` / `render_qc_page(...)` / … / `render_multihit_page(...)` | Single-page knitters |
+| `render_report_targets(..., parallel_render = TRUE, script_path = NULL)` | Resumable render via **targets** |
 | `report_page_hrefs(from = "Index")` | Relative href map |
 | `report_nav_links(current, disabled = character(0), hrefs = NULL)` | Top nav bar |
+| `summarize_deg_contrasts(diffexp_out, ...)` / `summarize_gsea_contrasts(...)` | Hub summary tables |
+| `contrast_file_stem(label)` | Basename for nested contrast file prefixes |
 | `emit_code_block(..., lang = "r", caption = NULL)` | Minimal reproduce-me code |
 | `emit_plot_with_download(plot, filename, width = 7, height = 5, dpi = 150)` | Figure + PDF button |
+| `emit_heatmap_with_download(heatmap, filename, scale = 1, cell_width = 0.28, cell_height = 0.16)` | `pheatmap` + PDF, sized by `gtable_page_size()` |
+| `gtable_page_size(drawable, max_width = 12, max_height = 24)` | Page inches from a gtable's own content (avoids clipped heatmaps) |
+| `figure_img_tag(draw, px_width, px_height, pixelratio = 2)` | Rasterize into `<page>_figures/` and link it (`capture_plot_tag()` wraps it) |
+| `batch_correction_label(...)` / `expr_correction_label(...)` | `"ComBat-seq"` / `"ComBat-seq then VST"` prose for section text |
 | `download_table_button(...)` / `download_plot_button(...)` / `link_output_file(...)` | Offline downloads / on-disk CSV links |
 | `make_interactive(...)` / `make_interactive_ppi(...)` | Interactive widgets |
 
@@ -533,7 +688,8 @@ Each report section shows the **minimal package module call** to reproduce it.
 | `detect_organism(genes, min_fraction = 0.5)` | `"human"` / `"mouse"` |
 | `resolve_design(var, batch = NULL, design = NULL, include_interactions = FALSE)` | Auto design formula |
 | `generate_comparisons(levels)` | Pairwise + one-vs-rest labels |
-| `expand_contrast_specs(dds, var, include_interactions = FALSE)` | Contrast inventory data frame |
+| `expand_contrast_specs(dds, var, include_interactions = FALSE)` | Contrast inventory (1–3 factors; main effects by default, difference-of-differences labels when interactions are on, one-vs-rest for factors with 3+ levels) |
+| `contrast_file_stem(label)` | Basename of nested contrast keys |
 | `compute_ranking_score(res, ranking = "log2FoldChange")` | Ranking metric |
 | `build_gsea_ranks(res, gene_col = "gene", ranking = "log2FoldChange")` | Named ranks |
 | `import_msigdbr(org, collection)` | MSigDB gene sets |
@@ -557,7 +713,7 @@ gsea_out <- run_gsea_pipeline(diffexp_out$results)       # collections = "HALLMA
 
 # Optional:
 # wgcna_out <- run_wgcna_pipeline(dds_qc, var = "condition")
-# decoupler_out <- run_decoupler_pipeline(dds_qc, var = "condition", diffexp_out = diffexp_out)
+# decoupler_tf_out <- run_decoupler_tf_pipeline(dds_qc, var = "condition", diffexp_out = diffexp_out)
 # viper_out <- run_viper_pipeline(dds_qc, var = "condition", diffexp_out = diffexp_out)
 # ppi_out <- run_ppi_pipeline(diffexp_out = diffexp_out)
 
