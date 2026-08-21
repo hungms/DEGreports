@@ -18,6 +18,7 @@ test_that("run_wgcna_pipeline returns a fully-populated, consistently-keyed resu
     expect_type(out, "list")
     expect_true(is.numeric(out$power))
     expect_true(out$power_source %in% c("estimated", "fallback_best_fit"))
+    expect_equal(out$expr_correction, "vst")
 
     expect_s3_class(out$module_df, "data.frame")
     expect_true(all(c("gene", "module", "module_color") %in% colnames(out$module_df)))

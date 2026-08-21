@@ -12,7 +12,7 @@ run_deseq2_wald(
   comparisons = NULL,
   include_interactions = FALSE,
   batch = NULL,
-  batch_method = "limma",
+  platform = "rnaseq",
   export_counts = TRUE,
   filter_method = "cpm",
   cpm_percentile = 0.05,
@@ -23,12 +23,8 @@ run_deseq2_wald(
   mt_pattern = "^MT-|^mt-",
   gene_chr = NULL,
   remove_vdj = NULL,
-  shrinkage = "ashr",
-  alpha = 0.05,
-  lfc_threshold = 0.5,
   ranking = "log2FoldChange",
-  collections = c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME",
-    "PID"),
+  collections = c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID"),
   pals = NULL,
   shape_var = NULL,
   n_scree_pcs = 10,
@@ -37,18 +33,16 @@ run_deseq2_wald(
   top_label_n = 5,
   top_n_plot = 10,
   run_clusterprofiler = FALSE,
+  run_gsva = FALSE,
   run_wgcna = FALSE,
-  wgcna_power = NULL,
-  wgcna_min_module_size = 30,
-  run_decoupler = FALSE,
-  decoupler_n_tfs = 25,
+  run_decoupler_tf = FALSE,
+  run_decoupler_ccc = FALSE,
   run_viper = FALSE,
-  viper_n_tfs = 10,
-  run_ppi = TRUE,
-  ppi_top_n_hubs = 10,
   run_cspa = TRUE,
-  cspa_n_markers = 25,
   render_html = TRUE,
+  parallel_render = FALSE,
+  render_workers = NULL,
+  use_targets = FALSE,
   save_dir = getwd()
 )
 
@@ -58,67 +52,76 @@ run_deseq2_pipeline(...)
 \item{dds}{A \code{DESeqDataSet} object containing raw counts.}
 
 \item{var}{Column name(s) in \code{colData(dds)} used for grouping. Length 1
-= single-factor mode; length 2 = two-factor mode (within-factor contrasts;
-interaction design + contrasts when \code{include_interactions = TRUE}).
-Comparisons / the design formula are auto-built from these columns
-unless overridden.}
+= single-factor mode; length 2 = two-factor mode; length 3 = three-factor
+mode (e.g. \code{celltype * C_mutation * K_mutation}). Every factor's main
+effect is always tested across all levels of the others;
+\code{include_interactions = TRUE} makes the design the full product of the
+factors and adds the difference-of-differences interaction contrasts.
+Comparisons / the design formula are auto-built from these columns unless
+overridden.}
 
 \item{design}{Design formula (or character string) for the DESeq2 model,
 or \code{NULL} (default) to auto-build via \code{\link[=resolve_design]{resolve_design()}} from \code{var},
 \code{batch}, and \code{include_interactions} (\code{~ var}, \code{~ batch + var},
-additive \code{~ A + B}, or \code{~ A * B} when interactions are requested).}
+additive \code{~ A + B} / \code{~ A + B + C}, or \code{~ A * B} / \code{~ A * B * C} when
+interactions are requested).}
 
 \item{comparisons}{Character vector of comparisons / contrast labels to
-run (\code{"A_vs_B"} / \code{"A_vs_B+C"}, or two-factor labels like
-\code{"BM__IgG_vs_IgM"}), or \code{NULL} (default) to auto-generate the full
-grid via \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
+run (\code{"A_vs_B"} / \code{"A_vs_B+C"}, or multi-factor labels like
+\code{"C_vs_noC_x_K_vs_noK_in_CB"}), or \code{NULL} (default) to auto-generate
+the full grid via \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
 
-\item{include_interactions}{Logical. When \code{var} has length 2 and
-\code{design = NULL}, use \code{~ A * B} and expand interaction contrasts
-(reference level × non-ref and pairwise non-ref differences, e.g.
-mutant vs mutant × cell type). Default \code{FALSE} (additive design; no
-interaction section). Ignored for single-factor \code{var}. When \code{design}
-is supplied explicitly, only the contrast grid is affected.}
+\item{include_interactions}{Logical. When \code{var} has length ≥ 2 and
+\code{design = NULL}, use \code{~ A * B} / \code{~ A * B * C} and add the
+difference-of-differences interaction contrasts — "does the K effect
+differ between C and noC, within CB"
+(\code{C_vs_noC_x_K_vs_noK_in_CB}), plus the three-way row for three
+factors — to the main effects that are always expanded. Each combines
+coefficients from one fit of the product design on all samples. A factor
+with three or more levels is compared one-vs-rest
+(\code{CA_vs_CB+CC_x_K_vs_noK_in_C}), its pooled side an average with equal
+weight per level. Default \code{FALSE}: additive design, main effects only.
+Ignored for single-factor \code{var}. When \code{design} is supplied explicitly,
+only the contrast grid is affected.}
 
 \item{batch}{Optional covariate column name(s) in \code{colData(dds)}. Added
-to the auto design when \code{design = NULL}, passed through to within-
-stratum subset fits in two-factor mode, and used for PCA visualization
-correction. Default \code{NULL}.}
+to the auto design when \code{design = NULL}, passed through to main-effect
+fits in multi-factor mode, and (when set) used to
+batch-correct the expression matrix behind the PCA and behind WGCNA /
+GSVA / sample-level ULM and VIPER / CSPA heatmaps. DESeq2 itself always
+uses raw counts with \code{batch} in the design. Default \code{NULL}.}
 
-\item{batch_method}{Batch-correction method for PCA visualization only:
-\code{"limma"} (default), \code{"combat"}, or \code{"none"}.}
+\item{platform}{Assay platform, \code{"rnaseq"} (default) or \code{"microarray"}.
+Selects how \code{batch} is removed from the expression matrix used by PCA
+and the sample-level modules: \code{sva::ComBat_seq()} on raw counts then
+VST for RNA-seq, \code{sva::ComBat()} on the VST matrix for microarray.
+Both protect \code{var}. Ignored if \code{batch} is \code{NULL}; nothing else about
+the pipeline (the DESeq2 model, gene filtering) changes.}
 
 \item{export_counts}{Logical. If \code{TRUE} (default), also writes raw,
 VST, rlog, and CPM count tables via \code{\link[=run_counts_export]{run_counts_export()}}. If \code{batch}
-is set, a ComBat_seq-corrected raw-count table is written as well
-(protecting \code{var} as the biological signal of interest). These tables
-are independent of the DE model and provided for general downstream
-use.}
+is set, a batch-corrected table is written as well (protecting \code{var}
+as the biological signal of interest). These tables are independent of
+the DE model and provided for general downstream use.}
 
 \item{filter_method}{Low-expression gene-filtering strategy: \code{"cpm"}
 (default, percentile-based), \code{"count"}, or \code{NULL} (no expression
 filtering). See \code{\link[=run_qc]{run_qc()}}.}
 
-\item{cpm_percentile}{Used when \code{filter_method = "cpm"}. See \code{\link[=run_qc]{run_qc()}}.}
+\item{cpm_percentile}{Fraction of the \emph{expressed} genes dropped on top of
+the genes with no reads at all, when \code{filter_method = "cpm"}. See
+\code{\link[=run_qc]{run_qc()}}.}
 
 \item{min_count, min_samples_per_group}{Used when \code{filter_method = "count"}. See \code{\link[=run_qc]{run_qc()}}.}
 
 \item{remove_mt, remove_xy, mt_pattern, gene_chr, remove_vdj}{See \code{\link[=run_qc]{run_qc()}}.}
 
-\item{shrinkage}{LFC shrinkage method, one of \code{"ashr"} (default),
-\code{"apeglm"}, \code{"normal"}, \code{"none"}. See \code{\link[=run_diffexp]{run_diffexp()}}.}
-
-\item{alpha}{Significance threshold (adjusted p-value). Default \code{0.05}.}
-
-\item{lfc_threshold}{Log2 fold-change threshold for significance
-flagging / up-down colouring. Default \code{0.5}.}
-
 \item{ranking}{DEG/GSEA ranking metric: \code{"log2FoldChange"} (default), \code{"padj"},
 \code{"pxfc"}, or \code{"stat"}.}
 
 \item{collections}{MSigDB collections for GSEA: one or more of
-\code{"HALLMARK"}, \code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG_MEDICUS"},
-\code{"KEGG_LEGACY"}, \code{"REACTOME"}, \code{"PID"}. Default \code{c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID")} --
+\code{"HALLMARK"}, \code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG"},
+\code{"REACTOME"}, \code{"PID"}. Default \code{c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID")} --
 \code{"HALLMARK"} remains available but is not forced on by default. GSEA
 runs independently against every requested collection, for every
 comparison. Organism (human/mouse) is auto-detected from gene symbols
@@ -143,63 +146,61 @@ runs a second, independent GSEA pass via \code{clusterProfiler::GSEA()}
 alongside the primary \code{fgsea}-based GSEA, exporting the raw
 \code{clusterProfiler} \code{gseaResult} objects. See \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}.}
 
+\item{run_gsva}{Logical. If \code{TRUE} (default \code{FALSE}), runs sample-level GSVA
+via \code{\link[=run_gsva_pipeline]{run_gsva_pipeline()}} and adds a \strong{GSVA} HTML page (Imports:
+\code{GSVA}). Independent of clusterProfiler / fgsea GSEA. HALLMARK is
+always scored and heatmapped in full. Large collections (GO / KEGG /
+REACTOME / PID) are scored in full (CSV) but the heatmap shows the
+most-associated pathways for the grouping \code{var} (Kruskal–Wallis on
+GSVA scores; variance fallback). GSEA \code{padj} is not used — every set
+is scored, so a significance cutoff would still leave hundreds of rows.}
+
 \item{run_wgcna}{Logical. If \code{TRUE} (default \code{FALSE}), also runs
 weighted gene co-expression network analysis via
 \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}} -- soft-threshold power selection, module
 detection, condition- and sample-level module-trait correlation, hub
 genes, and per-module over-representation analysis against
-\code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG_MEDICUS"}, \code{"KEGG_LEGACY"}, and
+\code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG"}, and
 \code{"REACTOME"}.
 Requires the \code{WGCNA} package. This is a heavier, exploratory
 companion analysis independent of the \code{var}-based differential
 expression comparisons above; it uses every sample's full expression
 profile rather than testing one gene at a time against a design.}
 
-\item{wgcna_power}{Soft-thresholding power for WGCNA. Default \code{NULL}
-auto-selects. Ignored if \code{run_wgcna = FALSE}. See
-\code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}.}
+\item{run_decoupler_tf}{Logical. If \code{TRUE} (default \code{FALSE}), runs
+CollecTRI + ULM TF activity analysis via \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}
+and adds a \strong{decoupleR-TF} HTML page (Imports: \code{decoupleR},
+\code{OmnipathR} for network download when no local prior is present).}
 
-\item{wgcna_min_module_size}{Minimum WGCNA module size. Default \code{30}.
-Ignored if \code{run_wgcna = FALSE}.}
-
-\item{run_decoupler}{Logical. If \code{TRUE} (default \code{FALSE}), runs
-CollecTRI + ULM TF activity analysis via \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}
-and adds a \strong{decoupleR} HTML page. Requires Suggests packages
-\code{decoupleR} and \code{OmnipathR}.}
-
-\item{decoupler_n_tfs}{Number of top TFs shown in the sample heatmap
-and contrast barplots. Default \code{25}. Ignored if \code{run_decoupler = FALSE}.}
+\item{run_decoupler_ccc}{Logical. If \code{TRUE} (default \code{FALSE}), runs
+ligand–receptor (cell–cell communication) ULM via
+\code{\link[=run_decoupler_ccc_pipeline]{run_decoupler_ccc_pipeline()}} and adds a \strong{decoupleR-CCC} hub plus
+one HTML page per comparison. Independent of \code{run_decoupler_tf}.}
 
 \item{run_viper}{Logical. If \code{TRUE} (default \code{FALSE}), runs
 \href{https://califano.c2b2.columbia.edu/viper}{VIPER} / msVIPER with the
 human B-cell regulon from \href{https://bioconductor.org/packages/bcellViper/}{bcellViper}
-via \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} and adds a \strong{VIPER} HTML page. Requires
-Suggests packages \code{viper}, \code{bcellViper}, and (for mouse) \code{babelgene}.}
-
-\item{viper_n_tfs}{Number of top master regulators shown in each
-contrast barcode plot. Default \code{10}. Ignored if \code{run_viper = FALSE}.}
-
-\item{run_ppi}{Logical. If \code{TRUE} (default), runs STRING PPI
-connectivity analysis via \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}} for every DE contrast
-and (when enabled) every WGCNA module, embedding BioNERO-style
-community/hub network plots (plus native STRINGdb PNGs on disk) in
-the DE and WGCNA HTML pages. Requires Suggests packages \code{STRINGdb}
-and \code{igraph} and network access on first run to download STRING
-files. Failures are caught with a warning so the rest of the
-pipeline still finishes.}
-
-\item{ppi_top_n_hubs}{Number of highest-degree genes highlighted per
-PPI plot. Default \code{10}. Ignored if \code{run_ppi = FALSE}.}
+via \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} and adds a \strong{VIPER} HTML page (Imports:
+\code{viper}, \code{bcellViper}, and for mouse \code{babelgene}).}
 
 \item{run_cspa}{Logical. If \code{TRUE} (default), selects top Cell Surface
 Protein Atlas (CSPA) markers among DEGs per contrast and draws
 all-sample VST heatmaps (plus a combined heatmap) via
-\code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}. Requires Suggests package \code{readxl}.}
-
-\item{cspa_n_markers}{Top CSPA genes per contrast. Default \code{25}.}
+\code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}} (Imports: \code{readxl}).}
 
 \item{render_html}{Logical. If \code{TRUE} (default), renders an HTML summary
 report via \code{\link[=render_report]{render_report()}} after all stages complete.}
+
+\item{parallel_render}{If \code{TRUE}, knit per-contrast HTML pages in
+parallel on Unix (\code{parallel::mclapply()}). Hub pages stay sequential
+in the current R session. Passed to \code{\link[=render_report]{render_report()}}. Default \code{FALSE}.}
+
+\item{render_workers}{Parallel worker count for \code{parallel_render}.
+Default \code{NULL} (auto).}
+
+\item{use_targets}{If \code{TRUE}, render HTML via \code{\link[=render_report_targets]{render_report_targets()}}
+(requires Suggested package \code{targets}) instead of \code{\link[=render_report]{render_report()}}.
+Default \code{FALSE}.}
 
 \item{save_dir}{Directory where all outputs will be written. Default
 \code{getwd()}.}
@@ -209,8 +210,20 @@ Invisibly, a list with elements \code{dds} (the QC-filtered object),
 \code{dds_path} (path to \code{dds.rds} under \code{save_dir}),
 \code{distance} (output of \code{\link[=run_distance_pca]{run_distance_pca()}}), \code{diffexp} (output of
 \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}), \code{gsea} (output of \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}),
-\code{wgcna} (output of \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, or \code{NULL} if \verb{run_wgcna = }run_ppi = FALSE\verb{/ the stage failed),}cspa\verb{(output of [run_cspa_marker_pipeline()], or}NULL\code{if}run_cspa = FALSE\verb{), }viper\verb{(output of [run_viper_pipeline()], or}NULL\code{if}run_viper = FALSE\verb{), and }report_path\verb{(a named character vector of the paths to the rendered HTML report pages --}"index"\verb{, }"qc"\verb{, }"deseq2"\verb{, }"clusterProfiler"\verb{, and (if enabled) }"wgcna"\code{/}"decoupleR"\code{/}"viper"\verb{; see [render_report()] -- or }NULL\code{if}render_html =
-FALSE\verb{). Module artifacts and their HTML pages are written under per-module folders (}qc/\verb{, }distance/\verb{, }deseq2/\verb{, }clusterprofiler/\verb{, }wgcna/\verb{, }decoupler/\verb{, }viper/\verb{, }ppi/\verb{; CSPA under }deseq2/cspa/\verb{, GSEA overlap under }clusterprofiler/\if{html}{\out{<contrast>}}/gsea_overlap/\verb{) with }index.html\verb{and the QC-filtered}dds.rds\verb{at the root of}save_dir`.
+\code{wgcna} (output of \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, or \code{NULL} if \code{run_wgcna = FALSE} / the stage failed), \code{ppi} (output of \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}, or
+\code{NULL} if the stage failed), \code{cspa} (output of
+\code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}, or \code{NULL} if \code{run_cspa = FALSE}), \code{viper}
+(output of \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL} if \code{run_viper = FALSE}), and
+\code{report_path} (a named character vector of the paths to the rendered
+HTML report pages -- \code{"index"}, \code{"qc"}, \code{"deseq2"},
+\code{"clusterProfiler"}, and (if enabled) \code{"wgcna"} / \code{"decoupleR"} /
+\code{"viper"}; see \code{\link[=render_report]{render_report()}} -- or \code{NULL} if \code{render_html = FALSE}). Module artifacts and their HTML pages are written under
+per-module folders (\verb{qc/} incl. \verb{counts/} and \verb{distance/}, \verb{deseq2/},
+\verb{clusterprofiler/}, \verb{wgcna/} incl. per-module \verb{ppi/}, \verb{decoupler/},
+\verb{viper/}; per-contrast CSPA/PPI under \verb{deseq2/<contrast>/cspa/} and
+\verb{deseq2/<contrast>/ppi/}; LRT-cluster PPI under \verb{ppi/<cluster>/ppi/};
+GSEA overlap under \verb{clusterprofiler/<contrast>/gsea_overlap/}) with
+\code{index.html} and the QC-filtered \code{dds.rds} at the root of \code{save_dir}.
 }
 \description{
 Chains quality control (\code{\link[=run_qc]{run_qc()}}), sample distance/PCA
@@ -220,6 +233,19 @@ comparisons (\code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}), gene 
 single call. For time-course likelihood-ratio testing see
 \code{\link[=run_deseq2_lrt]{run_deseq2_lrt()}}. The previous name \code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}} is retained
 as a deprecated alias.
+}
+\details{
+Optional modules (default off): \code{run_gsva}, \code{run_wgcna}, \code{run_decoupler_tf},
+\code{run_decoupler_ccc}, \code{run_viper}. Other stages always run: GSEA / cluster
+ORA, CSPA (\code{run_cspa = TRUE}), and STRING PPI via \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}
+for every DE contrast and (when enabled) every WGCNA module. PPI needs
+network access on first run to download STRING files; failures are caught
+with a warning so the rest of the pipeline still finishes.
+
+Statistical and plotting thresholds (LFC shrinkage, \code{alpha}, the LFC
+cutoff, heatmap/barplot sizes, WGCNA module size, hub/TF/marker counts)
+are fixed -- see \code{.pipeline_const}. Call the module functions directly
+(\code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}, \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, ...) to change them.
 }
 \examples{
 \dontrun{

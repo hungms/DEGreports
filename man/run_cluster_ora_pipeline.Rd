@@ -7,8 +7,7 @@
 run_cluster_ora_pipeline(
   degpatterns_out,
   universe,
-  collections = c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME",
-    "PID"),
+  collections = c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID"),
   top_n = 10,
   alpha = 0.05,
   gene_col = "gene",

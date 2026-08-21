@@ -40,7 +40,7 @@
 
 #' Detect organism from available pipeline outputs
 #' @noRd
-.multihit_org <- function(gsea_out = NULL, viper_out = NULL, decoupler_out = NULL,
+.multihit_org <- function(gsea_out = NULL, viper_out = NULL, decoupler_tf_out = NULL,
                           diffexp_out = NULL) {
     org <- tryCatch(gsea_out$org, error = function(e) NULL)
     if (is.null(org) || is.na(org)) {
@@ -50,7 +50,7 @@
         org <- tryCatch(viper_out$org, error = function(e) NULL)
     }
     if (is.null(org) || is.na(org)) {
-        org <- tryCatch(decoupler_out$org, error = function(e) NULL)
+        org <- tryCatch(decoupler_tf_out$org, error = function(e) NULL)
     }
     if (is.null(org) || is.na(org)) {
         genes <- tryCatch({
@@ -74,7 +74,9 @@
 #'     leading edge (`padj < alpha`; all collections pooled)
 #'   \item VIPER: +1 if the TF has `padj < alpha` (human TFs mapped to
 #'     organism symbols when needed)
-#'   \item decoupleR: +1 if `p_value < alpha`
+#'   \item decoupleR-TF: +1 if `p_value < alpha`
+#'   \item decoupleR-CCC: +1 if the gene is a ligand or receptor in any
+#'     significant ligand–receptor pair (`padj` / `p_value < alpha`)
 #'   \item CSPA: +1 if the gene was selected as a CSPA surface marker for
 #'     this contrast
 #' }
@@ -87,14 +89,15 @@
 #' @param diffexp_out Output of [run_diffexp_pipeline()].
 #' @param gsea_out Output of [run_gsea_pipeline()], or `NULL`.
 #' @param viper_out Output of [run_viper_pipeline()], or `NULL`.
-#' @param decoupler_out Output of [run_decoupler_pipeline()], or `NULL`.
+#' @param decoupler_tf_out Output of [run_decoupler_tf_pipeline()], or `NULL`.
+#' @param decoupler_ccc_out Output of [run_decoupler_ccc_pipeline()], or `NULL`.
 #' @param cspa_out Output of [run_cspa_marker_pipeline()], or `NULL`.
 #' @param alpha Significance threshold. Default `0.05`.
 #' @param top_n Number of genes to return **per direction** (up and down).
 #'   Default `10` (up to `2 * top_n` genes total).
 #' @param org Organism (`"human"` / `"mouse"`). Default `NULL` (auto-detect).
 #' @return A data frame with columns `gene`, `comparison`, `direction`,
-#'   `deg`, `gsea`, `viper`, `decoupler`, `cspa`, `score`, plus DEG
+#'   `deg`, `gsea`, `viper`, `decoupler-tf`, `decoupler-ccc`, `cspa`, `score`, plus DEG
 #'   tie-break columns when present. Rows are ordered up-then-down, each
 #'   block ranked by score.
 #' @export
@@ -103,7 +106,8 @@ rank_multihit_genes_contrast <- function(
     diffexp_out,
     gsea_out = NULL,
     viper_out = NULL,
-    decoupler_out = NULL,
+    decoupler_tf_out = NULL,
+    decoupler_ccc_out = NULL,
     cspa_out = NULL,
     alpha = 0.05,
     top_n = 10,
@@ -112,15 +116,18 @@ rank_multihit_genes_contrast <- function(
     alpha <- validate_alpha(alpha)
     top_n <- max(1L, as.integer(top_n)[1])
     if (is.null(org) || is.na(org)) {
-        org <- .multihit_org(gsea_out, viper_out, decoupler_out, diffexp_out)
+        org <- .multihit_org(gsea_out, viper_out, decoupler_tf_out, diffexp_out)
     }
 
     empty <- data.frame(
         gene = character(0), comparison = character(0),
         direction = character(0),
         deg = integer(0), gsea = integer(0), viper = integer(0),
-        decoupler = integer(0), cspa = integer(0), score = integer(0),
-        stringsAsFactors = FALSE
+        `decoupler-tf` = integer(0), `decoupler-ccc` = integer(0),
+        cspa = integer(0),
+        score = integer(0),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
     )
     de <- diffexp_out$by_comparison[[contrast]]
     if (is.null(de) || !nrow(de)) {
@@ -134,9 +141,11 @@ rank_multihit_genes_contrast <- function(
         deg = as.integer(!is.na(de$sig) & de$sig),
         gsea = 0L,
         viper = 0L,
-        decoupler = 0L,
+        `decoupler-tf` = 0L,
+        `decoupler-ccc` = 0L,
         cspa = 0L,
-        stringsAsFactors = FALSE
+        stringsAsFactors = FALSE,
+        check.names = FALSE
     )
     if ("stat" %in% colnames(de)) {
         score$stat <- as.numeric(de$stat)
@@ -171,15 +180,23 @@ rank_multihit_genes_contrast <- function(
         }
     }
 
-    # decoupleR sources
-    if (!is.null(decoupler_out) && !is.null(decoupler_out$contrast_acts[[contrast]])) {
-        da <- decoupler_out$contrast_acts[[contrast]]
+    # decoupleR-TF sources
+    if (!is.null(decoupler_tf_out) && !is.null(decoupler_tf_out$contrast_acts[[contrast]])) {
+        da <- decoupler_tf_out$contrast_acts[[contrast]]
         if (!is.null(da) && nrow(da) > 0L &&
                 all(c("source", "p_value") %in% colnames(da))) {
             src_sig <- as.character(
                 da$source[!is.na(da$p_value) & da$p_value < alpha]
             )
-            score$decoupler <- as.integer(score$gene %in% unique(src_sig))
+            score[["decoupler-tf"]] <- as.integer(score$gene %in% unique(src_sig))
+        }
+    }
+
+    # decoupleR-CCC ligand / receptor genes from significant pairs
+    if (!is.null(decoupler_ccc_out)) {
+        ccc_genes <- .ccc_sig_genes(decoupler_ccc_out, contrast, alpha = alpha)
+        if (length(ccc_genes)) {
+            score[["decoupler-ccc"]] <- as.integer(score$gene %in% ccc_genes)
         }
     }
 
@@ -192,7 +209,8 @@ rank_multihit_genes_contrast <- function(
         }
     }
 
-    score$score <- score$deg + score$gsea + score$viper + score$decoupler + score$cspa
+    score$score <- score$deg + score$gsea + score$viper +
+        score[["decoupler-tf"]] + score[["decoupler-ccc"]] + score$cspa
     # DEG direction: sign of log2FoldChange (fallback: sign of Wald stat)
     lfc <- score$log2FoldChange
     direction <- ifelse(!is.na(lfc) & lfc > 0, "up",
@@ -236,7 +254,7 @@ rank_multihit_genes_contrast <- function(
     ranked$direction <- factor(as.character(ranked$direction), levels = c("up", "down"))
     col_order <- c(
         "gene", "comparison", "direction",
-        "deg", "gsea", "viper", "decoupler", "cspa", "score",
+        "deg", "gsea", "viper", "decoupler-tf", "decoupler-ccc", "cspa", "score",
         "stat", "log2FoldChange"
     )
     ranked <- ranked[, intersect(col_order, colnames(ranked)), drop = FALSE]
@@ -257,7 +275,7 @@ rank_multihit_genes_contrast <- function(
 #' @export
 plot_multihit_genes <- function(ranked, title = NULL) {
     if (is.null(ranked) || !nrow(ranked)) return(NULL)
-    layers <- c("deg", "gsea", "viper", "decoupler", "cspa")
+    layers <- c("deg", "gsea", "viper", "decoupler-tf", "decoupler-ccc", "cspa")
     layers <- layers[layers %in% colnames(ranked)]
     has_dir <- "direction" %in% colnames(ranked) &&
         any(!is.na(ranked$direction) & nzchar(as.character(ranked$direction)))
@@ -312,11 +330,13 @@ plot_multihit_genes <- function(ranked, title = NULL) {
 
     pal <- c(
         deg = "#4C72B0", gsea = "#55A868",
-        viper = "#C44E52", decoupler = "#8172B2", cspa = "#CCB974"
+        viper = "#C44E52", `decoupler-tf` = "#8172B2",
+        `decoupler-ccc` = "#64B5CD", cspa = "#CCB974"
     )
     lab <- c(
         deg = "DEG", gsea = "GSEA LE", viper = "VIPER",
-        decoupler = "decoupleR", cspa = "CSPA"
+        `decoupler-tf` = "decoupleR TF", `decoupler-ccc` = "decoupleR CCC",
+        cspa = "CSPA"
     )
 
     p <- ggplot2::ggplot(
@@ -396,7 +416,8 @@ run_multihit_pipeline <- function(
     diffexp_out,
     gsea_out = NULL,
     viper_out = NULL,
-    decoupler_out = NULL,
+    decoupler_tf_out = NULL,
+    decoupler_ccc_out = NULL,
     cspa_out = NULL,
     contrasts = NULL,
     alpha = 0.05,
@@ -413,7 +434,7 @@ run_multihit_pipeline <- function(
     validate_logical(save_plot, "save_plot")
     save_dir <- validate_save_dir(save_dir)
     if (is.null(org) || is.na(org)) {
-        org <- .multihit_org(gsea_out, viper_out, decoupler_out, diffexp_out)
+        org <- .multihit_org(gsea_out, viper_out, decoupler_tf_out, diffexp_out)
     }
     if (is.null(contrasts)) {
         contrasts <- names(diffexp_out$by_comparison)
@@ -422,7 +443,8 @@ run_multihit_pipeline <- function(
     layers_used <- c("DEG")
     if (!is.null(gsea_out)) layers_used <- c(layers_used, "GSEA")
     if (!is.null(viper_out)) layers_used <- c(layers_used, "VIPER")
-    if (!is.null(decoupler_out)) layers_used <- c(layers_used, "decoupleR")
+    if (!is.null(decoupler_tf_out)) layers_used <- c(layers_used, "decoupler-tf")
+    if (!is.null(decoupler_ccc_out)) layers_used <- c(layers_used, "decoupler-ccc")
     if (!is.null(cspa_out)) layers_used <- c(layers_used, "CSPA")
 
     by_comparison <- list()
@@ -434,7 +456,8 @@ run_multihit_pipeline <- function(
             diffexp_out = diffexp_out,
             gsea_out = gsea_out,
             viper_out = viper_out,
-            decoupler_out = decoupler_out,
+            decoupler_tf_out = decoupler_tf_out,
+            decoupler_ccc_out = decoupler_ccc_out,
             cspa_out = cspa_out,
             alpha = alpha,
             top_n = top_n,
@@ -446,13 +469,14 @@ run_multihit_pipeline <- function(
 
         comp_dir <- file.path(save_dir, comp)
         dir.create(comp_dir, recursive = TRUE, showWarnings = FALSE)
-        write_output(ranked, file.path(comp_dir, paste0(comp, "_top_genes.csv")),
+        stem <- contrast_file_stem(comp)
+        write_output(ranked, file.path(comp_dir, paste0(stem, "_top_genes.csv")),
                      format = "csv")
         if (save_plot && !is.null(p)) {
             sz <- attr(p, "plot_size")
             w <- if (!is.null(sz)) sz$width else 4.9
             h <- if (!is.null(sz)) sz$height else max(2.8, 0.2 * nrow(ranked) + 1.5)
-            save_ggplot(p, file.path(comp_dir, paste0(comp, "_multihit_barplot.pdf")),
+            save_ggplot(p, file.path(comp_dir, paste0(stem, "_multihit_barplot.pdf")),
                         width = w, height = h)
         }
     }
@@ -489,7 +513,9 @@ run_multihit_pipeline <- function(
 #'   \item LRT DEG: +1 (always, for genes in the cluster of significant LRT genes)
 #'   \item WGCNA: +1 if the gene is assigned to any WGCNA module
 #'   \item VIPER: +1 if the gene is a significant TF for this cluster
-#'   \item decoupleR: +1 if the gene is a significant TF for this cluster
+#'   \item decoupleR-TF: +1 if the gene is a significant TF for this cluster
+#'   \item decoupleR-CCC: +1 if the gene is in a significant L–R pair for
+#'     the parent LRT
 #' }
 #' Returns the top `top_n` genes by score (then by LRT `stat` when available).
 #'
@@ -499,6 +525,7 @@ run_multihit_pipeline <- function(
 #' @param wgcna_genes Character vector of genes in any WGCNA module.
 #' @param viper_tfs Character vector of significant VIPER TFs (organism symbols).
 #' @param decoupler_tfs Character vector of significant decoupleR TFs.
+#' @param ccc_genes Character vector of genes in significant CCC pairs.
 #' @param top_n Maximum genes to return. Default `10`.
 #' @return A data frame with hit columns and `score`.
 #' @export
@@ -509,6 +536,7 @@ rank_multihit_genes_module <- function(
     wgcna_genes = character(0),
     viper_tfs = character(0),
     decoupler_tfs = character(0),
+    ccc_genes = character(0),
     top_n = 10) {
 
     top_n <- max(1L, as.integer(top_n)[1])
@@ -517,15 +545,18 @@ rank_multihit_genes_module <- function(
     empty <- data.frame(
         gene = character(0), module = character(0),
         deg = integer(0), wgcna = integer(0),
-        viper = integer(0), decoupler = integer(0),
+        viper = integer(0), `decoupler-tf` = integer(0),
+        `decoupler-ccc` = integer(0),
         score = integer(0), stat = numeric(0),
-        stringsAsFactors = FALSE
+        stringsAsFactors = FALSE,
+        check.names = FALSE
     )
     if (!length(genes)) return(empty)
 
     wgcna_genes <- unique(as.character(wgcna_genes))
     viper_tfs <- unique(as.character(viper_tfs))
     decoupler_tfs <- unique(as.character(decoupler_tfs))
+    ccc_genes <- unique(as.character(ccc_genes))
 
     score <- data.frame(
         gene = genes,
@@ -533,15 +564,18 @@ rank_multihit_genes_module <- function(
         deg = 1L,
         wgcna = as.integer(genes %in% wgcna_genes),
         viper = as.integer(genes %in% viper_tfs),
-        decoupler = as.integer(genes %in% decoupler_tfs),
-        stringsAsFactors = FALSE
+        `decoupler-tf` = as.integer(genes %in% decoupler_tfs),
+        `decoupler-ccc` = as.integer(genes %in% ccc_genes),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
     )
     if (!is.null(lrt_stats) && length(lrt_stats)) {
         score$stat <- as.numeric(unname(lrt_stats[genes]))
     } else {
         score$stat <- NA_real_
     }
-    score$score <- score$deg + score$wgcna + score$viper + score$decoupler
+    score$score <- score$deg + score$wgcna + score$viper +
+        score[["decoupler-tf"]] + score[["decoupler-ccc"]]
     # Prefer genes with hits beyond LRT membership alone when available.
     keep <- score$score > 1L
     if (!any(keep)) keep <- rep(TRUE, nrow(score))
@@ -559,13 +593,15 @@ rank_multihit_genes_module <- function(
 #' Multi-hit ranking for LRT temporal clusters (tables, no barplots)
 #'
 #' For each degPatterns cluster, ranks the top `top_n` genes by co-occurrence
-#' across LRT DEG membership, WGCNA modules, decoupleR TFs, and VIPER TFs.
+#' across LRT DEG membership, WGCNA modules, decoupleR-TF, decoupleR-CCC,
+#' and VIPER TFs.
 #'
 #' @param degpatterns_out Output of [run_degpatterns_pipeline()].
 #' @param diffexp_out Output of [run_diffexp_lrt_pipeline()].
 #' @param wgcna_out Output of [run_wgcna_pipeline()], or `NULL`.
 #' @param viper_out Output of [run_viper_pipeline()], or `NULL`.
-#' @param decoupler_out Output of [run_decoupler_pipeline()], or `NULL`.
+#' @param decoupler_tf_out Output of [run_decoupler_tf_pipeline()], or `NULL`.
+#' @param decoupler_ccc_out Output of [run_decoupler_ccc_pipeline()], or `NULL`.
 #' @param alpha Significance threshold for TF layers. Default `0.05`.
 #' @param top_n Genes per cluster table. Default `10`.
 #' @param org Organism; default auto-detect.
@@ -578,7 +614,8 @@ run_multihit_lrt_pipeline <- function(
     diffexp_out,
     wgcna_out = NULL,
     viper_out = NULL,
-    decoupler_out = NULL,
+    decoupler_tf_out = NULL,
+    decoupler_ccc_out = NULL,
     alpha = 0.05,
     top_n = 10,
     org = NULL,
@@ -598,7 +635,7 @@ run_multihit_lrt_pipeline <- function(
              call. = FALSE)
     }
     if (is.null(org) || is.na(org)) {
-        org <- .multihit_org(NULL, viper_out, decoupler_out, diffexp_out)
+        org <- .multihit_org(NULL, viper_out, decoupler_tf_out, diffexp_out)
     }
 
     wgcna_genes <- character(0)
@@ -621,7 +658,8 @@ run_multihit_lrt_pipeline <- function(
     layers_used <- c("LRT DEG")
     if (length(wgcna_genes)) layers_used <- c(layers_used, "WGCNA")
     if (!is.null(viper_out)) layers_used <- c(layers_used, "VIPER")
-    if (!is.null(decoupler_out)) layers_used <- c(layers_used, "decoupleR")
+    if (!is.null(decoupler_tf_out)) layers_used <- c(layers_used, "decoupler-tf")
+    if (!is.null(decoupler_ccc_out)) layers_used <- c(layers_used, "decoupler-ccc")
 
     mods <- unique(as.character(clusters$module_df$module))
     by_module <- list()
@@ -657,17 +695,22 @@ run_multihit_lrt_pipeline <- function(
         }
 
         decoupler_tfs <- character(0)
-        if (!is.null(decoupler_out) &&
-                !is.null(decoupler_out$contrast_acts[[mod]])) {
+        if (!is.null(decoupler_tf_out) &&
+                !is.null(decoupler_tf_out$contrast_acts[[mod]])) {
             decoupler_tfs <- .sig_tf_symbols(
-                decoupler_out$contrast_acts[[mod]], alpha, org, "decoupler"
+                decoupler_tf_out$contrast_acts[[mod]], alpha, org, "decoupler"
             )
-        } else if (!is.null(decoupler_out) &&
-                       length(decoupler_out$contrast_acts)) {
+        } else if (!is.null(decoupler_tf_out) &&
+                       length(decoupler_tf_out$contrast_acts)) {
             decoupler_tfs <- unique(unlist(lapply(
-                decoupler_out$contrast_acts,
+                decoupler_tf_out$contrast_acts,
                 function(a) .sig_tf_symbols(a, alpha, org, "decoupler")
             ), use.names = FALSE))
+        }
+
+        ccc_genes <- character(0)
+        if (!is.null(decoupler_ccc_out)) {
+            ccc_genes <- .ccc_sig_genes(decoupler_ccc_out, mod, alpha = alpha)
         }
 
         ranked <- rank_multihit_genes_module(
@@ -677,6 +720,7 @@ run_multihit_lrt_pipeline <- function(
             wgcna_genes = wgcna_genes,
             viper_tfs = viper_tfs,
             decoupler_tfs = decoupler_tfs,
+            ccc_genes = ccc_genes,
             top_n = top_n
         )
         by_module[[mod]] <- ranked

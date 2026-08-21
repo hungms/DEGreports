@@ -10,6 +10,7 @@ run_diffexp_pipeline(
   comparisons = NULL,
   batch = NULL,
   include_interactions = FALSE,
+  stratified = FALSE,
   shrinkage = "ashr",
   alpha = 0.05,
   lfc_threshold = 0.5,
@@ -30,12 +31,16 @@ already set (typically the output of \code{\link[=run_qc]{run_qc()}}).}
 run, a contrast-specs data frame from \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}, or
 \code{NULL} (default) to auto-generate the full grid.}
 
-\item{batch}{Optional covariate column name(s) used when rebuilding the
-design on within-stratum subsets in two-factor mode. Default \code{NULL}.}
+\item{batch}{Optional covariate column name(s) kept in the design when it
+is rebuilt for a main effect or a within-stratum subset. Default \code{NULL}.}
 
-\item{include_interactions}{Logical. When \code{var} has length 2, include
-interaction contrasts (reference and pairwise mutant–mutant) if
-\code{TRUE}. Default \code{FALSE}. Passed to \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
+\item{include_interactions}{Logical. When \code{var} has length ≥ 2, add the
+difference-of-differences interaction contrasts to the main effects.
+Default \code{FALSE}. Passed to \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
+
+\item{stratified}{Logical. Add the within-stratum contrasts, fitted on
+each subset alone. Default \code{FALSE}; not exposed by \code{\link[=run_deseq2_wald]{run_deseq2_wald()}}.
+Passed to \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
 
 \item{shrinkage}{LFC shrinkage method: one of \code{"ashr"} (default; the only
 method that supports the pooled contrasts this package generates),
@@ -72,12 +77,31 @@ specs data frame used).
 }
 \description{
 Loops \code{\link[=run_diffexp]{run_diffexp()}} over every comparison in \code{comparisons} (or every
-auto-generated pairwise + one-vs-rest comparison if \code{comparisons} is
-\code{NULL}), writes one results CSV per comparison plus MA and volcano plots,
-and returns all results combined. With \code{var} of length 2, expands the
-within-A / within-B contrast grid via \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}, and
-includes interaction contrasts when \code{include_interactions = TRUE},
-unless \code{comparisons} subsets those labels.
+auto-generated comparison if \code{comparisons} is \code{NULL}), writes one results
+CSV per comparison plus MA and volcano plots, and returns all results
+combined. With \code{var} of length 2 or 3 the grid comes from
+\code{\link[=expand_contrast_specs]{expand_contrast_specs()}}, unless \code{comparisons} subsets those labels.
+}
+\details{
+How a spec row is fitted depends on its \code{class}:
+\describe{
+\item{\code{"single"}}{The comparison on \code{dds} as handed in.}
+\item{\code{"main"}}{All samples, design rebuilt additively as
+\verb{~ [batch +] other factors + tested factor}, so a factor's main effect
+is adjusted for the other factors rather than measured at their
+reference levels (which is what an interaction design's main-effect
+coefficient would give).}
+\item{\code{"interaction"}}{A difference of differences on all samples: the
+full product design (\verb{~ [batch +] A * B [* C]}) is fitted once for
+the whole interaction grid, and each row compares the sum of its
+\code{comparison} coefficients against the sum of its \code{coef_subtract}
+ones — or, where a pooled one-vs-rest comparison needs coefficients
+averaged, weights them by its \code{coef_weights}. Fails naming the empty
+cells if the factorial is incomplete, since the product design would
+then be rank-deficient.}
+\item{\code{"within_*"}}{The samples in that stratum only, design
+\verb{~ [batch +] tested factor}.}
+}
 }
 \examples{
 \dontrun{

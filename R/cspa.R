@@ -183,22 +183,29 @@ plot_cspa_marker_heatmap <- function(mat,
 #' CSPA surface-marker heatmaps from DEGs (per contrast + combined)
 #'
 #' For each DE contrast, selects up to `n_markers` CSPA genes among that
-#' contrast's DEGs, then plots a **row-scaled VST heatmap across all
-#' samples** (not just the contrast groups). Also builds a combined
+#' contrast's DEGs, then plots a **row-scaled heatmap across all samples**
+#' (VST, or ComBat-seq then VST when `batch` is set). Also builds a combined
 #' heatmap from the union of per-contrast selections.
 #'
-#' Requires Suggests package `readxl` to read the CSPA workbook.
+#' Requires Imports package `readxl` to read the CSPA workbook.
 #'
 #' @param dds A QC-filtered `DESeqDataSet`.
 #' @param diffexp_out Output of [run_diffexp_pipeline()].
 #' @param var Column name(s) in `colData(dds)` used for heatmap column
 #'   annotation. Length 1–2; two factors are pasted for annotation.
+#' @param batch Optional batch column. When set, heatmaps use
+#'   batch-corrected expression (protecting `var[1]`, or the `A_x_B`
+#'   interaction column if present). Marker *selection* still uses DESeq2
+#'   DEGs.
+#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
+#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param n_markers Top CSPA markers per contrast. Default `25`.
 #' @param cspa_file Optional override path to the CSPA Excel file.
 #' @param gene_col Gene ID column in DE tables. Default `"gene"`.
 #' @param significant_only Passed to [select_cspa_markers()]. Default `TRUE`.
-#' @param save_dir Output directory (pipeline uses `deseq2/cspa/` if the caller
-#'   already chose that folder). Default `getwd()`.
+#' @param save_dir Output root. Per-contrast files go in
+#'   `<save_dir>/<comparison>/cspa/`; combined heatmap/CSV at
+#'   `<save_dir>/cspa_markers_combined.csv` (pipeline uses `deseq2/`).
 #' @param save_plot Logical; write PDFs. Default `TRUE`.
 #' @return A list with `org`, `cspa_n`, `markers_by_comparison`,
 #'   `combined_markers`, `heatmaps` (named list including `"combined"`),
@@ -212,6 +219,8 @@ run_cspa_marker_pipeline <- function(
     cspa_file = NULL,
     gene_col = "gene",
     significant_only = TRUE,
+    batch = NULL,
+    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -230,6 +239,7 @@ run_cspa_marker_pipeline <- function(
         stop("`var` not in colData(dds): ", paste(missing_var, collapse = ", "),
              call. = FALSE)
     }
+    if (!is.null(batch)) dds <- validate_batch(dds, batch)
     by_comp <- diffexp_out$by_comparison
     if (is.null(by_comp) || !length(by_comp)) {
         stop("`diffexp_out$by_comparison` is empty; cannot select CSPA markers.",
@@ -241,9 +251,10 @@ run_cspa_marker_pipeline <- function(
     cspa_symbols <- load_cspa_genes(organism = org, file = cspa_file)
     message("  ", length(cspa_symbols), " CSPA gene symbols loaded (all categories).")
 
-    message("Computing blind VST for marker heatmaps ...")
-    vsd <- quiet(safe_vst(dds, blind = TRUE))
-    mat <- as.matrix(SummarizedExperiment::assay(vsd))
+    message("Computing sample-level expression for marker heatmaps ...")
+    mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
+                                    platform = platform)
+    expr_correction <- attr(mat, "expr_correction")
     storage.mode(mat) <- "double"
 
     cd <- as.data.frame(SummarizedExperiment::colData(dds))
@@ -267,7 +278,7 @@ run_cspa_marker_pipeline <- function(
         genes <- as.character(sel[[gene_col]])
         combined_genes <- union(combined_genes, genes)
 
-        comp_dir <- file.path(save_dir, comp)
+        comp_dir <- file.path(save_dir, comp, "cspa")
         if (nrow(sel)) {
             write_output(sel, file.path(comp_dir, "cspa_markers.csv"))
         } else {
@@ -347,6 +358,7 @@ run_cspa_marker_pipeline <- function(
         markers_by_comparison = markers_by_comparison,
         combined_markers = combined_markers,
         heatmaps = heatmaps,
-        annotation_col = anno
+        annotation_col = anno,
+        expr_correction = expr_correction
     )
 }

@@ -1,5 +1,5 @@
 ---
-title: "DESeq2Reports -- decoupleR"
+title: "DESeq2Reports -- decoupleR-TF"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -24,15 +24,17 @@ params:
   degpatterns_out: NULL
   cluster_ora_out: NULL
   wgcna_out: NULL
-  decoupler_out: NULL
+  decoupler_tf_out: NULL
   ppi_out: NULL
   viper_out: NULL
   cspa_out: NULL
+  gsva_out: NULL
+  decoupler_ccc_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
   package_version: NULL
-  current_page: "decoupleR"
+  current_page: "decoupleR-TF"
   disabled_labels: !r character(0)
   page_hrefs: NULL
 ---
@@ -40,11 +42,11 @@ params:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
 is_lrt <- isTRUE(params$run_args$analysis_mode == "lrt") ||
-  identical(params$decoupler_out$tf_level, "lrt_cluster")
-has_cluster_tf <- is_lrt && !is.null(params$decoupler_out) &&
-  length(params$decoupler_out$contrast_acts) > 0
-has_wald_tf <- !is_lrt && !is.null(params$decoupler_out) &&
-  length(params$decoupler_out$contrast_acts) > 0
+  identical(params$decoupler_tf_out$tf_level, "lrt_cluster")
+has_cluster_tf <- is_lrt && !is.null(params$decoupler_tf_out) &&
+  length(params$decoupler_tf_out$contrast_acts) > 0
+has_wald_tf <- !is_lrt && !is.null(params$decoupler_tf_out) &&
+  length(params$decoupler_tf_out$contrast_acts) > 0
 ```
 
 ```{r nav, results='asis'}
@@ -55,15 +57,17 @@ cat(deseq2reports::report_nav_links(
 ))
 ```
 
-## decoupleR
+## decoupleR-TF
 
-```{r tf-intro, results='asis', eval=!is.null(params$decoupler_out)}
+```{r tf-intro, results='asis', eval=!is.null(params$decoupler_tf_out)}
 cat("\n\nTranscription-factor (TF) activities inferred with ",
     "[`decoupleR`](https://bioconductor.org/packages/decoupleR/) using the ",
     "**CollecTRI** prior-knowledge network and the **Univariate Linear Model (ULM)** ",
     "method, following the bulk RNA-seq TF activity vignette. Organism for CollecTRI: **",
-    params$decoupler_out$org, "**.\n\n",
-    "Sample-level scores use VST-normalized expression",
+    params$decoupler_tf_out$org, "**.\n\n",
+    "Sample-level scores use ",
+    paste0(deseq2reports::expr_correction_label(params$decoupler_tf_out$expr_correction),
+           " expression"),
     if (is_lrt) {
       paste0("; cluster-level scores use each degPatterns cluster's LRT `stat` ",
              "vector so TFs associated with that temporal gene set are ranked.")
@@ -73,55 +77,34 @@ cat("\n\nTranscription-factor (TF) activities inferred with ",
     },
     "\n\n", sep = "")
 deseq2reports::emit_code_block(
-  caption = "Reproduce decoupleR analysis with this package module:",
-  "decoupler_out <- run_decoupler_pipeline(",
+  caption = "Reproduce decoupleR-TF analysis with this package module:",
+  "decoupler_tf_out <- run_decoupler_tf_pipeline(",
   "  dds_qc, var = \"condition\", diffexp_out = diffexp_out",
   ")"
 )
 ```
 
-```{r tf-missing, results='asis', eval=is.null(params$decoupler_out)}
-cat("\n\ndecoupleR analysis was not run for this report ",
-    "(`run_decoupler = FALSE` or `decoupler_out = NULL`).\n\n")
+```{r tf-missing, results='asis', eval=is.null(params$decoupler_tf_out)}
+cat("\n\ndecoupleR-TF analysis was not run for this report ",
+    "(`run_decoupler_tf = FALSE` or `decoupler_tf_out = NULL`).\n\n")
 ```
 
 ### Sample-level TF activities
 
-```{r tf-sample-heat, results='asis', eval=!is.null(params$decoupler_out$sample_heatmap)}
-n_heat <- params$decoupler_out$n_tfs_heatmap
-if (is.null(n_heat)) n_heat <- params$decoupler_out$n_tfs
+```{r tf-sample-heat, results='asis', eval=!is.null(params$decoupler_tf_out$sample_heatmap)}
+n_heat <- params$decoupler_tf_out$n_tfs_heatmap
+if (is.null(n_heat)) n_heat <- params$decoupler_tf_out$n_tfs
 cat("\n\nTop **", n_heat,
     "** most variable TFs across samples (rows = samples, columns = TFs; ",
     "scores scaled per sample). Dark blue = inactive, red = active.\n\n", sep = "")
 
-hm <- params$decoupler_out$sample_heatmap
-gt <- hm$gtable
-native_w <- min(grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE), 10)
-native_h <- min(grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE), 10)
-# Shrink display footprint by 50% vs original, then widen heatmap by 25%.
-disp_w <- 0.5 * min(native_w, 6.5) * 1.25
-disp_h <- 0.5 * min(native_h, 5)
-dpi <- 150
-pixelratio <- dpi / 72
-css_w <- as.integer(round(native_w * 72))
-css_h <- as.integer(round(native_h * 72))
-display_w <- as.integer(round(disp_w * dpi))
-display_h <- as.integer(round(disp_h * dpi))
-img <- htmltools::plotTag({
-  grid::grid.newpage()
-  grid::grid.draw(gt)
-}, alt = "tf_sample_heatmap", width = css_w, height = css_h, pixelratio = pixelratio,
-   suppressSize = "xy",
-   attribs = list(
-     width = display_w, height = display_h,
-     style = sprintf("max-width: none !important; width: %dpx; height: %dpx;", display_w, display_h)
-   ))
-buttons <- list(
-  deseq2reports::download_grid_plot_button(hm, filename = "ulm_sample_tf_heatmap",
-                                           width = 0.5 * native_w, height = 0.5 * native_h),
-  deseq2reports::link_output_file("ulm_sample_activities.csv", label = "Download sample activities CSV")
+deseq2reports::emit_heatmap_with_download(
+  params$decoupler_tf_out$sample_heatmap,
+  filename = "ulm_sample_tf_heatmap",
+  buttons = list(deseq2reports::link_output_file(
+    "ulm_sample_activities.csv", label = "Download sample activities CSV"
+  ))
 )
-deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(img, buttons))
 ```
 
 ```{r tf-helpers, include=FALSE}
@@ -154,8 +137,8 @@ emit_tf_contrast <- function(comp, bp, acts, n_tfs, cluster_mode = FALSE) {
 specs <- NULL
 if (!is.null(params$diffexp_out) && !is_lrt) {
   specs <- params$diffexp_out$contrast_specs
-  if (is.null(specs) && !is.null(params$decoupler_out$contrast_acts)) {
-    comps <- names(params$decoupler_out$contrast_acts)
+  if (is.null(specs) && !is.null(params$decoupler_tf_out$contrast_acts)) {
+    comps <- names(params$decoupler_tf_out$contrast_acts)
     specs <- data.frame(
       label = comps,
       class = "single",
@@ -166,13 +149,13 @@ if (!is.null(params$diffexp_out) && !is_lrt) {
     )
   }
 }
-if (!is.null(specs) && !is.null(params$decoupler_out$contrast_acts)) {
-  specs <- specs[specs$label %in% names(params$decoupler_out$contrast_acts), , drop = FALSE]
+if (!is.null(specs) && !is.null(params$decoupler_tf_out$contrast_acts)) {
+  specs <- specs[specs$label %in% names(params$decoupler_tf_out$contrast_acts), , drop = FALSE]
 }
-two_factor <- !is.null(specs) && any(specs$class %in% c("within_A", "within_B", "interaction"))
+two_factor <- !is.null(specs) && any(specs$class %in% c("within_A", "within_B", "within_C", "interaction"))
 
 cluster_tf_labels <- if (has_cluster_tf) {
-  names(params$decoupler_out$contrast_acts)
+  names(params$decoupler_tf_out$contrast_acts)
 } else {
   character(0)
 }
@@ -183,7 +166,7 @@ cat("\n\n### TF activities by temporal cluster\n\n")
 ```
 
 ```{r tf-cluster, results='asis', eval=has_cluster_tf}
-n_tfs <- params$decoupler_out$n_tfs
+n_tfs <- params$decoupler_tf_out$n_tfs
 cat("\n\nULM TF activities for each **degPatterns** cluster (gene signature = ",
     "LRT `stat` of cluster members). Use the tabs to inspect one cluster at a time.\n\n",
     sep = "")
@@ -197,8 +180,8 @@ for (i in seq_along(cluster_tf_labels)) {
   deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
   emit_tf_contrast(
     comp,
-    params$decoupler_out$contrast_barplots[[comp]],
-    params$decoupler_out$contrast_acts[[comp]],
+    params$decoupler_tf_out$contrast_barplots[[comp]],
+    params$decoupler_tf_out$contrast_acts[[comp]],
     n_tfs,
     cluster_mode = TRUE
   )
@@ -214,15 +197,15 @@ cat("\n\n### Contrast-level TF activities\n\n")
 ```{r tf-contrast-single, results='asis', eval=has_wald_tf && !two_factor}
 tf_pairwise <- specs$label[specs$type == "pairwise"]
 tf_one_vs_all <- specs$label[specs$type == "one_vs_all"]
-n_tfs <- params$decoupler_out$n_tfs
+n_tfs <- params$decoupler_tf_out$n_tfs
 
 cat("\n\n#### Pairwise {.tabset}\n\n")
 if (length(tf_pairwise) > 0) {
   for (comp in tf_pairwise) {
     cat("\n\n##### ", comp, "\n\n", sep = "")
     emit_tf_contrast(comp,
-                     params$decoupler_out$contrast_barplots[[comp]],
-                     params$decoupler_out$contrast_acts[[comp]],
+                     params$decoupler_tf_out$contrast_barplots[[comp]],
+                     params$decoupler_tf_out$contrast_acts[[comp]],
                      n_tfs)
   }
 } else {
@@ -234,8 +217,8 @@ if (length(tf_one_vs_all) > 0) {
   for (comp in tf_one_vs_all) {
     cat("\n\n##### ", comp, "\n\n", sep = "")
     emit_tf_contrast(comp,
-                     params$decoupler_out$contrast_barplots[[comp]],
-                     params$decoupler_out$contrast_acts[[comp]],
+                     params$decoupler_tf_out$contrast_barplots[[comp]],
+                     params$decoupler_tf_out$contrast_acts[[comp]],
                      n_tfs)
   }
 } else {
@@ -245,40 +228,44 @@ if (length(tf_one_vs_all) > 0) {
 
 ```{r tf-contrast-two-factor, results='asis', eval=has_wald_tf && two_factor}
 var <- params$var
-n_tfs <- params$decoupler_out$n_tfs
-for (cls in c("within_A", "within_B", "interaction")) {
+n_tfs <- params$decoupler_tf_out$n_tfs
+for (cls in c("main", "within_A", "within_B", "within_C", "interaction")) {
   sub <- specs[specs$class == cls, , drop = FALSE]
   if (nrow(sub) == 0) next
   title <- deseq2reports::contrast_class_title(cls, var)
   cat("\n\n#### ", title, " {.tabset}\n\n", sep = "")
 
-  if (identical(cls, "interaction")) {
-    has_sub <- "coef_subtract" %in% names(sub)
-    is_pw <- if (has_sub) {
-      !is.na(sub$coef_subtract) & nzchar(as.character(sub$coef_subtract))
-    } else {
-      rep(FALSE, nrow(sub))
+  if (identical(cls, "main")) {
+    ordered <- c(sub$label[sub$type == "pairwise"],
+                 sub$label[sub$type == "one_vs_all"])
+    for (comp in ordered) {
+      cat("\n\n##### ", comp, "\n\n", sep = "")
+      emit_tf_contrast(comp,
+                       params$decoupler_tf_out$contrast_barplots[[comp]],
+                       params$decoupler_tf_out$contrast_acts[[comp]],
+                       n_tfs)
     }
-    ref_labs <- sub$label[!is_pw]
-    pw_labs <- sub$label[is_pw]
+    next
+  }
 
-    if (length(ref_labs) > 0) {
-      cat("\n\n##### Vs reference {.tabset}\n\n")
-      for (comp in ref_labs) {
-        cat("\n\n###### ", comp, "\n\n", sep = "")
-        emit_tf_contrast(comp,
-                         params$decoupler_out$contrast_barplots[[comp]],
-                         params$decoupler_out$contrast_acts[[comp]],
-                         n_tfs)
-      }
+  if (identical(cls, "interaction")) {
+    # Interaction rows are grouped by the factor level they hold fixed;
+    # three-way rows hold nothing fixed and sit at the top level.
+    held <- deseq2reports::contrast_stratum_labels(sub)
+    for (comp in sub$label[is.na(held)]) {
+      cat("\n\n##### ", comp, "\n\n", sep = "")
+      emit_tf_contrast(comp,
+                       params$decoupler_tf_out$contrast_barplots[[comp]],
+                       params$decoupler_tf_out$contrast_acts[[comp]],
+                       n_tfs)
     }
-    if (length(pw_labs) > 0) {
-      cat("\n\n##### Pairwise (non-reference) {.tabset}\n\n")
-      for (comp in pw_labs) {
+    for (st in unique(held[!is.na(held)])) {
+      cat("\n\n##### Within ", st, " {.tabset}\n\n", sep = "")
+      for (comp in sub$label[!is.na(held) & held == st]) {
         cat("\n\n###### ", comp, "\n\n", sep = "")
         emit_tf_contrast(comp,
-                         params$decoupler_out$contrast_barplots[[comp]],
-                         params$decoupler_out$contrast_acts[[comp]],
+                         params$decoupler_tf_out$contrast_barplots[[comp]],
+                         params$decoupler_tf_out$contrast_acts[[comp]],
                          n_tfs)
       }
     }
@@ -294,8 +281,8 @@ for (cls in c("within_A", "within_B", "interaction")) {
     for (comp in ordered) {
       cat("\n\n###### ", comp, "\n\n", sep = "")
       emit_tf_contrast(comp,
-                       params$decoupler_out$contrast_barplots[[comp]],
-                       params$decoupler_out$contrast_acts[[comp]],
+                       params$decoupler_tf_out$contrast_barplots[[comp]],
+                       params$decoupler_tf_out$contrast_acts[[comp]],
                        n_tfs)
     }
   }

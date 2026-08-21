@@ -11,7 +11,9 @@ emit_plot_with_download(
   width = 7,
   height = 5,
   button_label = "Download PDF",
-  dpi = 150
+  dpi = 150,
+  pdf_width = NULL,
+  pdf_height = NULL
 )
 }
 \arguments{
@@ -24,11 +26,12 @@ emit_plot_with_download(
 
 \item{button_label}{Button text. Default \code{"Download PDF"}.}
 
-\item{dpi}{Resolution used to rasterize the on-page figure. Default
-\code{150}, matching \code{\link[=capture_plot_tag]{capture_plot_tag()}}'s own default (the previous
-\code{120} here, and \code{pixelratio = 1} in the older \code{\link[=capture_plot_tag]{capture_plot_tag()}},
-produced visibly softer on-page figures than the same figure's own
-downloaded PDF).}
+\item{dpi}{Resolution used to rasterize the on-page figure, and to
+size the downloaded PDF so it matches that CSS box. Default \code{150}.}
+
+\item{pdf_width, pdf_height}{Optional explicit PDF page size in inches, for
+figures whose on-page shape does not suit a printable page (see
+\code{\link[=pca_loadings_figure_size]{pca_loadings_figure_size()}}). Default \code{NULL} (match the HTML box).}
 }
 \value{
 Invisibly \code{NULL}; called for its side effect of \code{cat()}-ing

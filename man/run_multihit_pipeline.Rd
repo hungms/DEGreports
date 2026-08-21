@@ -8,7 +8,8 @@ run_multihit_pipeline(
   diffexp_out,
   gsea_out = NULL,
   viper_out = NULL,
-  decoupler_out = NULL,
+  decoupler_tf_out = NULL,
+  decoupler_ccc_out = NULL,
   cspa_out = NULL,
   contrasts = NULL,
   alpha = 0.05,
@@ -25,7 +26,9 @@ run_multihit_pipeline(
 
 \item{viper_out}{Output of \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL}.}
 
-\item{decoupler_out}{Output of \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, or \code{NULL}.}
+\item{decoupler_tf_out}{Output of \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}, or \code{NULL}.}
+
+\item{decoupler_ccc_out}{Output of \code{\link[=run_decoupler_ccc_pipeline]{run_decoupler_ccc_pipeline()}}, or \code{NULL}.}
 
 \item{cspa_out}{Output of \code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}, or \code{NULL}.}
 

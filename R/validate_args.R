@@ -17,12 +17,13 @@ validate_dds <- function(dds) {
 #'
 #' @param dds A `DESeqDataSet` object.
 #' @param var Column name(s) in `colData(dds)` used for grouping. Length 1
-#'   (single-factor) or 2 (two-factor + interaction mode).
+#'   (single-factor), 2 (two-factor), or 3 (three-factor; typically with
+#'   `include_interactions = TRUE`).
 #' @return `dds` with each `colData(dds)[[var]]` coerced to a factor.
 #' @noRd
 validate_var <- function(dds, var) {
-    if (!is.character(var) || length(var) < 1 || length(var) > 2 || anyNA(var)) {
-        stop("`var` must be a character vector of length 1 or 2 naming column(s) in colData(dds).",
+    if (!is.character(var) || length(var) < 1 || length(var) > 3 || anyNA(var)) {
+        stop("`var` must be a character vector of length 1, 2, or 3 naming column(s) in colData(dds).",
              call. = FALSE)
     }
     if (anyDuplicated(var)) {
@@ -82,7 +83,7 @@ validate_design <- function(dds, design) {
 #' Validate that a single string is one of a fixed set of allowed choices
 #'
 #' Shared by every "pick one of these options" argument (`org`, `shrinkage`,
-#' `ranking`, `batch_method`, `output_format`) so the same check and error
+#' `ranking`, `platform`, `output_format`) so the same check and error
 #' wording isn't repeated five times over.
 #'
 #' @param x The value to validate.
@@ -206,12 +207,15 @@ validate_batch <- function(dds, batch) {
     dds
 }
 
-#' Validate the batch-correction method
-#' @param method One of "limma", "combat", "none".
-#' @return The validated, lower-cased `method` string.
+#' Validate the assay platform
+#'
+#' Selects the batch-correction method: `sva::ComBat_seq()` on raw counts
+#' for `"rnaseq"`, `sva::ComBat()` on the VST matrix for `"microarray"`.
+#' @param platform One of "rnaseq", "microarray".
+#' @return The validated, lower-cased `platform` string.
 #' @noRd
-validate_batch_method <- function(method) {
-    validate_choice(method, c("limma", "combat", "none"), "batch_method")
+validate_platform <- function(platform) {
+    validate_choice(platform, c("rnaseq", "microarray"), "platform")
 }
 
 #' Validate a custom colour palette against the number of group levels
@@ -233,8 +237,8 @@ validate_pals <- function(dds, var, pals) {
 #' Validate/generate the comparison vector or contrast-spec table
 #'
 #' If `comparisons` is `NULL`, auto-expands the contrast grid via
-#' [expand_contrast_specs()] (pairwise + one-vs-rest for one factor; the
-#' within-A / within-B grid for two factors, plus interaction contrasts when
+#' [expand_contrast_specs()] (pairwise + one-vs-rest for one factor; every
+#' factor's main effect for two or three, plus interaction contrasts when
 #' `include_interactions = TRUE`). If supplied as a character vector, each
 #' entry must be either a simple `"A_vs_B"` string (single-factor) or a
 #' contrast `label` from the auto grid (two-factor), and the returned object
@@ -246,13 +250,17 @@ validate_pals <- function(dds, var, pals) {
 #' @param comparisons Character vector of comparison / label strings, or `NULL`.
 #' @param include_interactions Logical passed to [expand_contrast_specs()].
 #'   Default `FALSE`.
+#' @param stratified Logical passed to [expand_contrast_specs()]. Default
+#'   `FALSE`.
 #' @return For `length(var) == 1` and character `comparisons`/`NULL`: a
 #'   character vector. Otherwise a contrast-specs data frame.
 #' @noRd
 validate_comparisons <- function(dds, var, comparisons = NULL,
-                                 include_interactions = FALSE) {
+                                 include_interactions = FALSE,
+                                 stratified = FALSE) {
     specs <- expand_contrast_specs(dds, var,
-                                   include_interactions = include_interactions)
+                                   include_interactions = include_interactions,
+                                   stratified = stratified)
 
     if (is.null(comparisons)) {
         if (length(var) == 1) return(specs$comparison)
@@ -304,16 +312,23 @@ validate_comparison <- function(comparison, levels_var) {
 
 #' Validate requested MSigDB collections
 #' @param collections Character vector of MSigDB collection aliases:
-#'   `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`, `"KEGG_MEDICUS"`,
-#'   `"KEGG_LEGACY"`, `"REACTOME"`.
-#' @return The validated `collections` vector.
+#'   `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`, `"KEGG"`,
+#'   `"REACTOME"`, `"PID"`. `"KEGG_LEGACY"` is accepted as a deprecated
+#'   alias for `"KEGG"`.
+#' @return The validated `collections` vector (with deprecated aliases
+#'   remapped).
 #' @noRd
 validate_msigdb_collections <- function(collections) {
-    supported <- c("HALLMARK", "GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY",
+    supported <- c("HALLMARK", "GOBP", "GOCC", "GOMF", "KEGG",
                    "REACTOME", "PID")
     if (!is.character(collections) || length(collections) == 0) {
         stop("`collections` must be a non-empty character vector, one or more of: ",
              paste(supported, collapse = ", "), ".", call. = FALSE)
+    }
+    if ("KEGG_LEGACY" %in% collections) {
+        message('Collection alias "KEGG_LEGACY" is now "KEGG"; remapping.')
+        collections[collections == "KEGG_LEGACY"] <- "KEGG"
+        collections <- unique(collections)
     }
     unsupported <- setdiff(collections, supported)
     if (length(unsupported) > 0) {

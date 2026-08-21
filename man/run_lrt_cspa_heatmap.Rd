@@ -12,6 +12,8 @@ run_lrt_cspa_heatmap(
   n_per_cluster = 10,
   annotation_var = NULL,
   gene_col = "gene",
+  batch = NULL,
+  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -38,8 +40,14 @@ column annotation (e.g. the time variable). Default \code{NULL}.}
 \item{gene_col}{Name of the gene-identifier column in the cluster tables.
 Default \code{"gene"}.}
 
-\item{save_dir}{Directory to write per-test subfolders to. Default
-\code{getwd()}.}
+\item{batch}{Optional batch column. When set, heatmaps use
+batch-corrected expression (protecting \code{annotation_var}).}
+
+\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
+\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
+
+\item{save_dir}{Directory for per-LRT outputs. Files go in
+\verb{<save_dir>/<lrt>/cspa/} (pipeline uses \verb{deseq2/}). Default \code{getwd()}.}
 
 \item{save_plot}{Logical; write the heatmap PDF. Default \code{TRUE}.}
 }

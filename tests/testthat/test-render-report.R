@@ -1,6 +1,14 @@
 # Tests for report_nav_links() (the shared cross-page navigation bar) and
 # render_report() (the multi-page HTML renderer: index + per-module pages).
 
+# contrast_file_stem() takes one label at a time.
+contrast_page_paths <- function(save_dir, comps, module = "deseq2") {
+    vapply(comps, function(comp) {
+        file.path(save_dir, module, comp,
+                  paste0(contrast_file_stem(comp), ".html"))
+    }, character(1), USE.NAMES = FALSE)
+}
+
 test_that("report_page_hrefs() returns nested relative paths from Index and sibling folders", {
     from_index <- report_page_hrefs("Index")
     expect_equal(from_index[["Index"]], "index.html")
@@ -8,15 +16,19 @@ test_that("report_page_hrefs() returns nested relative paths from Index and sibl
     expect_equal(from_index[["DESeq2"]], "deseq2/deseq2.html")
     expect_equal(from_index[["clusterProfiler"]], "clusterprofiler/clusterprofiler.html")
     expect_false("GSEA overlap" %in% names(from_index))
+    expect_equal(from_index[["GSVA"]], "gsva/gsva.html")
     expect_equal(from_index[["WGCNA"]], "wgcna/wgcna.html")
-    expect_equal(from_index[["decoupleR"]], "decoupler/decoupler.html")
+    expect_equal(from_index[["decoupleR-TF"]], "decoupler-tf/decoupleR-TF.html")
+    expect_equal(from_index[["decoupleR-CCC"]], "decoupler-ccc/decoupleR-CCC.html")
     expect_equal(from_index[["VIPER"]], "viper/viper.html")
+    expect_equal(from_index[["Multihit"]], "multihit/multihit.html")
 
     from_qc <- report_page_hrefs("QC")
     expect_equal(from_qc[["Index"]], "../index.html")
     expect_equal(from_qc[["QC"]], "qc.html")
     expect_equal(from_qc[["WGCNA"]], "../wgcna/wgcna.html")
     expect_equal(from_qc[["VIPER"]], "../viper/viper.html")
+    expect_equal(from_qc[["Multihit"]], "../multihit/multihit.html")
 })
 
 test_that("report_nav_links() marks the current page as plain bold text, not a link", {
@@ -28,6 +40,7 @@ test_that("report_nav_links() marks the current page as plain bold text, not a l
     expect_true(grepl('<a href="../deseq2/deseq2.html">DESeq2</a>', html))
     expect_true(grepl('<a href="../clusterprofiler/clusterprofiler.html">clusterProfiler</a>', html))
     expect_true(grepl('<a href="../wgcna/wgcna.html">WGCNA</a>', html))
+    expect_true(grepl('<a href="../multihit/multihit.html">Multihit</a>', html))
 })
 
 test_that("report_nav_links() greys out disabled pages instead of linking them", {
@@ -81,6 +94,7 @@ test_that("render_report() writes cross-linked, self-contained HTML files in per
     expect_true(grepl('href="qc/qc.html"', index_html))
     expect_true(grepl('href="wgcna/wgcna.html"', index_html))
     expect_false(grepl('color:#999;">WGCNA', index_html))  # not disabled when wgcna_out is present
+    expect_true(grepl('color:#999;">Multihit', index_html))  # greyed when multihit_out is NULL
 
     qc_html <- paste(readLines(paths[["qc"]]), collapse = "\n")
     expect_true(grepl('href="../index.html"', qc_html))
@@ -106,6 +120,17 @@ test_that("render_report() writes cross-linked, self-contained HTML files in per
     for (html_txt in list(index_html, qc_html, diffexp_html, wgcna_html)) {
         expect_false(grepl("mathjax.rstudio.com", html_txt, fixed = TRUE))
     }
+
+    # Per-contrast GSEA pages tab collections (HALLMARK / GOBP / …) via
+    # Bootstrap tabs, not stacked "Collection: …" headings.
+    gsea_comp <- names(gsea_out$by_comparison)[[1]]
+    gsea_page <- file.path(out_dir, "clusterprofiler", gsea_comp,
+                           paste0(contrast_file_stem(gsea_comp), ".html"))
+    expect_true(file.exists(gsea_page))
+    gsea_html <- paste(readLines(gsea_page, warn = FALSE), collapse = "\n")
+    expect_true(grepl("deseq2reports-bs-tabset", gsea_html, fixed = TRUE))
+    expect_true(grepl(">HALLMARK<", gsea_html, fixed = TRUE))
+    expect_false(grepl("Collection: HALLMARK", gsea_html, fixed = TRUE))
 })
 
 test_that("render_report()'s wgcna page has a top-level 'Module genes' section tabbed by module, and per-module pathway enrichment tabbed module-first then collection", {
@@ -173,6 +198,174 @@ test_that("render_report()'s wgcna page has a top-level 'Module genes' section t
     }
 })
 
+test_that("a contrast page that only fails inside a worker is retried in-session", {
+    skip_if_not_installed("rmarkdown")
+    skip_if_not_installed("DT")
+    skip_if_not_installed("plotly")
+    skip_if(!rmarkdown::pandoc_available(), "pandoc not available")
+    skip_on_os("windows")
+
+    dds <- simulate_dds(n_genes = 60, group_levels = c("groupA", "groupB", "groupC"),
+                        n_per_group = 3, seed = 13)
+    dds <- run_qc(dds, var = "condition", min_count = 1)
+    dds <- DESeq2::DESeq(dds, quiet = TRUE)
+    out_dir <- withr::local_tempdir()
+    distance_out <- run_distance_pca(dds, var = "condition")
+    diffexp_out <- run_diffexp_pipeline(dds, var = "condition",
+                                        save_dir = file.path(out_dir, "de"))
+    comps <- names(diffexp_out$by_comparison)
+
+    # Stand in for whatever kills pandoc when several forks run it at once:
+    # fail in any child process, succeed when the parent retries alone.
+    parent_pid <- Sys.getpid()
+    real_page <- deseq2reports:::.render_contrast_report_page
+    local_mocked_bindings(
+        .render_contrast_report_page = function(...) {
+            if (!identical(Sys.getpid(), parent_pid)) {
+                stop("pandoc document conversion failed with error 1", call. = FALSE)
+            }
+            real_page(...)
+        }
+    )
+
+    expect_no_warning(render_report(
+        dds, var = "condition", distance_out = distance_out,
+        diffexp_out = diffexp_out, gsea_out = NULL, save_dir = out_dir,
+        parallel_render = TRUE, render_workers = 2
+    ))
+    expect_true(all(file.exists(contrast_page_paths(out_dir, comps))))
+})
+
+test_that("a contrast page that fails everywhere warns and leaves the rest of the report standing", {
+    skip_if_not_installed("rmarkdown")
+    skip_if_not_installed("DT")
+    skip_if_not_installed("plotly")
+    skip_if(!rmarkdown::pandoc_available(), "pandoc not available")
+
+    dds <- simulate_dds(n_genes = 60, group_levels = c("groupA", "groupB", "groupC"),
+                        n_per_group = 3, seed = 13)
+    dds <- run_qc(dds, var = "condition", min_count = 1)
+    dds <- DESeq2::DESeq(dds, quiet = TRUE)
+    out_dir <- withr::local_tempdir()
+    distance_out <- run_distance_pca(dds, var = "condition")
+    diffexp_out <- run_diffexp_pipeline(dds, var = "condition",
+                                        save_dir = file.path(out_dir, "de"))
+    comps <- names(diffexp_out$by_comparison)
+    doomed <- comps[[1]]
+
+    real_page <- deseq2reports:::.render_contrast_report_page
+    local_mocked_bindings(
+        .render_contrast_report_page = function(module_key, contrast, ...) {
+            if (identical(contrast, doomed)) {
+                stop("pandoc document conversion failed with error 1", call. = FALSE)
+            }
+            real_page(module_key, contrast, ...)
+        }
+    )
+
+    paths <- NULL
+    expect_warning(
+        paths <- render_report(dds, var = "condition", distance_out = distance_out,
+                               diffexp_out = diffexp_out, gsea_out = NULL,
+                               save_dir = out_dir, parallel_render = FALSE),
+        "could not be rendered"
+    )
+    # The run continues: index, hubs, and every other contrast page survive.
+    expect_true(file.exists(paths[["index"]]))
+    expect_true(all(file.exists(
+        contrast_page_paths(out_dir, setdiff(comps, doomed))
+    )))
+    expect_false(file.exists(contrast_page_paths(out_dir, doomed)))
+})
+
+test_that("render_report(parallel_render = TRUE) writes one distinct page per contrast and no intermediates next to the template", {
+    skip_if_not_installed("rmarkdown")
+    skip_if_not_installed("DT")
+    skip_if_not_installed("plotly")
+    skip_if(!rmarkdown::pandoc_available(), "pandoc not available")
+    skip_on_os("windows")
+
+    dds <- simulate_dds(n_genes = 100,
+                        group_levels = c("groupA", "groupB", "groupC"),
+                        n_per_group = 3, seed = 13)
+    dds <- run_qc(dds, var = "condition", min_count = 1)
+    dds <- DESeq2::DESeq(dds, quiet = TRUE)
+    distance_out <- run_distance_pca(dds, var = "condition")
+    diffexp_out <- run_diffexp_pipeline(dds, var = "condition")
+    comps <- names(diffexp_out$by_comparison)
+    expect_gt(length(comps), 1L)
+
+    out_dir <- withr::local_tempdir()
+    render_report(
+        dds, var = "condition",
+        distance_out = distance_out,
+        diffexp_out = diffexp_out,
+        gsea_out = NULL,
+        save_dir = out_dir,
+        parallel_render = TRUE,
+        render_workers = 2
+    )
+
+    pages <- vapply(comps, function(comp) {
+        file.path(out_dir, "deseq2", comp,
+                  paste0(contrast_file_stem(comp), ".html"))
+    }, character(1))
+    expect_true(all(file.exists(pages)))
+
+    # Regression: knitr's intermediates defaulted to the template's own
+    # directory, so parallel workers clobbered a single shared
+    # report_deseq2.knit.md and every contrast page came out byte-identical.
+    digests <- vapply(pages, function(p) {
+        paste(tools::md5sum(p), collapse = "")
+    }, character(1))
+    expect_equal(length(unique(digests)), length(comps))
+
+    template_dir <- dirname(deseq2reports:::.report_template_path("report_deseq2.Rmd"))
+    expect_length(list.files(template_dir, pattern = "\\.(knit|utf8)\\.md$"), 0L)
+})
+
+test_that("render_report() groups a three-factor grid into main effects and interactions", {
+    skip_if_not_installed("rmarkdown")
+    skip_if_not_installed("DT")
+    skip_if_not_installed("plotly")
+    skip_if(!rmarkdown::pandoc_available(), "pandoc not available")
+
+    dds <- simulate_three_factor_dds(n_genes = 60, n_per_cell = 3)
+    var <- c("celltype", "C_mutation", "K_mutation")
+    dds <- DESeq2::DESeq(dds, quiet = TRUE)
+    out_dir <- withr::local_tempdir()
+    distance_out <- run_distance_pca(dds, var = var[1])
+    diffexp_out <- run_diffexp_pipeline(
+        dds, var = var, include_interactions = TRUE,
+        save_dir = file.path(out_dir, "de"), save_plot = FALSE
+    )
+
+    paths <- render_report(
+        dds, var = var, distance_out = distance_out,
+        diffexp_out = diffexp_out, gsea_out = NULL, save_dir = out_dir
+    )
+
+    hub <- gsub("[[:space:]]+", " ",
+                paste(readLines(paths[["deseq2"]], warn = FALSE), collapse = "\n"))
+    expect_true(grepl("Main effects (across all other factors)", hub, fixed = TRUE))
+    expect_true(grepl("Interactions (difference of differences)", hub, fixed = TRUE))
+    expect_false(grepl("by stratum", hub, fixed = TRUE))
+    # Each interaction is also spelled out as the question it answers.
+    expect_true(grepl("What each interaction asks", hub, fixed = TRUE))
+    expect_true(grepl(
+        "Does the K_mutation effect (<code>K_vs_noK</code>) differ between C_mutation C and noC, within celltype = CB?",
+        hub, fixed = TRUE
+    ))
+
+    specs <- diffexp_out$contrast_specs
+    expect_true(all(file.exists(contrast_page_paths(out_dir, specs$label))))
+    ix_page <- contrast_page_paths(out_dir, "C_vs_noC_x_K_vs_noK_in_CB")
+    ix_html <- paste(readLines(ix_page, warn = FALSE), collapse = "\n")
+    # The label is not a pair of sample groups, so the MA / volcano
+    # annotations must not claim genes are "up in C".
+    expect_false(grepl("up in C<", ix_html, fixed = TRUE))
+})
+
 test_that("render_report() omits the wgcna page and greys out its nav link when wgcna_out = NULL", {
     skip_if_not_installed("rmarkdown")
     skip_if_not_installed("htmltools")
@@ -204,4 +397,6 @@ test_that("render_report() omits the wgcna page and greys out its nav link when 
     index_html <- paste(readLines(paths[["index"]]), collapse = "\n")
     expect_true(grepl('color:#999;">WGCNA', index_html))
     expect_false(grepl('href="wgcna/wgcna.html">WGCNA', index_html))
+    expect_true(grepl('color:#999;">Multihit', index_html))
+    expect_true(grepl('color:#999;">VIPER', index_html))
 })

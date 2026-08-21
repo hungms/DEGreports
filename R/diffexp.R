@@ -142,28 +142,82 @@ run_diffexp <- function(
                "pvalue", "padj", "rank_score", "sig")]
 }
 
-#' Run differential expression extracting a named model coefficient
+#' Stop early when a cell of the `var` factorial has no samples
 #'
-#' Used for interaction terms from `~ A * B`. Same return schema as
+#' An interaction contrast needs the full product design, which is
+#' rank-deficient as soon as one level combination is unobserved. Naming the
+#' empty cells is far more actionable than the model-matrix rank message.
+#' @noRd
+.assert_full_factorial <- function(dds, var) {
+    cd <- as.data.frame(SummarizedExperiment::colData(dds))
+    fac <- lapply(var, function(v) droplevels(factor(cd[[v]])))
+    names(fac) <- var
+    cells <- table(fac)
+    if (all(cells > 0)) return(invisible(TRUE))
+    grid <- expand.grid(dimnames(cells), stringsAsFactors = FALSE)
+    empty <- grid[as.vector(cells) == 0, , drop = FALSE]
+    named <- apply(empty, 1, function(row) {
+        paste(paste0(var, "=", row), collapse = ", ")
+    })
+    stop("Interaction contrasts need every combination of ",
+         paste(var, collapse = " \u00d7 "), " to have samples, but ",
+         nrow(empty), " combination(s) are empty: ",
+         paste(named, collapse = "; "),
+         ". Drop a factor from `var`, or run without `include_interactions`.",
+         call. = FALSE)
+}
+
+#' Coefficient names from a spec field, `+`-joined or already split
+#'
+#' A contrast spec stores summed coefficients as `"a+b"` in one string
+#' (`NA` when a side is empty); DESeq2 coefficient names never contain `+`,
+#' since they come from `make.names()`.
+#' @noRd
+.clean_coef_names <- function(x) {
+    if (is.null(x)) return(character(0))
+    x <- as.character(x)
+    x <- x[!is.na(x) & nzchar(x)]
+    if (!length(x)) return(character(0))
+    x <- unlist(strsplit(x, "+", fixed = TRUE), use.names = FALSE)
+    x <- trimws(x)
+    x[nzchar(x)]
+}
+
+#' Run differential expression on a combination of named model coefficients
+#'
+#' Used for interaction contrasts from `~ A * B [* C]`. A single `coef` with
+#' nothing subtracted is extracted by name; several are compared as a list
+#' contrast, `results(contrast = list(coef, coef_subtract))`, summing the
+#' first vector's coefficients against the second's. `coef_weights` covers
+#' the contrasts a list cannot express -- those that *average* coefficients,
+#' as a pooled one-vs-rest comparison does -- by passing DESeq2 a numeric
+#' weight vector over `resultsNames()` instead. Same return schema as
 #' [run_diffexp()].
 #'
 #' @inheritParams run_diffexp
-#' @param coef Coefficient name as in `resultsNames(dds)`.
-#' @param coef_subtract Optional second coefficient for a list contrast
-#'   `results(contrast = list(coef, coef_subtract))` (pairwise interaction
-#'   differences). Default `NULL`.
+#' @param coef Coefficient name(s) as in `resultsNames(dds)`; several names
+#'   are summed. `NULL` when `coef_weights` is given.
+#' @param coef_subtract Optional coefficient name(s) whose sum is subtracted
+#'   from `coef`. Default `NULL`.
+#' @param coef_weights Optional named numeric vector (or its
+#'   `"name=weight;..."` encoding) of coefficient weights, used instead of
+#'   `coef` / `coef_subtract`. Default `NULL`.
+#' @param prefit Optional already-`DESeq()`-ed object for `dds`, so a grid of
+#'   contrasts sharing one design is fitted once. Default `NULL` (fit here).
 #' @return A results data frame.
 #' @noRd
 run_diffexp_coef <- function(
     dds,
-    coef,
+    coef = NULL,
     coef_subtract = NULL,
+    coef_weights = NULL,
     shrinkage = "ashr",
     alpha = 0.05,
     lfc_threshold = 0.5,
     ranking = "log2FoldChange",
     gene_col = "gene",
-    comparison = coef) {
+    comparison = paste(coef, collapse = "+"),
+    prefit = NULL) {
 
     dds <- validate_dds(dds)
     shrinkage <- validate_shrinkage(shrinkage)
@@ -171,25 +225,56 @@ run_diffexp_coef <- function(
     lfc_threshold <- validate_lfc_threshold(lfc_threshold)
     ranking <- validate_ranking(ranking)
 
-    assert_full_rank_model_matrix(dds, comparison, coef)
-    fit_dds <- DESeq2::DESeq(dds, quiet = TRUE)
+    coef <- .clean_coef_names(coef)
+    coef_subtract <- .clean_coef_names(coef_subtract)
+    if (is.character(coef_weights)) coef_weights <- .parse_coef_weights(coef_weights)
+    weighted <- length(coef_weights) > 0L
+    if (weighted && (length(coef) || length(coef_subtract))) {
+        stop("Contrast \"", comparison, "\": give either `coef` / ",
+             "`coef_subtract` or `coef_weights`, not both.", call. = FALSE)
+    }
+    if (weighted && (is.null(names(coef_weights)) || anyNA(coef_weights))) {
+        stop("Contrast \"", comparison,
+             "\": `coef_weights` must be a fully named, non-`NA` numeric vector.",
+             call. = FALSE)
+    }
+    if (!weighted && !length(coef)) {
+        stop("Contrast \"", comparison, "\": no numerator coefficient given.",
+             call. = FALSE)
+    }
+
+    wanted <- if (weighted) names(coef_weights) else c(coef, coef_subtract)
+    if (is.null(prefit)) {
+        assert_full_rank_model_matrix(dds, comparison, wanted[1])
+        fit_dds <- DESeq2::DESeq(dds, quiet = TRUE)
+    } else {
+        fit_dds <- prefit
+    }
     rn <- DESeq2::resultsNames(fit_dds)
-    if (!coef %in% rn) {
-        stop("Coefficient \"", coef, "\" not in resultsNames(). Available: ",
+    unknown <- setdiff(wanted, rn)
+    if (length(unknown)) {
+        stop("Coefficient(s) ", paste0("\"", unknown, "\"", collapse = ", "),
+             " not in resultsNames() for contrast \"", comparison, "\". Available: ",
              paste(rn, collapse = ", "), call. = FALSE)
     }
 
-    use_list <- !is.null(coef_subtract) && !is.na(coef_subtract) && nzchar(coef_subtract)
-    if (use_list) {
-        if (!coef_subtract %in% rn) {
-            stop("Coefficient \"", coef_subtract, "\" not in resultsNames(). Available: ",
-                 paste(rn, collapse = ", "), call. = FALSE)
-        }
-        contrast_list <- list(coef, coef_subtract)
-        res <- DESeq2::results(fit_dds, contrast = contrast_list, alpha = alpha)
+    # A weight vector spans every coefficient in resultsNames() order; a list
+    # contrast names only the coefficients it combines.
+    contrast_arg <- if (weighted) {
+        w <- stats::setNames(numeric(length(rn)), rn)
+        w[names(coef_weights)] <- unname(coef_weights)
+        unname(w)
+    } else if (length(coef) > 1L || length(coef_subtract)) {
+        if (length(coef_subtract)) list(coef, coef_subtract) else list(coef)
+    } else {
+        NULL
+    }
+
+    if (!is.null(contrast_arg)) {
+        res <- DESeq2::results(fit_dds, contrast = contrast_arg, alpha = alpha)
         shrink_type <- shrinkage
         if (shrinkage == "apeglm") {
-            warning("apeglm cannot shrink list contrasts; using ashr for \"",
+            warning("apeglm cannot shrink a combined contrast; using ashr for \"",
                     comparison, "\".", call. = FALSE)
             shrink_type <- "ashr"
         }
@@ -197,7 +282,7 @@ run_diffexp_coef <- function(
         unshrunken_lfc <- stats::setNames(as.numeric(res$log2FoldChange), rownames(res))
         if (shrink_type != "none") {
             res <- tryCatch({
-                DESeq2::lfcShrink(fit_dds, contrast = contrast_list, type = shrink_type,
+                DESeq2::lfcShrink(fit_dds, contrast = contrast_arg, type = shrink_type,
                                   res = res, quiet = TRUE)
             }, error = function(e) {
                 warning("LFC shrinkage (\"", shrink_type, "\") failed for \"", comparison,
@@ -244,22 +329,43 @@ run_diffexp_coef <- function(
 #' Run differential expression for all requested comparisons
 #'
 #' Loops [run_diffexp()] over every comparison in `comparisons` (or every
-#' auto-generated pairwise + one-vs-rest comparison if `comparisons` is
-#' `NULL`), writes one results CSV per comparison plus MA and volcano plots,
-#' and returns all results combined. With `var` of length 2, expands the
-#' within-A / within-B contrast grid via [expand_contrast_specs()], and
-#' includes interaction contrasts when `include_interactions = TRUE`,
-#' unless `comparisons` subsets those labels.
+#' auto-generated comparison if `comparisons` is `NULL`), writes one results
+#' CSV per comparison plus MA and volcano plots, and returns all results
+#' combined. With `var` of length 2 or 3 the grid comes from
+#' [expand_contrast_specs()], unless `comparisons` subsets those labels.
+#'
+#' How a spec row is fitted depends on its `class`:
+#' \describe{
+#'   \item{`"single"`}{The comparison on `dds` as handed in.}
+#'   \item{`"main"`}{All samples, design rebuilt additively as
+#'     `~ [batch +] other factors + tested factor`, so a factor's main effect
+#'     is adjusted for the other factors rather than measured at their
+#'     reference levels (which is what an interaction design's main-effect
+#'     coefficient would give).}
+#'   \item{`"interaction"`}{A difference of differences on all samples: the
+#'     full product design (`~ [batch +] A * B [* C]`) is fitted once for
+#'     the whole interaction grid, and each row compares the sum of its
+#'     `comparison` coefficients against the sum of its `coef_subtract`
+#'     ones — or, where a pooled one-vs-rest comparison needs coefficients
+#'     averaged, weights them by its `coef_weights`. Fails naming the empty
+#'     cells if the factorial is incomplete, since the product design would
+#'     then be rank-deficient.}
+#'   \item{`"within_*"`}{The samples in that stratum only, design
+#'     `~ [batch +] tested factor`.}
+#' }
 #'
 #' @inheritParams run_diffexp
 #' @param comparisons Character vector of comparisons / contrast labels to
 #'   run, a contrast-specs data frame from [expand_contrast_specs()], or
 #'   `NULL` (default) to auto-generate the full grid.
-#' @param batch Optional covariate column name(s) used when rebuilding the
-#'   design on within-stratum subsets in two-factor mode. Default `NULL`.
-#' @param include_interactions Logical. When `var` has length 2, include
-#'   interaction contrasts (reference and pairwise mutant–mutant) if
-#'   `TRUE`. Default `FALSE`. Passed to [expand_contrast_specs()].
+#' @param batch Optional covariate column name(s) kept in the design when it
+#'   is rebuilt for a main effect or a within-stratum subset. Default `NULL`.
+#' @param include_interactions Logical. When `var` has length ≥ 2, add the
+#'   difference-of-differences interaction contrasts to the main effects.
+#'   Default `FALSE`. Passed to [expand_contrast_specs()].
+#' @param stratified Logical. Add the within-stratum contrasts, fitted on
+#'   each subset alone. Default `FALSE`; not exposed by [run_deseq2_wald()].
+#'   Passed to [expand_contrast_specs()].
 #' @param top_label_n Number of top genes (by `rank_score`) to label on the
 #'   volcano plot. Default `10`.
 #' @param save_dir Directory to write per-comparison subfolders to. Default
@@ -281,6 +387,7 @@ run_diffexp_pipeline <- function(
     comparisons = NULL,
     batch = NULL,
     include_interactions = FALSE,
+    stratified = FALSE,
     shrinkage = "ashr",
     alpha = 0.05,
     lfc_threshold = 0.5,
@@ -294,10 +401,24 @@ run_diffexp_pipeline <- function(
     dds <- validate_var(dds, var)
     comparisons <- validate_comparisons(
         dds, var, comparisons,
-        include_interactions = include_interactions
+        include_interactions = include_interactions,
+        stratified = stratified
     )
     validate_logical(save_plot, "save_plot")
     save_dir <- validate_save_dir(save_dir)
+
+    # If `batch` was requested but is missing from design(dds) (e.g. the
+    # caller built the DESeqDataSet with `~ var` only), rebuild so every
+    # contrast — not just within-stratum subsets — is `~ batch + var`.
+    if (!is.null(batch)) {
+        des_vars <- all.vars(DESeq2::design(dds))
+        if (!all(as.character(batch) %in% des_vars)) {
+            DESeq2::design(dds) <- resolve_design(
+                var, batch = batch, design = NULL,
+                include_interactions = include_interactions
+            )
+        }
+    }
 
     if (is.character(comparisons)) {
         specs <- data.frame(
@@ -318,6 +439,22 @@ run_diffexp_pipeline <- function(
         }
     }
 
+    # Every interaction row is a different contrast of the *same* product
+    # model, so fit it once rather than per row.
+    ix_fit <- NULL
+    if (any(specs$class %in% "interaction")) {
+        .assert_full_factorial(dds, var)
+        dds_ix <- dds
+        DESeq2::design(dds_ix) <- resolve_design(
+            var, batch = batch, design = NULL, include_interactions = TRUE
+        )
+        assert_full_rank_model_matrix(dds_ix, "interaction contrasts",
+                                      paste(var, collapse = " * "))
+        message("Fitting the interaction model (", deparse1(DESeq2::design(dds_ix)),
+                ") ...")
+        ix_fit <- DESeq2::DESeq(dds_ix, quiet = TRUE)
+    }
+
     by_comparison <- list()
     for (i in seq_len(nrow(specs))) {
         spec <- specs[i, , drop = FALSE]
@@ -325,18 +462,54 @@ run_diffexp_pipeline <- function(
         message("Running differential expression: ", label, " ...")
 
         if (identical(spec$class[[1]], "interaction")) {
+            # A pooled one-vs-rest comparison averages coefficients, which
+            # only the weight vector can express; the rest sum them.
+            cw <- if ("coef_weights" %in% names(specs)) {
+                .parse_coef_weights(spec$coef_weights[[1]])
+            } else {
+                NULL
+            }
             res_df <- run_diffexp_coef(
                 dds = dds,
-                coef = spec$comparison[[1]],
-                coef_subtract = spec$coef_subtract[[1]],
+                coef = if (is.null(cw)) .clean_coef_names(spec$comparison[[1]]) else NULL,
+                coef_subtract = if (is.null(cw)) {
+                    .clean_coef_names(spec$coef_subtract[[1]])
+                } else {
+                    NULL
+                },
+                coef_weights = cw,
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
-                ranking = ranking, gene_col = gene_col, comparison = label
+                ranking = ranking, gene_col = gene_col, comparison = label,
+                prefit = ix_fit
             )
-        } else if (spec$class[[1]] %in% c("within_A", "within_B")) {
-            sv <- spec$stratum_var[[1]]
-            sl <- spec$stratum_level[[1]]
+        } else if (identical(spec$class[[1]], "main")) {
+            # Main effect: every sample, additive design, so the factors not
+            # under test are adjusted for instead of inflating the residual.
             tv <- spec$test_var[[1]]
-            keep <- SummarizedExperiment::colData(dds)[[sv]] == sl
+            dds_main <- dds
+            DESeq2::design(dds_main) <- resolve_design(
+                c(setdiff(var, tv), tv), batch = batch, design = NULL,
+                include_interactions = FALSE
+            )
+            res_df <- run_diffexp(
+                dds = dds_main, var = tv, comparison = spec$comparison[[1]],
+                shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
+                ranking = ranking, gene_col = gene_col
+            )
+            res_df$comparison <- label
+        } else if (spec$class[[1]] %in% c("within_A", "within_B", "within_C")) {
+            sv <- strsplit(spec$stratum_var[[1]], "+", fixed = TRUE)[[1]]
+            sl <- strsplit(spec$stratum_level[[1]], "+", fixed = TRUE)[[1]]
+            if (length(sv) != length(sl)) {
+                stop("Contrast \"", label, "\": stratum_var/stratum_level length mismatch.",
+                     call. = FALSE)
+            }
+            tv <- spec$test_var[[1]]
+            cd <- SummarizedExperiment::colData(dds)
+            keep <- rep(TRUE, ncol(dds))
+            for (j in seq_along(sv)) {
+                keep <- keep & as.character(cd[[sv[j]]]) == sl[j]
+            }
             dds_sub <- dds[, keep]
             DESeq2::design(dds_sub) <- resolve_design(tv, batch = batch, design = NULL)
             res_df <- run_diffexp(
@@ -355,15 +528,16 @@ run_diffexp_pipeline <- function(
         }
 
         comp_dir <- file.path(save_dir, label)
-        write_output(res_df, file.path(comp_dir, paste0(label, "_diffexp.csv")), format = "csv")
+        stem <- contrast_file_stem(label)
+        write_output(res_df, file.path(comp_dir, paste0(stem, "_diffexp.csv")), format = "csv")
 
         if (save_plot) {
             ma_plot <- plot_ma(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
-            save_ggplot(ma_plot, file.path(comp_dir, paste0(label, "_ma_plot.pdf")), width = 6, height = 5)
+            save_ggplot(ma_plot, file.path(comp_dir, paste0(stem, "_ma_plot.pdf")), width = 6, height = 5)
 
             volcano_plot <- plot_volcano(res_df, alpha = alpha, lfc_threshold = lfc_threshold,
                                           gene_col = gene_col, top_label_n = top_label_n)
-            save_ggplot(volcano_plot, file.path(comp_dir, paste0(label, "_volcano_plot.pdf")), width = 7, height = 6)
+            save_ggplot(volcano_plot, file.path(comp_dir, paste0(stem, "_volcano_plot.pdf")), width = 7, height = 6)
         }
 
         by_comparison[[label]] <- res_df
@@ -421,14 +595,17 @@ classify_de_direction <- function(res_df, alpha = 0.05, lfc_threshold = 0) {
 #' Parse test/reference level labels from a contrast comparison string
 #'
 #' Handles plain `"A_vs_B"`, stratum-prefixed `"BM__IgG_vs_IgM"`, and
-#' interaction labels without `"_vs_"` (falls back to positive/negative).
+#' interaction labels (falls back to positive/negative). An interaction label
+#' such as `"C_vs_noC_x_K_vs_noK_in_CB"` does contain `"_vs_"`, but neither
+#' side of it is a group of samples, so it gets the neutral wording too.
 #' @noRd
 .parse_contrast_levels <- function(comparison) {
     comparison <- as.character(comparison)[1]
     if (is.na(comparison) || !nzchar(comparison)) {
         return(list(test = "up", ref = "down"))
     }
-    if (!grepl("_vs_", comparison, fixed = TRUE)) {
+    if (!grepl("_vs_", comparison, fixed = TRUE) ||
+        grepl("_x_", comparison, fixed = TRUE)) {
         return(list(test = "positive LFC", ref = "negative LFC"))
     }
     core <- if (grepl("__", comparison, fixed = TRUE)) {
@@ -728,4 +905,65 @@ make_deg_datatable <- function(res_df, digits = 4, page_length = 10) {
             buttons = c("csv")
         )
     )
+}
+
+#' Summarise significant up/down DEG counts per contrast
+#'
+#' For each contrast in `diffexp_out$by_comparison`, counts significant
+#' genes (`padj < alpha` and `|log2FoldChange| > lfc_threshold` when an
+#' LFC column is present; LRT results use `padj < alpha` only) and reports
+#' n / % up and down relative to all genes with non-`NA` `padj`.
+#'
+#' @param diffexp_out Output of [run_diffexp_pipeline()],
+#'   [run_diffexp_lrt_pipeline()], or [prepare_diffexp_from_deg()].
+#' @param alpha Significance threshold. Default `0.05`.
+#' @param lfc_threshold Absolute LFC threshold for Wald / DEG-table
+#'   contrasts. Ignored for LRT (no fold-change direction). Default `0.5`.
+#' @return A data frame with one row per contrast.
+#' @export
+summarize_deg_contrasts <- function(diffexp_out, alpha = 0.05, lfc_threshold = 0.5) {
+    by_comp <- diffexp_out$by_comparison
+    if (is.null(by_comp) || !length(by_comp)) {
+        return(data.frame(
+            contrast = character(0),
+            n_tested = integer(0),
+            n_sig = integer(0),
+            n_up = integer(0),
+            pct_up = numeric(0),
+            n_down = integer(0),
+            pct_down = numeric(0),
+            stringsAsFactors = FALSE
+        ))
+    }
+    rows <- lapply(names(by_comp), function(comp) {
+        res_df <- by_comp[[comp]]
+        tested <- !is.na(res_df$padj)
+        n_tested <- sum(tested)
+        has_lfc <- "log2FoldChange" %in% colnames(res_df) &&
+            any(is.finite(as.numeric(res_df$log2FoldChange)))
+        if (has_lfc) {
+            dir <- classify_de_direction(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
+            n_up <- sum(dir == "up", na.rm = TRUE)
+            n_down <- sum(dir == "down", na.rm = TRUE)
+            n_sig <- n_up + n_down
+        } else {
+            n_sig <- sum(tested & res_df$padj < alpha, na.rm = TRUE)
+            n_up <- NA_integer_
+            n_down <- NA_integer_
+        }
+        pct <- function(n) {
+            if (is.na(n) || n_tested == 0L) NA_real_ else round(100 * n / n_tested, 2)
+        }
+        data.frame(
+            contrast = comp,
+            n_tested = as.integer(n_tested),
+            n_sig = as.integer(n_sig),
+            n_up = as.integer(n_up),
+            pct_up = pct(n_up),
+            n_down = as.integer(n_down),
+            pct_down = pct(n_down),
+            stringsAsFactors = FALSE
+        )
+    })
+    do.call(rbind, rows)
 }

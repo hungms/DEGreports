@@ -1,0 +1,235 @@
+---
+title: "DESeq2Reports -- decoupleR-CCC"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    df_print: paged
+    self_contained: false
+    mathjax: null
+params:
+  var: NULL
+  design_str: NULL
+  org: NULL
+  n_samples: NULL
+  n_genes: NULL
+  qc_out: NULL
+  distance_out: NULL
+  diffexp_out: NULL
+  gsea_out: NULL
+  gsea_overlap_out: NULL
+  multihit_out: NULL
+  degpatterns_out: NULL
+  cluster_ora_out: NULL
+  wgcna_out: NULL
+  decoupler_tf_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
+  cspa_out: NULL
+  gsva_out: NULL
+  decoupler_ccc_out: NULL
+  alpha: 0.05
+  lfc_threshold: 0.5
+  run_args: NULL
+  package_version: NULL
+  current_page: "decoupleR-CCC"
+  disabled_labels: !r character(0)
+  page_hrefs: NULL
+  contrast: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+is_lrt <- isTRUE(params$run_args$analysis_mode == "lrt") ||
+  (!is.null(params$diffexp_out$lrt_specs) && nrow(params$diffexp_out$lrt_specs) > 0)
+is_hub <- is.null(params$contrast) || !nzchar(as.character(params$contrast)[1])
+contrast_page <- if (is_hub) NULL else as.character(params$contrast)[1]
+```
+
+```{r nav, results='asis'}
+cat(deseq2reports::report_nav_links(
+  params$current_page,
+  disabled = params$disabled_labels,
+  hrefs = params$page_hrefs
+))
+```
+
+## decoupleR ligand–receptor (CCC)
+
+```{r ccc-intro, results='asis', eval=!is.null(params$decoupler_ccc_out)}
+cat("\n\nLigand–receptor (cell–cell communication) enrichment inferred with ",
+    "[`decoupleR`](https://bioconductor.org/packages/decoupleR/) using a ",
+    "**LIANA / OmniPath** ligand–receptor resource and **ULM**, following the ",
+    "[bulk functional analysis tutorial](https://decoupler.readthedocs.io/en/v1.9.2/notebooks/bulk.html). ",
+    "Each interaction is a small gene set (ligand + receptor, complexes exploded); ",
+    "co-regulation of the pair is scored from DESeq2 ",
+    if (is_lrt) "LRT" else "Wald",
+    " `stat` values. Organism: **", params$decoupler_ccc_out$org, "**.\n\n",
+    if (is_lrt) {
+      paste0("Each test is scored twice: over all of its LRT-significant ",
+             "genes, and separately within each **degPatterns cluster** ",
+             "(one tab per cluster), which is what ties a pair to a ",
+             "temporal pattern.\n\n")
+    } else "",
+    "This page is independent of CollecTRI TF activity (**decoupleR-TF**).\n\n",
+    sep = "")
+deseq2reports::emit_code_block(
+  caption = "Reproduce ligand–receptor ULM with this package module:",
+  if (is_lrt) {
+    paste0("clusters <- lrt_clusters_diffexp_for_tf(degpatterns_out, lrt_out = diffexp_out)\n",
+           "ccc_out <- run_decoupler_ccc_pipeline(diffexp_out, cluster_diffexp = clusters)")
+  } else {
+    "ccc_out <- run_decoupler_ccc_pipeline(diffexp_out)"
+  }
+)
+```
+
+```{r ccc-missing, results='asis', eval=is.null(params$decoupler_ccc_out)}
+cat("\n\nLigand–receptor analysis was not run for this report ",
+    "(`run_decoupler_ccc = FALSE` or `decoupler_ccc_out = NULL`).\n\n")
+```
+
+```{r ccc-helpers, include=FALSE}
+n_lr_default <- params$decoupler_ccc_out$n_lr
+if (is.null(n_lr_default)) n_lr_default <- 10L
+
+# Cluster outputs live in <test>/cluster_<n>/, mirroring their folder names.
+ccc_cluster_dir <- function(label) {
+  paste0("cluster_", gsub("[^A-Za-z0-9_]+", "_", sub("^.* cluster ", "", label)))
+}
+ccc_clusters_of <- function(comp) {
+  labs <- params$decoupler_ccc_out$clusters_by_test[[comp]]
+  if (is.null(labs)) character(0) else as.character(labs)
+}
+
+emit_ccc_barplot_and_table <- function(bp, acts, filename, lr_csv) {
+  if (!is.null(bp)) {
+    sz <- attr(bp, "plot_size")
+    if (is.null(sz)) sz <- list(width = 4.2, height = 3.2)
+    deseq2reports::emit_plot_with_download(
+      bp, filename = filename,
+      width = sz$width, height = sz$height, dpi = 150
+    )
+  }
+  if (!is.null(acts) && nrow(acts) > 0) {
+    show <- acts[order(acts$p_value), , drop = FALSE]
+    show <- utils::head(show, 50L)
+    btn <- deseq2reports::link_output_file(lr_csv, label = "Download full CSV")
+    deseq2reports::emit_widget_with_download(
+      deseq2reports::make_gsea_datatable(show, page_length = 15), btn
+    )
+  }
+  cat("\n\n")
+}
+
+# One tab per degPatterns cluster of this LRT. A pair is scored here only
+# when both its ligand and its receptor are cluster members, so a cluster
+# can legitimately come out empty.
+emit_ccc_clusters <- function(comp, base_dir = ".") {
+  labs <- ccc_clusters_of(comp)
+  cat("\n\n#### By degPatterns cluster\n\n")
+  cat("ULM scores per **degPatterns cluster**: each cluster's LRT `stat` ",
+      "vector is scored on its own, so a ligand–receptor pair only appears ",
+      "under a cluster when **both** partners belong to it. Top **",
+      n_lr_default, "** pairs per direction by ULM score ",
+      "(stars from BH-adjusted `padj`).\n\n", sep = "")
+  short <- sub("^.* cluster ", "cluster ", labs)
+  if (anyDuplicated(short) || any(!nzchar(short))) short <- labs
+  pane_ids <- deseq2reports::bs_tabset_start(
+    paste0("ccc-clusters-", comp), short
+  )
+  for (i in seq_along(labs)) {
+    deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+    acts <- params$decoupler_ccc_out$cluster_acts[[labs[i]]]
+    bp <- params$decoupler_ccc_out$cluster_barplots[[labs[i]]]
+    if (is.null(acts) || !nrow(acts)) {
+      cat("\n\nNo ligand–receptor pair has both partners in this cluster.\n\n")
+    } else {
+      emit_ccc_barplot_and_table(
+        bp, acts,
+        filename = paste0(gsub("[^A-Za-z0-9]+", "_", labs[i]), "_ulm_lr_barplot"),
+        lr_csv = file.path(base_dir, ccc_cluster_dir(labs[i]), "ulm_lr.csv")
+      )
+    }
+    deseq2reports::bs_tab_pane_end()
+  }
+  deseq2reports::bs_tabset_end()
+  cat("\n\n")
+}
+
+emit_ccc_contrast <- function(comp, from_contrast_dir = FALSE) {
+  acts <- params$decoupler_ccc_out$contrast_acts[[comp]]
+  bp <- params$decoupler_ccc_out$contrast_barplots[[comp]]
+  has_clusters <- length(ccc_clusters_of(comp)) > 0L
+  base_dir <- if (from_contrast_dir) "." else comp
+  if (has_clusters) {
+    emit_ccc_clusters(comp, base_dir = base_dir)
+    cat("\n\n#### All pairs (whole test)\n\n")
+    cat("Scores over every gene of this test, ignoring cluster membership -- ",
+        "better powered than the per-cluster fits above, but blind to which ",
+        "temporal pattern a pair follows.\n\n", sep = "")
+  } else {
+    cat("\n\nULM scores from ",
+        if (is_lrt) "LRT statistics" else "DESeq2 Wald statistics",
+        " for this ", if (is_lrt) "test" else "contrast",
+        ". Top **", n_lr_default,
+        "** ligand–receptor pairs per direction by ULM score ",
+        "(GSEA-style barplot; stars from BH-adjusted `padj`).\n\n", sep = "")
+  }
+  if (is.null(bp) && !has_clusters) {
+    cat("\n\nNo ligand–receptor scores for this contrast.\n\n")
+  }
+  emit_ccc_barplot_and_table(
+    if (has_clusters) NULL else bp, acts,
+    filename = paste0(gsub("[^A-Za-z0-9]+", "_", comp), "_ulm_lr_barplot"),
+    lr_csv = file.path(base_dir, "ulm_lr.csv")
+  )
+}
+
+specs <- NULL
+if (!is.null(params$decoupler_ccc_out$contrast_acts)) {
+  specs <- params$diffexp_out$contrast_specs
+  if (is.null(specs)) specs <- params$diffexp_out$lrt_specs
+  comps <- names(params$decoupler_ccc_out$contrast_acts)
+  if (is.null(specs) || !nrow(specs)) {
+    specs <- data.frame(
+      label = comps,
+      class = "single",
+      type = deseq2reports::classify_comparison_type(comps),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    specs <- specs[specs$label %in% comps, , drop = FALSE]
+    if (!nrow(specs)) {
+      specs <- data.frame(label = comps, class = "single",
+                          stringsAsFactors = FALSE)
+    }
+  }
+}
+```
+
+```{r ccc-hub, results='asis', eval=is_hub && !is.null(params$decoupler_ccc_out)}
+cat("\n\n### ", if (is_lrt) "LRT tests" else "Contrasts", "\n\n", sep = "")
+cat("Each ", if (is_lrt) "LRT" else "contrast",
+    " has its own page (",
+    if (is_lrt) "one barplot + table per degPatterns cluster"
+    else "ligand–receptor barplot + table",
+    "):\n\n", sep = "")
+if (is.null(specs) || !nrow(specs)) {
+  cat("\n\nNo ligand–receptor results available.\n\n")
+} else {
+  deseq2reports::emit_contrast_nav(specs, params$var)
+}
+cat("\n")
+```
+
+```{r ccc-contrast-page, results='asis', eval=!is_hub && !is.null(params$decoupler_ccc_out)}
+nest <- max(1L, length(strsplit(contrast_page, "/+", perl = TRUE)[[1]]))
+back_href <- paste(c(rep("..", nest), "decoupleR-CCC.html"), collapse = "/")
+cat("\n\n### ", contrast_page, "\n\n", sep = "")
+cat("<p><a href=\"", back_href, "\">← Back to decoupleR-CCC ",
+    if (is_lrt) "LRT tests" else "contrasts", "</a></p>\n\n", sep = "")
+emit_ccc_contrast(contrast_page, from_contrast_dir = TRUE)
+```

@@ -13,16 +13,21 @@ render_report(
   gsea_overlap_out = NULL,
   multihit_out = NULL,
   wgcna_out = NULL,
-  decoupler_out = NULL,
+  decoupler_tf_out = NULL,
   ppi_out = NULL,
   viper_out = NULL,
   cspa_out = NULL,
+  gsva_out = NULL,
+  decoupler_ccc_out = NULL,
   degpatterns_out = NULL,
   cluster_ora_out = NULL,
   alpha = 0.05,
   lfc_threshold = 0.5,
   run_args = NULL,
-  save_dir = getwd()
+  save_dir = getwd(),
+  parallel_render = FALSE,
+  render_workers = NULL,
+  contrasts_only = FALSE
 )
 }
 \arguments{
@@ -33,29 +38,34 @@ counts and the design formula in the report header. If it carries
 of genes removed at each filtering step, the library-size plot, and
 the count-distribution diagnostic plot (with the expression cutoff
 marked) -- omitted if that metadata is absent, e.g. when \code{dds} was
-QC-filtered manually rather than via \code{\link[=run_qc]{run_qc()}}.}
+QC-filtered manually rather than via \code{\link[=run_qc]{run_qc()}}. Pass \code{NULL} for
+DEG-table-only reports (\code{\link[=run_deseq2_deg]{run_deseq2_deg()}}): the QC page is skipped
+and greyed out in the nav.}
 
-\item{var}{Column name in \code{colData(dds)} used for grouping.}
+\item{var}{Column name in \code{colData(dds)} used for grouping (or a label
+such as \code{"comparison"} when \code{dds = NULL}).}
 
-\item{distance_out}{Output of \code{\link[=run_distance_pca]{run_distance_pca()}}.}
+\item{distance_out}{Output of \code{\link[=run_distance_pca]{run_distance_pca()}}, or \code{NULL} when
+starting from a DEG table.}
 
-\item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}.}
+\item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}},
+\code{\link[=run_diffexp_lrt_pipeline]{run_diffexp_lrt_pipeline()}}, or \code{\link[=prepare_diffexp_from_deg]{prepare_diffexp_from_deg()}}.}
 
-\item{gsea_out}{Output of \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}.}
+\item{gsea_out}{Output of \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}} (may be \code{NULL}).}
 
 \item{gsea_overlap_out}{Output of \code{\link[=run_gsea_overlap_pipeline]{run_gsea_overlap_pipeline()}}, or
 \code{NULL} (default). When present, leading-edge overlap plots are shown
 at the bottom of the clusterProfiler page.}
 
 \item{multihit_out}{Output of \code{\link[=run_multihit_pipeline]{run_multihit_pipeline()}}, or \code{NULL}
-(default) to omit the index multi-hit section.}
+(default) to omit the Multihit page.}
 
 \item{wgcna_out}{Output of \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, or \code{NULL} (default)
 to omit the WGCNA page entirely (its link is greyed out, not removed,
 in the navigation bar of the other pages).}
 
-\item{decoupler_out}{Output of \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, or \code{NULL}
-(default) to omit the decoupleR page.}
+\item{decoupler_tf_out}{Output of \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}, or \code{NULL}
+(default) to omit the decoupleR-TF page.}
 
 \item{ppi_out}{Output of \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}, or \code{NULL} (default) to
 omit PPI connectivity sections on the DE and WGCNA pages.}
@@ -65,6 +75,13 @@ to omit the VIPER page.}
 
 \item{cspa_out}{Output of \code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}, or \code{NULL}.}
 
+\item{decoupler_ccc_out}{Output of \code{\link[=run_decoupler_ccc_pipeline]{run_decoupler_ccc_pipeline()}}, or
+\code{NULL} (default) to omit the decoupleR-CCC page.}
+
+\item{degpatterns_out}{Optional degPatterns result list (LRT).}
+
+\item{cluster_ora_out}{Optional cluster ORA result list (LRT).}
+
 \item{alpha}{Significance threshold to display/use for report summaries.
 Default \code{0.05}.}
 
@@ -72,21 +89,33 @@ Default \code{0.05}.}
 colouring on MA/volcano plots. Default \code{0.5}.}
 
 \item{run_args}{Optional named list of pipeline arguments (as built by
-\code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}}) to display on the index page. Default \code{NULL}.}
+\code{\link[=run_deseq2_wald]{run_deseq2_wald()}} / \code{\link[=run_deseq2_deg]{run_deseq2_deg()}}) to display on the index page.
+Default \code{NULL}.}
 
 \item{save_dir}{Pipeline root directory. Section pages are written into
 per-module subfolders under this path. Default \code{getwd()}.}
+
+\item{parallel_render}{If \code{TRUE}, knit per-contrast HTML pages
+(\verb{deseq2/<contrast>/}, \verb{clusterprofiler/<contrast>/},
+\verb{decoupler-ccc/<contrast>/}) in parallel on Unix via
+\code{parallel::mclapply()}. Hub pages (\code{qc.html}, \code{wgcna.html}, …) always
+render in the current R session. Default \code{FALSE}.}
+
+\item{render_workers}{Number of parallel workers for \code{parallel_render}.
+Default \code{NULL} uses \code{min(4, parallel::detectCores() - 1)}; the cap keeps
+the forked knits from exhausting RAM and stalling later hub pages.}
 }
 \value{
 Invisibly, a named character vector of rendered file paths, with
-names \code{"index"}, \code{"qc"}, \code{"deseq2"}, \code{"clusterProfiler"}, and
-(when rendered) \code{"wgcna"} / \code{"decoupleR"} / \code{"viper"}.
+names \code{"index"}, \code{"qc"} (when \code{dds} is supplied), \code{"deseq2"},
+\code{"clusterProfiler"}, and (when rendered) \code{"wgcna"} / \code{"decoupleR-TF"} /
+\code{"decoupleR-CCC"} / \code{"viper"} / \code{"multihit"}.
 }
 \description{
 Knits the package's bundled R Markdown templates against the outputs of
 \code{\link[=run_qc]{run_qc()}}, \code{\link[=run_distance_pca]{run_distance_pca()}}, \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}},
 \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}, \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}},
-\code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, and \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, writing each
+\code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}, and \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, writing each
 section page into its module folder and \code{index.html} at the pipeline
 root:
 \itemize{
@@ -95,14 +124,26 @@ root:
 \item \code{deseq2/deseq2.html}
 \item \code{clusterprofiler/clusterprofiler.html}
 \item \code{wgcna/wgcna.html} (omitted when \code{wgcna_out = NULL})
-\item \code{decoupler/decoupler.html} (omitted when \code{decoupler_out = NULL})
+\item \code{decoupler-tf/decoupleR-TF.html} (omitted when \code{decoupler_tf_out = NULL})
+\item \code{decoupler-ccc/decoupleR-CCC.html} plus per-contrast pages
+(omitted when \code{decoupler_ccc_out = NULL})
 \item \code{viper/viper.html} (omitted when \code{viper_out = NULL})
+\item \code{multihit/multihit.html} (omitted when \code{multihit_out = NULL})
 }
 Pages use folder-bundled delivery (\code{self_contained = FALSE}) with a
 shared \verb{lib/} asset directory under \code{save_dir}; cross-links and CSV
 downloads use relative paths so the whole results tree can be copied
 and opened offline (do not share a lone HTML file without its siblings).
 }
+\section{When a contrast page fails}{
+
+A page that errors in a worker is retried once in the current session,
+where pandoc's own output is visible and nothing else is competing for the
+filesystem. If the retry fails as well, the page is reported as a warning
+and the rest of the report (including the index) still renders, rather than
+one page taking down a run whose analyses are already finished.
+}
+
 \examples{
 \dontrun{
 render_report(dds, var = "condition", distance_out = distance_out,

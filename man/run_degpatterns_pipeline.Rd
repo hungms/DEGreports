@@ -58,7 +58,7 @@ fewer than \code{minc} significant genes are skipped (a cluster cannot be
 smaller than \code{minc}, so there is nothing to find).
 }
 \details{
-Requires Suggests package \code{DEGreport}.
+Requires Imports package \code{DEGreport}.
 }
 \examples{
 \dontrun{

@@ -24,10 +24,12 @@ params:
   degpatterns_out: NULL
   cluster_ora_out: NULL
   wgcna_out: NULL
-  decoupler_out: NULL
+  decoupler_tf_out: NULL
   ppi_out: NULL
   viper_out: NULL
   cspa_out: NULL
+  gsva_out: NULL
+  decoupler_ccc_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
@@ -49,6 +51,28 @@ cat(deseq2reports::report_nav_links(
 ))
 ```
 
+```{r sample-qc-section, results='asis'}
+if (!is.null(params$qc_out)) {
+  cat("\n\n## Sample QC\n\n")
+  cat("\n\nPer-sample detection depth on the **input** count matrix (before gene filtering): ",
+      "detected genes = genes with count > 0; total transcripts = sum of counts.\n\n", sep = "")
+  sq <- params$qc_out$sample_qc_table
+  if (!is.null(sq) && nrow(sq)) {
+    show <- sq
+    show$n_total_transcripts <- format(show$n_total_transcripts, big.mark = ",", scientific = FALSE)
+    print(knitr::kable(show,
+                        col.names = c("Sample", "Detected genes", "Total transcripts"),
+                        row.names = FALSE))
+    cat("\n\n")
+    deseq2reports::emit_widget(
+      deseq2reports::link_output_file("qc_sample_summary.csv", label = "Download sample QC CSV")
+    )
+  } else {
+    cat("\n\nSample QC table was not available for this run.\n\n")
+  }
+}
+```
+
 ```{r qc-section, results='asis'}
 if (!is.null(params$qc_out)) {
   cat("\n\n## Library QC\n\n")
@@ -66,11 +90,9 @@ if (!is.null(params$qc_out)) {
         "`filter_method = \"count\"` (per-group absolute threshold) in `run_qc()` ",
         "(or `run_deseq2_pipeline()`).\n\n", sep = "")
   } else if (identical(filter_method, "cpm")) {
-    cat("\n\nLow-expression filter: removed the bottom **",
-        round(params$qc_out$cpm_percentile * 100, 2),
-        "%** of genes by mean CPM across samples. ",
-        "Adjust via the `cpm_percentile` argument to `run_qc()` ",
-        "(or `run_deseq2_pipeline()`).\n\n", sep = "")
+    cat("\n\nLow-expression filter: removed every gene with no reads in any sample, ",
+        "then the bottom **", round(params$qc_out$cpm_percentile * 100, 2),
+        "%** of the remaining (expressed) genes by mean CPM across samples.\n\n", sep = "")
   } else {
     cat("\n\nLow-expression filter: keep a gene if, in at least one group, \u2265 **",
         params$qc_out$min_samples_per_group, "** sample(s) have a raw count \u2265 **",
@@ -107,22 +129,35 @@ deseq2reports::emit_plot_with_download(params$qc_out$library_size_plot, filename
                                        width = lib_w, height = 2.5, dpi = 150)
 ```
 
-## Sample QC
+## PCA
 
-```{r sample-qc-methods, results='asis'}
+```{r pca-methods, results='asis'}
 deseq2reports::emit_code_block(
-  caption = "Reproduce sample QC (PCA + similarity) with this package module:",
+  caption = "Reproduce PCA + sample similarity with this package module:",
   "distance_out <- run_distance_pca(dds_qc, var = \"condition\")"
 )
 ```
 
-### PCA {.tabset}
+### PCA scatter {.tabset}
 
 ```{r pca-has-batch, include=FALSE}
 pca_has_batch <- !is.null(params$distance_out$pca_plot_uncorrected_interactive)
+# Name the method in the tab labels, so a reader can tell a ComBat-seq report
+# from a ComBat one. Falls back to the generic wording when no batch was given.
+corr_method <- params$distance_out$batch_correction
+if (is.null(corr_method) || !nzchar(corr_method) || identical(corr_method, "none")) {
+  corr_method <- "batch correction"
+}
+after_tab <- paste("After", corr_method)
+# The "before" side is the same uncorrected VST matrix whichever method the
+# "after" side used, so it stays generically named.
+before_tab <- "Before batch correction"
+loadings_size <- deseq2reports::pca_loadings_figure_size()
 ```
 
-#### After batch correction
+```{r pca-after-tab, results='asis'}
+cat("\n\n#### ", after_tab, "\n\n", sep = "")
+```
 
 ```{r pca-after-heading, results='asis'}
 if (pca_has_batch) {
@@ -131,13 +166,16 @@ if (pca_has_batch) {
       "and does not alter the DESeq2 design or differential expression results.\n\n", sep = "")
 } else {
   cat("\n\nNo batch correction was applied (`batch = NULL`); this is simply the PCA on the ",
-      "variance-stabilized matrix. See the \"Before batch correction\" tab for the identical data.\n\n", sep = "")
+      "variance-stabilized matrix. See the \"", before_tab, "\" tab for the identical data.\n\n", sep = "")
 }
 ```
 
 ```{r pca-after-plot, results='asis'}
 if (!is.null(params$distance_out$pca_plot)) {
-  btn <- deseq2reports::download_plot_button(params$distance_out$pca_plot, filename = "pca_plot", width = 4.4, height = 3.75)
+  btn <- deseq2reports::download_plot_button(
+    params$distance_out$pca_plot, filename = "pca_plot",
+    widget = params$distance_out$pca_plot_interactive
+  )
   deseq2reports::emit_widget_with_download(params$distance_out$pca_plot_interactive, btn, center = TRUE)
 }
 ```
@@ -157,17 +195,21 @@ cat("\n\n##### Top PCA loadings\n\n")
 
 ```{r pca-after-loadings-plot, results='asis', eval=!is.null(params$distance_out$top_loadings_plot)}
 deseq2reports::emit_plot_with_download(params$distance_out$top_loadings_plot, filename = "pca_loadings_plot",
-                                       width = 6.56, height = 3, dpi = 150)
+                                       width = loadings_size$width, height = loadings_size$height,
+                                       pdf_width = loadings_size$pdf_width,
+                                       pdf_height = loadings_size$pdf_height, dpi = 150)
 ```
 
-#### Before batch correction
+```{r pca-before-tab, results='asis'}
+cat("\n\n#### ", before_tab, "\n\n", sep = "")
+```
 
 ```{r pca-before-heading, results='asis'}
 if (pca_has_batch) {
   cat("\n\nShown for comparison against the batch-corrected PCA in the other tab. Hover over a ",
       "point to see its sample name.\n\n", sep = "")
 } else {
-  cat("\n\nNo batch correction was applied; this tab is identical to \"After batch correction\".\n\n")
+  cat("\n\nNo batch correction was applied; this tab is identical to \"", after_tab, "\".\n\n", sep = "")
 }
 ```
 
@@ -175,7 +217,10 @@ if (pca_has_batch) {
 pca_uncorr <- if (pca_has_batch) params$distance_out$pca_plot_uncorrected else params$distance_out$pca_plot
 pca_uncorr_interactive <- if (pca_has_batch) params$distance_out$pca_plot_uncorrected_interactive else params$distance_out$pca_plot_interactive
 if (!is.null(pca_uncorr)) {
-  btn <- deseq2reports::download_plot_button(pca_uncorr, filename = "pca_plot_uncorrected", width = 4.4, height = 3.75)
+  btn <- deseq2reports::download_plot_button(
+    pca_uncorr, filename = "pca_plot_uncorrected",
+    widget = pca_uncorr_interactive
+  )
   deseq2reports::emit_widget_with_download(pca_uncorr_interactive, btn, center = TRUE)
 }
 ```
@@ -206,47 +251,141 @@ if (!is.null(loadings_uncorr)) {
 loadings_uncorr <- if (pca_has_batch) params$distance_out$top_loadings_plot_uncorrected else params$distance_out$top_loadings_plot
 if (!is.null(loadings_uncorr)) {
   deseq2reports::emit_plot_with_download(loadings_uncorr, filename = "pca_loadings_plot_uncorrected",
-                                         width = 6.56, height = 3, dpi = 150)
+                                         width = loadings_size$width, height = loadings_size$height,
+                                         pdf_width = loadings_size$pdf_width,
+                                         pdf_height = loadings_size$pdf_height, dpi = 150)
 }
 ```
 
-### Sample similarity (Spearman)
+```{r pca-assoc-heading, results='asis', eval=!is.null(params$distance_out$pca_assoc_plot)}
+cat("\n\n### PC–covariate association {.tabset}\n\n")
+cat("\n\nAssociation of the top 15 PC scores with sample covariates ",
+    "(`batch`, grouping `var`, and `time` when present for LRT). ",
+    "Colour = ", "-log10(p)", " from ANOVA (factors) or Pearson correlation (numeric); ",
+    "numbers are shown only for associations with p < 0.05.\n\n", sep = "")
+```
 
-Pairwise Spearman correlation between samples in variance-stabilized expression
-space (colour scale spans the actual min/max off-diagonal correlation observed
-in this dataset; darker red = more similar, darker blue = less similar). The
-self-correlation diagonal carries no information and is blanked out (dark grey).
-
-```{r dist-heatmap, results='asis'}
-gt <- params$distance_out$similarity_plot$gtable
-native_w <- grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE)
-native_h <- grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE)
-# Keep current width; height slightly shorter than width (~90%).
-side_in <- 0.8 * max(native_w, native_h)
-disp_w <- side_in * 0.4
-disp_h <- disp_w * 0.9
-dpi <- 220
-pixelratio <- dpi / 72
-css_w <- as.integer(round(native_w * 72))
-css_h <- as.integer(round(native_h * 72))
-display_w <- as.integer(round(disp_w * dpi))
-display_h <- as.integer(round(disp_h * dpi))
-img_tag <- htmltools::plotTag({
-  grid::grid.newpage()
-  grid::grid.draw(gt)
-}, alt = "sample_similarity_heatmap", width = css_w, height = css_h, pixelratio = pixelratio,
-   suppressSize = "xy",
-   attribs = list(
-     width = display_w, height = display_h,
-     style = sprintf("max-width: none !important; width: %dpx; height: %dpx;", display_w, display_h)
-   ))
-
-buttons <- list(
-  deseq2reports::download_grid_plot_button(params$distance_out$similarity_plot, filename = "sample_similarity_heatmap",
-                                           width = native_w, height = native_h)
-)
-if (!is.null(params$distance_out$similarity_matrix)) {
-  buttons <- c(buttons, list(deseq2reports::download_table_button(as.data.frame(params$distance_out$similarity_matrix), filename = "sample_similarity_matrix")))
+```{r pca-assoc-helpers, include=FALSE}
+emit_pca_assoc_heatmap <- function(hm, assoc_df, filename) {
+  if (is.null(hm)) return(invisible(NULL))
+  buttons <- if (is.null(assoc_df)) {
+    list()
+  } else {
+    list(deseq2reports::download_table_button(as.data.frame(assoc_df), filename = filename))
+  }
+  # Shown at its own aspect ratio so the cell text is not squashed, and
+  # allowed to shrink with a narrow report panel.
+  deseq2reports::emit_heatmap_with_download(
+    hm, filename = filename, buttons = buttons,
+    scale = 0.875, responsive = TRUE
+  )
 }
-deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(img_tag, buttons))
+```
+
+```{r pca-assoc-after-tab, results='asis', eval=!is.null(params$distance_out$pca_assoc_plot)}
+cat("\n\n#### ", after_tab, "\n\n", sep = "")
+```
+
+```{r pca-assoc-after, results='asis', eval=!is.null(params$distance_out$pca_assoc_plot)}
+if (pca_has_batch) {
+  cat("\n\nComputed on the **batch-corrected** PC scores (same matrix as the ",
+      "\"", after_tab, "\" PCA tab).\n\n", sep = "")
+} else {
+  cat("\n\nNo batch correction was applied (`batch = NULL`); this heatmap uses the ",
+      "plain VST PCA scores. The \"", before_tab, "\" tab is identical.\n\n", sep = "")
+}
+emit_pca_assoc_heatmap(
+  params$distance_out$pca_assoc_plot,
+  params$distance_out$pca_assoc,
+  "pca_covariate_association"
+)
+```
+
+```{r pca-assoc-before-tab, results='asis', eval=!is.null(params$distance_out$pca_assoc_plot)}
+cat("\n\n#### ", before_tab, "\n\n", sep = "")
+```
+
+```{r pca-assoc-before, results='asis', eval=!is.null(params$distance_out$pca_assoc_plot)}
+assoc_uncorr <- if (pca_has_batch) params$distance_out$pca_assoc_plot_uncorrected else params$distance_out$pca_assoc_plot
+assoc_uncorr_df <- if (pca_has_batch) params$distance_out$pca_assoc_uncorrected else params$distance_out$pca_assoc
+if (pca_has_batch) {
+  cat("\n\nComputed on the **uncorrected** PC scores (same matrix as the ",
+      "\"", before_tab, "\" PCA tab).\n\n", sep = "")
+} else {
+  cat("\n\nNo batch correction was applied; this tab is identical to ",
+      "\"", after_tab, "\".\n\n", sep = "")
+}
+emit_pca_assoc_heatmap(assoc_uncorr, assoc_uncorr_df, "pca_covariate_association_uncorrected")
+```
+
+### Sample similarity (Spearman) {.tabset}
+
+Pairwise Spearman correlation between samples (colour scale spans the actual
+min/max off-diagonal correlation observed in this matrix; darker red = more
+similar, darker blue = less similar). The self-correlation diagonal carries no
+information and is blanked out (dark grey).
+
+```{r sim-helpers, include=FALSE}
+sim_has_combat <- !is.null(params$distance_out$similarity_plot_corrected)
+sim_method <- corr_method
+
+emit_sample_similarity_heatmap <- function(hm, cor_df, filename, table_filename) {
+  if (is.null(hm)) return(invisible(NULL))
+  buttons <- if (is.null(cor_df)) {
+    list()
+  } else {
+    list(deseq2reports::download_table_button(as.data.frame(cor_df), filename = table_filename))
+  }
+  deseq2reports::emit_heatmap_with_download(
+    hm, filename = filename, buttons = buttons, max_width = 10, max_height = 10
+  )
+}
+```
+
+```{r dist-heatmap-after-tab, results='asis'}
+cat("\n\n#### ", after_tab, "\n\n", sep = "")
+```
+
+```{r dist-heatmap-after, results='asis'}
+if (sim_has_combat) {
+  cat("\n\nSpearman correlation after **", sim_method, "** (protecting the ",
+      "biological grouping variable). This is the same corrected matrix used for ",
+      "the PCA above and for the sample-level modules (WGCNA, GSVA, VIPER, ",
+      "decoupleR).\n\n", sep = "")
+  emit_sample_similarity_heatmap(
+    params$distance_out$similarity_plot_corrected,
+    params$distance_out$similarity_matrix_corrected,
+    "sample_similarity_heatmap_batch_corrected",
+    "sample_similarity_matrix_batch_corrected"
+  )
+} else {
+  cat("\n\nNo batch column was supplied (`batch = NULL`); this is the Spearman heatmap ",
+      "on the uncorrected VST matrix. The \"Before (VST)\" tab is identical.\n\n", sep = "")
+  emit_sample_similarity_heatmap(
+    params$distance_out$similarity_plot,
+    params$distance_out$similarity_matrix,
+    "sample_similarity_heatmap",
+    "sample_similarity_matrix"
+  )
+}
+```
+
+```{r dist-heatmap-before-tab, results='asis'}
+cat("\n\n#### ", before_tab, "\n\n", sep = "")
+```
+
+```{r dist-heatmap-before, results='asis'}
+if (sim_has_combat) {
+  cat("\n\nSpearman correlation on the **uncorrected** variance-stabilized matrix ",
+      "(no ", sim_method, ").\n\n", sep = "")
+} else {
+  cat("\n\nNo batch correction was applied; this tab is identical to ",
+      "\"", after_tab, "\".\n\n", sep = "")
+}
+emit_sample_similarity_heatmap(
+  params$distance_out$similarity_plot,
+  params$distance_out$similarity_matrix,
+  "sample_similarity_heatmap",
+  "sample_similarity_matrix"
+)
 ```

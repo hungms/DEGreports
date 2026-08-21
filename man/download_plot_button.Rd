@@ -9,7 +9,11 @@ download_plot_button(
   filename = "plot",
   button_label = "Download PDF",
   width = 7,
-  height = 5
+  height = 5,
+  dpi = 150,
+  widget = NULL,
+  pdf_width = NULL,
+  pdf_height = NULL
 )
 }
 \arguments{
@@ -19,22 +23,37 @@ download_plot_button(
 
 \item{button_label}{Button text. Default \code{"Download PDF"}.}
 
-\item{width, height}{Figure size in inches, passed to \code{ggplot2::ggsave()}.
+\item{width, height}{On-page figure size in inches (the same values
+passed to \code{\link[=capture_plot_tag]{capture_plot_tag()}} / \code{\link[=emit_plot_with_download]{emit_plot_with_download()}}).
 Defaults \code{7}, \code{5}.}
+
+\item{dpi}{Raster dpi used for the HTML \verb{<img>} (default \code{150}, same
+as \code{\link[=capture_plot_tag]{capture_plot_tag()}}). The PDF page is sized so that at 96 CSS
+pixels per inch it matches that on-page box, and the grob is scaled
+to fill it (same aspect ratio and relative layout as the HTML).}
+
+\item{widget}{Optional \code{htmlwidget} (e.g. a \code{plotly} PCA / MA /
+volcano). When supplied, PDF size is taken from the widget's pixel
+width/height so it matches the interactive figure on the page.}
+
+\item{pdf_width, pdf_height}{Optional explicit PDF page size in inches,
+overriding the size derived from the HTML box. Use for figures whose
+on-page shape suits a scrollable web page but not a printable page
+(see \code{\link[=pca_loadings_figure_size]{pca_loadings_figure_size()}}). Default \code{NULL} (match the HTML).}
 }
 \value{
 An \code{htmltools} tag (see \code{\link[=download_table_button]{download_table_button()}}).
 }
 \description{
-Thin wrapper around \code{downloadthis::download_this()} that renders a
-small self-contained "Download plot" button next to any static
-\code{ggplot} figure shown in the bundled HTML report, exporting it as a
-vector PDF at the given size on click. Not applicable to the
-\code{plotly}/\code{DT} \emph{interactive} widgets in the report (MA/volcano plots,
-DEG/GSEA tables) -- those are already exportable via their own
-built-in camera/CSV controls; this is for the static \code{ggplot} figures
-(GSEA barplots, WGCNA diagnostic/heatmap/barplot figures, PCA scree
-and loadings plots, etc).
+Renders a "Download PDF" button next to any static \code{ggplot} figure shown in
+the bundled HTML report. Inside a \code{\link[=render_report]{render_report()}} render the PDF is written
+to the page's asset directory and linked; standalone, it is embedded via
+\code{downloadthis::download_file()} (see \code{.pdf_download_tag()}). The PDF page
+matches the on-page HTML size (see \code{dpi} / \code{widget}). Not applicable to the
+\code{plotly}/\code{DT} \emph{interactive} widgets' built-in camera/CSV controls --
+this is for static \code{ggplot} figures (GSEA barplots, WGCNA figures,
+PCA scree and loadings, etc). For interactive PCA / MA / volcano,
+pass \code{widget} so the PDF matches the plotly canvas.
 }
 \examples{
 \dontrun{

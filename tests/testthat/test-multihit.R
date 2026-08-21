@@ -36,7 +36,7 @@ test_that("rank_multihit_genes_contrast scores DEG + GSEA + TF layers", {
         org = "human"
     )
 
-    decoupler_out <- list(
+    decoupler_tf_out <- list(
         contrast_acts = list(
             A_vs_B = data.frame(
                 source = c("GeneB", "GeneY"),
@@ -48,7 +48,7 @@ test_that("rank_multihit_genes_contrast scores DEG + GSEA + TF layers", {
     )
 
     ranked <- rank_multihit_genes_contrast(
-        "A_vs_B", diffexp_out, gsea_out, viper_out, decoupler_out,
+        "A_vs_B", diffexp_out, gsea_out, viper_out, decoupler_tf_out,
         alpha = 0.05, top_n = 10, org = "human"
     )
     expect_true(nrow(ranked) >= 1L)

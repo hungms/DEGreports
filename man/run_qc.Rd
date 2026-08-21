@@ -32,9 +32,10 @@ library-size plot).}
 percentile-based), \code{"count"}, or \code{NULL} (no expression filtering).
 See Details.}
 
-\item{cpm_percentile}{Fraction (0-1) of the most lowly-expressed genes
-(by mean CPM across samples) to remove. Used only when
-\code{filter_method = "cpm"}. Default \code{0.05} (bottom 5\%).}
+\item{cpm_percentile}{Fraction (0-1) of the \emph{expressed} genes (by mean CPM
+across samples) to remove, on top of the genes with no reads at all. Used
+only when \code{filter_method = "cpm"}. Default \code{0.05} (bottom 5\%); \code{0} removes
+only the unexpressed genes.}
 
 \item{min_count}{Minimum raw count for a sample to count as "expressing"
 a gene. Used only when \code{filter_method = "count"}. Default \code{10}.}
@@ -85,16 +86,18 @@ summary CSV. Returns the filtered \code{dds} object so it can be fed into
 \code{\link[=run_distance_pca]{run_distance_pca()}} and \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}.
 }
 \details{
-Low-expression filtering is off by default (\code{filter_method = NULL}, no
-genes removed for expression). Two filtering strategies are available
-via \code{filter_method}:
+Low-expression filtering is on by default (\code{filter_method = "cpm"}); pass
+\code{filter_method = NULL} to remove no genes for expression. Two filtering
+strategies are available via \code{filter_method}:
 \describe{
-\item{\code{"cpm"}}{a percentile filter: rank genes by mean
-counts-per-million (CPM) across all samples, and remove the bottom
-\code{cpm_percentile} fraction (default \code{0.05}, i.e. the 5\% most lowly
-expressed genes). This adapts automatically to sequencing depth (via
-CPM) without requiring an absolute count threshold to be chosen up
-front.}
+\item{\code{"cpm"}}{drop genes with no reads in any sample, then rank what
+remains by mean counts-per-million (CPM) across all samples and remove
+the bottom \code{cpm_percentile} fraction of \emph{those} (default \code{0.05}). This
+adapts automatically to sequencing depth (via CPM) without requiring an
+absolute count threshold to be chosen up front. The unexpressed genes
+are taken out first because the percentile is otherwise meaningless: a
+full annotation typically leaves half the genes zero everywhere, so the
+quantile lands inside that tie and the filter removes nothing at all.}
 \item{\code{"count"}}{a group-size-aware absolute threshold: keep a gene if,
 in at least one level of \code{var}, at least \code{min_samples_per_group}
 samples of that group have a raw count >= \code{min_count} (default \code{10}).

@@ -12,7 +12,7 @@ run_deseq2_lrt(
   comparisons = NULL,
   include_interactions = FALSE,
   batch = NULL,
-  batch_method = "limma",
+  platform = "rnaseq",
   export_counts = TRUE,
   filter_method = "cpm",
   cpm_percentile = 0.05,
@@ -23,12 +23,8 @@ run_deseq2_lrt(
   mt_pattern = "^MT-|^mt-",
   gene_chr = NULL,
   remove_vdj = NULL,
-  shrinkage = "ashr",
-  alpha = 0.05,
-  lfc_threshold = 0.5,
   ranking = "stat",
-  collections = c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME",
-    "PID"),
+  collections = c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID"),
   pals = NULL,
   shape_var = NULL,
   n_scree_pcs = 10,
@@ -37,19 +33,17 @@ run_deseq2_lrt(
   top_label_n = 5,
   top_n_plot = 10,
   run_clusterprofiler = FALSE,
+  run_gsva = FALSE,
   run_wgcna = FALSE,
-  wgcna_power = NULL,
-  wgcna_min_module_size = 30,
-  run_decoupler = FALSE,
-  decoupler_n_tfs = 25,
+  run_decoupler_tf = FALSE,
+  run_decoupler_ccc = FALSE,
   run_viper = FALSE,
-  viper_n_tfs = 10,
-  run_ppi = TRUE,
-  ppi_top_n_hubs = 10,
   run_cspa = TRUE,
-  cspa_n_markers = 10,
   degpatterns_minc = 15,
   render_html = TRUE,
+  parallel_render = FALSE,
+  render_workers = NULL,
+  use_targets = FALSE,
   save_dir = getwd()
 )
 }
@@ -72,40 +66,37 @@ the \code{var * time} full model against nested reduced models. Default
 \item{batch}{Optional covariate column name(s). Prefixed onto every LRT
 model and never tested.}
 
-\item{batch_method}{Batch-correction method for PCA visualization only:
-\code{"limma"} (default), \code{"combat"}, or \code{"none"}.}
+\item{platform}{Assay platform, \code{"rnaseq"} (default) or \code{"microarray"}.
+Selects how \code{batch} is removed from the expression matrix used by PCA
+and the sample-level modules: \code{sva::ComBat_seq()} on raw counts then
+VST for RNA-seq, \code{sva::ComBat()} on the VST matrix for microarray.
+Both protect \code{var}. Ignored if \code{batch} is \code{NULL}; nothing else about
+the pipeline (the DESeq2 model, gene filtering) changes.}
 
 \item{export_counts}{Logical. If \code{TRUE} (default), also writes raw,
 VST, rlog, and CPM count tables via \code{\link[=run_counts_export]{run_counts_export()}}. If \code{batch}
-is set, a ComBat_seq-corrected raw-count table is written as well
-(protecting \code{var} as the biological signal of interest). These tables
-are independent of the DE model and provided for general downstream
-use.}
+is set, a batch-corrected table is written as well (protecting \code{var}
+as the biological signal of interest). These tables are independent of
+the DE model and provided for general downstream use.}
 
 \item{filter_method}{Low-expression gene-filtering strategy: \code{"cpm"}
 (default, percentile-based), \code{"count"}, or \code{NULL} (no expression
 filtering). See \code{\link[=run_qc]{run_qc()}}.}
 
-\item{cpm_percentile}{Used when \code{filter_method = "cpm"}. See \code{\link[=run_qc]{run_qc()}}.}
+\item{cpm_percentile}{Fraction of the \emph{expressed} genes dropped on top of
+the genes with no reads at all, when \code{filter_method = "cpm"}. See
+\code{\link[=run_qc]{run_qc()}}.}
 
 \item{min_count, min_samples_per_group}{Used when \code{filter_method = "count"}. See \code{\link[=run_qc]{run_qc()}}.}
 
 \item{remove_mt, remove_xy, mt_pattern, gene_chr, remove_vdj}{See \code{\link[=run_qc]{run_qc()}}.}
 
-\item{shrinkage}{LFC shrinkage method, one of \code{"ashr"} (default),
-\code{"apeglm"}, \code{"normal"}, \code{"none"}. See \code{\link[=run_diffexp]{run_diffexp()}}.}
-
-\item{alpha}{Significance threshold (adjusted p-value). Default \code{0.05}.}
-
-\item{lfc_threshold}{Log2 fold-change threshold for significance
-flagging / up-down colouring. Default \code{0.5}.}
-
 \item{ranking}{DEG/GSEA ranking metric: \code{"log2FoldChange"} (default), \code{"padj"},
 \code{"pxfc"}, or \code{"stat"}.}
 
 \item{collections}{MSigDB collections for GSEA: one or more of
-\code{"HALLMARK"}, \code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG_MEDICUS"},
-\code{"KEGG_LEGACY"}, \code{"REACTOME"}, \code{"PID"}. Default \code{c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID")} --
+\code{"HALLMARK"}, \code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG"},
+\code{"REACTOME"}, \code{"PID"}. Default \code{c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID")} --
 \code{"HALLMARK"} remains available but is not forced on by default. GSEA
 runs independently against every requested collection, for every
 comparison. Organism (human/mouse) is auto-detected from gene symbols
@@ -130,67 +121,64 @@ runs a second, independent GSEA pass via \code{clusterProfiler::GSEA()}
 alongside the primary \code{fgsea}-based GSEA, exporting the raw
 \code{clusterProfiler} \code{gseaResult} objects. See \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}.}
 
+\item{run_gsva}{Logical. If \code{TRUE} (default \code{FALSE}), runs sample-level GSVA
+via \code{\link[=run_gsva_pipeline]{run_gsva_pipeline()}} and adds a \strong{GSVA} HTML page (Imports:
+\code{GSVA}). Independent of clusterProfiler / fgsea GSEA. HALLMARK is
+always scored and heatmapped in full. Large collections (GO / KEGG /
+REACTOME / PID) are scored in full (CSV) but the heatmap shows the
+most-associated pathways for the grouping \code{var} (Kruskal–Wallis on
+GSVA scores; variance fallback). GSEA \code{padj} is not used — every set
+is scored, so a significance cutoff would still leave hundreds of rows.}
+
 \item{run_wgcna}{Logical. If \code{TRUE} (default \code{FALSE}), also runs
 weighted gene co-expression network analysis via
 \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}} -- soft-threshold power selection, module
 detection, condition- and sample-level module-trait correlation, hub
 genes, and per-module over-representation analysis against
-\code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG_MEDICUS"}, \code{"KEGG_LEGACY"}, and
+\code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG"}, and
 \code{"REACTOME"}.
 Requires the \code{WGCNA} package. This is a heavier, exploratory
 companion analysis independent of the \code{var}-based differential
 expression comparisons above; it uses every sample's full expression
 profile rather than testing one gene at a time against a design.}
 
-\item{wgcna_power}{Soft-thresholding power for WGCNA. Default \code{NULL}
-auto-selects. Ignored if \code{run_wgcna = FALSE}. See
-\code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}.}
+\item{run_decoupler_tf}{Logical. If \code{TRUE} (default \code{FALSE}), runs
+CollecTRI + ULM TF activity analysis via \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}
+and adds a \strong{decoupleR-TF} HTML page (Imports: \code{decoupleR},
+\code{OmnipathR} for network download when no local prior is present).}
 
-\item{wgcna_min_module_size}{Minimum WGCNA module size. Default \code{30}.
-Ignored if \code{run_wgcna = FALSE}.}
-
-\item{run_decoupler}{Logical. If \code{TRUE} (default \code{FALSE}), runs
-CollecTRI + ULM TF activity analysis via \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}
-and adds a \strong{decoupleR} HTML page. Requires Suggests packages
-\code{decoupleR} and \code{OmnipathR}.}
-
-\item{decoupler_n_tfs}{Number of top TFs shown in the sample heatmap
-and contrast barplots. Default \code{25}. Ignored if \code{run_decoupler = FALSE}.}
+\item{run_decoupler_ccc}{Logical. If \code{TRUE} (default \code{FALSE}), runs
+ligand–receptor (cell–cell communication) ULM via
+\code{\link[=run_decoupler_ccc_pipeline]{run_decoupler_ccc_pipeline()}} and adds a \strong{decoupleR-CCC} hub plus
+one HTML page per comparison. Independent of \code{run_decoupler_tf}.}
 
 \item{run_viper}{Logical. If \code{TRUE} (default \code{FALSE}), runs
 \href{https://califano.c2b2.columbia.edu/viper}{VIPER} / msVIPER with the
 human B-cell regulon from \href{https://bioconductor.org/packages/bcellViper/}{bcellViper}
-via \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} and adds a \strong{VIPER} HTML page. Requires
-Suggests packages \code{viper}, \code{bcellViper}, and (for mouse) \code{babelgene}.}
-
-\item{viper_n_tfs}{Number of top master regulators shown in each
-contrast barcode plot. Default \code{10}. Ignored if \code{run_viper = FALSE}.}
-
-\item{run_ppi}{Logical. If \code{TRUE} (default), runs STRING PPI
-connectivity analysis via \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}} for every DE contrast
-and (when enabled) every WGCNA module, embedding BioNERO-style
-community/hub network plots (plus native STRINGdb PNGs on disk) in
-the DE and WGCNA HTML pages. Requires Suggests packages \code{STRINGdb}
-and \code{igraph} and network access on first run to download STRING
-files. Failures are caught with a warning so the rest of the
-pipeline still finishes.}
-
-\item{ppi_top_n_hubs}{Number of highest-degree genes highlighted per
-PPI plot. Default \code{10}. Ignored if \code{run_ppi = FALSE}.}
+via \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} and adds a \strong{VIPER} HTML page (Imports:
+\code{viper}, \code{bcellViper}, and for mouse \code{babelgene}).}
 
 \item{run_cspa}{Logical. If \code{TRUE} (default), selects top Cell Surface
 Protein Atlas (CSPA) markers among DEGs per contrast and draws
 all-sample VST heatmaps (plus a combined heatmap) via
-\code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}. Requires Suggests package \code{readxl}.}
-
-\item{cspa_n_markers}{Top CSPA genes \strong{per degPatterns cluster} on the
-LRT CSPA heatmap. Default \code{10}.}
+\code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}} (Imports: \code{readxl}).}
 
 \item{degpatterns_minc}{Minimum genes per degPatterns cluster (passed to
 \code{\link[DEGreport:degPatterns]{DEGreport::degPatterns()}}). Default \code{15}.}
 
 \item{render_html}{Logical. If \code{TRUE} (default), renders an HTML summary
 report via \code{\link[=render_report]{render_report()}} after all stages complete.}
+
+\item{parallel_render}{If \code{TRUE}, knit per-contrast HTML pages in
+parallel on Unix (\code{parallel::mclapply()}). Hub pages stay sequential
+in the current R session. Passed to \code{\link[=render_report]{render_report()}}. Default \code{FALSE}.}
+
+\item{render_workers}{Parallel worker count for \code{parallel_render}.
+Default \code{NULL} (auto).}
+
+\item{use_targets}{If \code{TRUE}, render HTML via \code{\link[=render_report_targets]{render_report_targets()}}
+(requires Suggested package \code{targets}) instead of \code{\link[=render_report]{render_report()}}.
+Default \code{FALSE}.}
 
 \item{save_dir}{Directory where all outputs will be written. Default
 \code{getwd()}.}
@@ -212,10 +200,13 @@ Wald contrasts with the nested full/reduced grid from
 Significant LRT genes (\code{padj < alpha}) are clustered with
 \code{DEGreport::degPatterns()} (x = \code{time}, colour = first of \code{var} when
 present). Those clusters drive STRING PPI (top 50 nodes), CSPA heatmaps
-with cluster row annotation, and per-cluster ORA
-(\code{\link[=run_cluster_ora_pipeline]{run_cluster_ora_pipeline()}}). Contrast-level decoupleR / VIPER use the
-\strong{union of all LRT-significant genes} (not clusters), scored by the
-unsigned LRT statistic; directional patterns are read from degPatterns.
+with cluster row annotation, per-cluster ORA
+(\code{\link[=run_cluster_ora_pipeline]{run_cluster_ora_pipeline()}}), and the per-cluster decoupleR / VIPER
+signatures (\code{\link[=lrt_clusters_diffexp_for_tf]{lrt_clusters_diffexp_for_tf()}}), each scored by the unsigned
+LRT statistic of its member genes; directional patterns are read from
+degPatterns. Ligand–receptor ULM is scored twice: once per test over all
+LRT-significant genes, and once per cluster — where a pair only survives
+when both its ligand and its receptor belong to that cluster.
 }
 \examples{
 \dontrun{

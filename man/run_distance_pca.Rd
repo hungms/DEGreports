@@ -8,7 +8,7 @@ run_distance_pca(
   dds,
   var,
   batch = NULL,
-  batch_method = "limma",
+  platform = "rnaseq",
   transform = "vst",
   pals = NULL,
   shape_var = NULL,
@@ -16,6 +16,8 @@ run_distance_pca(
   n_scree_pcs = 10,
   n_loading_pcs = 6,
   n_top_genes = 10,
+  assoc_vars = NULL,
+  n_assoc_pcs = 15,
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -29,9 +31,9 @@ group.}
 \item{batch}{Column name in \code{colData(dds)} to correct for, or \code{NULL}
 (default) to skip batch correction.}
 
-\item{batch_method}{One of \code{"limma"} (\code{limma::removeBatchEffect()}),
-\code{"combat"} (\code{sva::ComBat()}), or \code{"none"}. Ignored if \code{batch} is \code{NULL}.
-Default \code{"limma"}.}
+\item{platform}{Assay platform, \code{"rnaseq"} (default) or \code{"microarray"}.
+Selects \code{sva::ComBat_seq()} on raw counts or \code{sva::ComBat()} on the
+VST matrix. Ignored if \code{batch} is \code{NULL}.}
 
 \item{transform}{One of \code{"vst"} (default, \code{DESeq2::vst()}) or \code{"rlog"}
 (\code{DESeq2::rlog()}) -- the variance-stabilizing transform used for PCA
@@ -56,6 +58,14 @@ loadings plot/CSV. Default \code{6} (capped to the number of PCs available).}
 (i.e. \code{n_top_genes} up + \code{n_top_genes} down = \code{2 * n_top_genes} genes
 per PC, ranked separately by sign). Default \code{10}.}
 
+\item{assoc_vars}{Optional character vector of \code{colData} columns to test
+for association with leading PC scores (e.g. \code{c("condition", "batch")},
+or \code{c("genotype", "time", "batch")} for LRT). Default \code{NULL} uses
+\code{unique(c(var, batch))} when those columns exist.}
+
+\item{n_assoc_pcs}{Number of leading PCs to include in the covariate
+association heatmap. Default \code{15} (capped to PCs available).}
+
 \item{save_dir}{Directory to write outputs to. Default \code{getwd()}.}
 
 \item{save_plot}{Logical. If \code{TRUE}, saves plots as PDF. Default \code{TRUE}.}
@@ -71,29 +81,41 @@ hoverable by sample name), \code{scree_plot} / \code{scree_plot_uncorrected},
 \code{loadings} / \code{loadings_uncorrected} (data frames, genes x PCs),
 \code{top_genes} / \code{top_genes_uncorrected} (data frames of the top
 \code{n_top_genes} genes per PC), \code{top_loadings_plot} /
-\code{top_loadings_plot_uncorrected}, \code{similarity_plot} (square heatmap
-\code{grob}), \code{similarity_matrix} (data frame), and \code{percent_var}. The
-\verb{*_uncorrected} elements are \code{NULL} unless batch correction was applied.
+\code{top_loadings_plot_uncorrected}, \code{pca_assoc} / \code{pca_assoc_plot}
+(PC–covariate association table and heatmap on the primary / corrected
+PCs), \code{pca_assoc_uncorrected} / \code{pca_assoc_plot_uncorrected} (the same
+on uncorrected PCs, or \code{NULL} if no batch correction was applied),
+\code{similarity_plot} / \code{similarity_matrix} (Spearman heatmap and matrix
+on uncorrected VST/rlog), \code{similarity_plot_corrected} /
+\code{similarity_matrix_corrected} (the same after batch correction, or
+\code{NULL} if \code{batch} is \code{NULL}), \code{batch_correction} (\code{"ComBat-seq"},
+\code{"ComBat"}, or \code{"none"}), and \code{percent_var}. The \verb{*_uncorrected} PCA
+elements are \code{NULL} unless batch correction was applied.
 }
 \description{
-Variance-stabilizes the counts, optionally applies batch correction to the
-VST matrix for \emph{visualization only} (the batch term should instead be
-included in the DESeq2 \code{design} for the actual differential expression
-model), then separately renders:
+Variance-stabilizes the counts, optionally applies batch correction for
+\emph{visualization only} (the batch term should instead be included in the
+DESeq2 \code{design} for the actual differential expression model), then
+separately renders:
 \itemize{
-\item a \strong{sample-similarity} heatmap (pairwise Spearman correlation
-between samples in VST/rlog space) -- a square (aspect ratio 1)
-heatmap coloured on a gradient scaled to the \emph{actual} min/max of the
-correlation matrix, plus the underlying correlation matrix as CSV;
+\item \strong{sample-similarity} heatmaps (pairwise Spearman correlation
+between samples) -- uncorrected VST/rlog, and when \code{batch} is set a
+second heatmap after batch correction -- square (aspect ratio 1)
+heatmaps coloured on a gradient scaled to the \emph{actual} min/max of
+each correlation matrix, plus the underlying matrices as CSV;
 \item an interactive (hover-for-sample-name) and a static \strong{PCA}
 scatterplot (PC1 vs PC2, square panel), a scree plot of variance
 explained per PC, and a top-loadings plot/CSV showing the genes that
 contribute most to each of the leading PCs.
 }
-When \code{batch} is set and \code{batch_method != "none"}, the PCA/similarity
-computations use the batch-corrected matrix (visualization only), and an
-additional \emph{uncorrected} PCA plot (interactive + static), scree plot, and
-top-loadings plot/CSV are returned/saved for comparison.
+When \code{batch} is set, PCA uses the batch-corrected matrix -- ComBat-seq on
+raw counts then VST for \code{platform = "rnaseq"}, ComBat on the VST matrix
+for \code{platform = "microarray"} -- and an additional \emph{uncorrected} PCA plot
+(interactive + static), scree plot, top-loadings plot/CSV, and
+PC–covariate association heatmap/CSV are returned/saved for comparison.
+Sample-similarity heatmaps are always computed on \strong{uncorrected VST};
+when \code{batch} is set a second heatmap is computed on the same corrected
+matrix used for PCA and for the sample-level modules (WGCNA, GSVA, ...).
 }
 \examples{
 \dontrun{

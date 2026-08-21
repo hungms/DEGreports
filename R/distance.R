@@ -1,32 +1,37 @@
 #' Run the sample-similarity / PCA stage of the pipeline
 #'
-#' Variance-stabilizes the counts, optionally applies batch correction to the
-#' VST matrix for *visualization only* (the batch term should instead be
-#' included in the DESeq2 `design` for the actual differential expression
-#' model), then separately renders:
+#' Variance-stabilizes the counts, optionally applies batch correction for
+#' *visualization only* (the batch term should instead be included in the
+#' DESeq2 `design` for the actual differential expression model), then
+#' separately renders:
 #' \itemize{
-#'   \item a **sample-similarity** heatmap (pairwise Spearman correlation
-#'     between samples in VST/rlog space) -- a square (aspect ratio 1)
-#'     heatmap coloured on a gradient scaled to the *actual* min/max of the
-#'     correlation matrix, plus the underlying correlation matrix as CSV;
+#'   \item **sample-similarity** heatmaps (pairwise Spearman correlation
+#'     between samples) -- uncorrected VST/rlog, and when `batch` is set a
+#'     second heatmap after batch correction -- square (aspect ratio 1)
+#'     heatmaps coloured on a gradient scaled to the *actual* min/max of
+#'     each correlation matrix, plus the underlying matrices as CSV;
 #'   \item an interactive (hover-for-sample-name) and a static **PCA**
 #'     scatterplot (PC1 vs PC2, square panel), a scree plot of variance
 #'     explained per PC, and a top-loadings plot/CSV showing the genes that
 #'     contribute most to each of the leading PCs.
 #' }
-#' When `batch` is set and `batch_method != "none"`, the PCA/similarity
-#' computations use the batch-corrected matrix (visualization only), and an
-#' additional *uncorrected* PCA plot (interactive + static), scree plot, and
-#' top-loadings plot/CSV are returned/saved for comparison.
+#' When `batch` is set, PCA uses the batch-corrected matrix -- ComBat-seq on
+#' raw counts then VST for `platform = "rnaseq"`, ComBat on the VST matrix
+#' for `platform = "microarray"` -- and an additional *uncorrected* PCA plot
+#' (interactive + static), scree plot, top-loadings plot/CSV, and
+#' PC–covariate association heatmap/CSV are returned/saved for comparison.
+#' Sample-similarity heatmaps are always computed on **uncorrected VST**;
+#' when `batch` is set a second heatmap is computed on the same corrected
+#' matrix used for PCA and for the sample-level modules (WGCNA, GSVA, ...).
 #'
 #' @param dds A `DESeqDataSet` object (typically post-[run_qc()]).
 #' @param var Column name in `colData(dds)` used to colour points/rows by
 #'   group.
 #' @param batch Column name in `colData(dds)` to correct for, or `NULL`
 #'   (default) to skip batch correction.
-#' @param batch_method One of `"limma"` (`limma::removeBatchEffect()`),
-#'   `"combat"` (`sva::ComBat()`), or `"none"`. Ignored if `batch` is `NULL`.
-#'   Default `"limma"`.
+#' @param platform Assay platform, `"rnaseq"` (default) or `"microarray"`.
+#'   Selects `sva::ComBat_seq()` on raw counts or `sva::ComBat()` on the
+#'   VST matrix. Ignored if `batch` is `NULL`.
 #' @param transform One of `"vst"` (default, `DESeq2::vst()`) or `"rlog"`
 #'   (`DESeq2::rlog()`) -- the variance-stabilizing transform used for PCA
 #'   and the similarity heatmap.
@@ -43,6 +48,12 @@
 #'   **negative**-loading genes to show per PC in the loadings plot/CSV
 #'   (i.e. `n_top_genes` up + `n_top_genes` down = `2 * n_top_genes` genes
 #'   per PC, ranked separately by sign). Default `10`.
+#' @param assoc_vars Optional character vector of `colData` columns to test
+#'   for association with leading PC scores (e.g. `c("condition", "batch")`,
+#'   or `c("genotype", "time", "batch")` for LRT). Default `NULL` uses
+#'   `unique(c(var, batch))` when those columns exist.
+#' @param n_assoc_pcs Number of leading PCs to include in the covariate
+#'   association heatmap. Default `15` (capped to PCs available).
 #' @param save_dir Directory to write outputs to. Default `getwd()`.
 #' @param save_plot Logical. If `TRUE`, saves plots as PDF. Default `TRUE`.
 #' @return A list with elements `dds` (unmodified, returned for chaining),
@@ -55,9 +66,16 @@
 #'   `loadings` / `loadings_uncorrected` (data frames, genes x PCs),
 #'   `top_genes` / `top_genes_uncorrected` (data frames of the top
 #'   `n_top_genes` genes per PC), `top_loadings_plot` /
-#'   `top_loadings_plot_uncorrected`, `similarity_plot` (square heatmap
-#'   `grob`), `similarity_matrix` (data frame), and `percent_var`. The
-#'   `*_uncorrected` elements are `NULL` unless batch correction was applied.
+#'   `top_loadings_plot_uncorrected`, `pca_assoc` / `pca_assoc_plot`
+#'   (PC–covariate association table and heatmap on the primary / corrected
+#'   PCs), `pca_assoc_uncorrected` / `pca_assoc_plot_uncorrected` (the same
+#'   on uncorrected PCs, or `NULL` if no batch correction was applied),
+#'   `similarity_plot` / `similarity_matrix` (Spearman heatmap and matrix
+#'   on uncorrected VST/rlog), `similarity_plot_corrected` /
+#'   `similarity_matrix_corrected` (the same after batch correction, or
+#'   `NULL` if `batch` is `NULL`), `batch_correction` (`"ComBat-seq"`,
+#'   `"ComBat"`, or `"none"`), and `percent_var`. The `*_uncorrected` PCA
+#'   elements are `NULL` unless batch correction was applied.
 #' @examples
 #' \dontrun{
 #' out <- run_distance_pca(dds, var = "condition", batch = "batch")
@@ -67,7 +85,7 @@ run_distance_pca <- function(
     dds,
     var,
     batch = NULL,
-    batch_method = "limma",
+    platform = "rnaseq",
     transform = "vst",
     pals = NULL,
     shape_var = NULL,
@@ -75,13 +93,15 @@ run_distance_pca <- function(
     n_scree_pcs = 10,
     n_loading_pcs = 6,
     n_top_genes = 10,
+    assoc_vars = NULL,
+    n_assoc_pcs = 15,
     save_dir = getwd(),
     save_plot = TRUE) {
 
     dds <- validate_dds(dds)
     dds <- validate_var(dds, var)
     if (!is.null(batch)) dds <- validate_batch(dds, batch)
-    batch_method <- validate_batch_method(batch_method)
+    platform <- validate_platform(platform)
     if (!is.null(pals)) pals <- validate_pals(dds, var, pals)
     validate_logical(save_plot, "save_plot")
     save_dir <- validate_save_dir(save_dir)
@@ -89,18 +109,29 @@ run_distance_pca <- function(
         stop("`transform` must be \"vst\" or \"rlog\".", call. = FALSE)
     }
 
-    vsd <- if (transform == "vst") {
-        safe_vst(dds, blind = TRUE)
-    } else {
-        DESeq2::rlog(dds, blind = TRUE)
-    }
-    mat <- SummarizedExperiment::assay(vsd)
+    mat <- transformed_matrix(dds, transform = transform)
 
-    batch_corrected <- !is.null(batch) && batch_method != "none"
+    batch_corrected <- !is.null(batch)
     mat_primary <- mat
+    mat_corrected <- NULL
+    correction_label <- "none"
     if (batch_corrected) {
-        mat_primary <- apply_batch_correction(mat, SummarizedExperiment::colData(dds), batch, batch_method)
+        correction_label <- batch_correction_label(.expr_correction_label(platform))
+        message("Batch correction for PCA / sample similarity: ", correction_label,
+                " (batch = \"", batch, "\", protecting \"", var, "\")...")
+        mat_corrected <- batch_corrected_matrix(
+            dds, batch = batch, var = var, platform = platform,
+            transform = transform
+        )
+        mat_primary <- mat_corrected
     }
+
+    # Name the method rather than saying "batch correction", so a reader can
+    # tell a ComBat-seq figure from a ComBat one without checking the log. The
+    # uncorrected side is the same VST matrix either way, so it stays generic;
+    # both must match report_qc.Rmd's tab labels, which its prose references.
+    after_title <- paste0("After ", correction_label)
+    before_title <- "Before batch correction"
 
     coldata_df <- as.data.frame(SummarizedExperiment::colData(dds))
     coldata_df$sample <- rownames(coldata_df)
@@ -117,22 +148,23 @@ run_distance_pca <- function(
     loadings_df_uncorrected <- NULL
     top_genes_df_uncorrected <- NULL
     top_loadings_plot_uncorrected <- NULL
+    pca_df_raw <- NULL
     if (batch_corrected) {
         pca_result_raw <- compute_pca(mat, ntop = ntop)
         pca_df_raw <- pca_scores_df(pca_result_raw, coldata_df)
         percent_var_raw <- round(100 * pca_result_raw$sdev^2 / sum(pca_result_raw$sdev^2), 1)
         pca_plot_uncorrected <- plot_pca(pca_df_raw, var = var, shape_var = shape_var, pals = pals,
                                           percent_var = percent_var_raw) +
-            ggplot2::ggtitle("Before batch correction")
-        pca_plot <- pca_plot + ggplot2::ggtitle("After batch correction")
+            ggplot2::ggtitle(before_title)
+        pca_plot <- pca_plot + ggplot2::ggtitle(after_title)
 
         scree_plot_uncorrected <- plot_pca_scree(percent_var_raw, n_pcs = n_scree_pcs) +
-            ggplot2::ggtitle("Before batch correction")
+            ggplot2::ggtitle(before_title)
         loadings_df_uncorrected <- compute_pca_loadings(pca_result_raw)
         top_genes_df_uncorrected <- top_genes_per_pc(loadings_df_uncorrected,
                                                        n_pcs = n_loading_pcs, n_top = n_top_genes)
         top_loadings_plot_uncorrected <- plot_pca_top_loadings(top_genes_df_uncorrected) +
-            ggplot2::ggtitle("Before batch correction")
+            ggplot2::ggtitle(before_title)
     }
 
     # Interactive (hover-for-sample-name) versions of the PCA scatterplots.
@@ -146,19 +178,59 @@ run_distance_pca <- function(
     }
 
     scree_plot <- plot_pca_scree(percent_var, n_pcs = n_scree_pcs)
-    if (batch_corrected) scree_plot <- scree_plot + ggplot2::ggtitle("After batch correction")
+    if (batch_corrected) scree_plot <- scree_plot + ggplot2::ggtitle(after_title)
 
     loadings_df <- compute_pca_loadings(pca_result)
     top_genes_df <- top_genes_per_pc(loadings_df, n_pcs = n_loading_pcs, n_top = n_top_genes)
     top_loadings_plot <- plot_pca_top_loadings(top_genes_df)
-    if (batch_corrected) top_loadings_plot <- top_loadings_plot + ggplot2::ggtitle("After batch correction")
+    if (batch_corrected) top_loadings_plot <- top_loadings_plot + ggplot2::ggtitle(after_title)
 
-    # --- Sample similarity (Spearman correlation) ---------------------------
-    similarity_plot <- plot_sample_similarity(mat_primary, dds, var = var)
-    cor_mat <- attr(similarity_plot, "cor_matrix")
-    cor_df <- as.data.frame(cor_mat)
-    cor_df$sample <- rownames(cor_df)
-    cor_df <- cor_df[, c("sample", setdiff(colnames(cor_df), "sample"))]
+    # --- PC–covariate association (top PCs vs batch / var / time) -----------
+    if (is.null(assoc_vars)) {
+        assoc_vars <- unique(c(var, batch))
+    }
+    assoc_vars <- unique(as.character(assoc_vars))
+    assoc_vars <- assoc_vars[!is.na(assoc_vars) & nzchar(assoc_vars)]
+    assoc_vars <- intersect(assoc_vars, colnames(coldata_df))
+    pca_assoc <- NULL
+    pca_assoc_plot <- NULL
+    pca_assoc_uncorrected <- NULL
+    pca_assoc_plot_uncorrected <- NULL
+    if (length(assoc_vars)) {
+        pca_assoc <- pca_covariate_association(
+            pca_df, assoc_vars = assoc_vars, n_pcs = n_assoc_pcs
+        )
+        pca_assoc_plot <- plot_pca_covariate_heatmap(
+            pca_assoc,
+            title = if (batch_corrected) {
+                paste0("-log10(p) PC\u2013covariate association (after ", correction_label, ")")
+            } else {
+                NULL
+            }
+        )
+        if (batch_corrected && !is.null(pca_df_raw)) {
+            pca_assoc_uncorrected <- pca_covariate_association(
+                pca_df_raw, assoc_vars = assoc_vars, n_pcs = n_assoc_pcs
+            )
+            pca_assoc_plot_uncorrected <- plot_pca_covariate_heatmap(
+                pca_assoc_uncorrected,
+                title = "-log10(p) PC\u2013covariate association (before batch correction)"
+            )
+        }
+    }
+
+    # --- Sample similarity (Spearman): uncorrected VST, then corrected ------
+    # Reuses `mat_corrected` from the PCA step: correcting twice would run
+    # ComBat(-seq) a second time for an identical matrix.
+    similarity_plot <- plot_sample_similarity(mat, dds, var = var)
+    cor_df <- similarity_cor_df(similarity_plot)
+
+    similarity_plot_corrected <- NULL
+    cor_df_corrected <- NULL
+    if (!is.null(mat_corrected)) {
+        similarity_plot_corrected <- plot_sample_similarity(mat_corrected, dds, var = var)
+        cor_df_corrected <- similarity_cor_df(similarity_plot_corrected)
+    }
 
     if (save_plot) {
         save_ggplot(pca_plot, file.path(save_dir, "pca_plot.pdf"), width = 7.5, height = 7.5)
@@ -167,17 +239,46 @@ run_distance_pca <- function(
                         width = 7.5, height = 7.5)
         }
         save_ggplot(scree_plot, file.path(save_dir, "pca_scree.pdf"), width = 6, height = 4.5)
+        loadings_sz <- pca_loadings_figure_size()
         save_ggplot(top_loadings_plot, file.path(save_dir, "pca_top_loadings.pdf"),
-                    width = 12, height = 6)
+                    width = loadings_sz$pdf_width, height = loadings_sz$pdf_height)
         if (!is.null(scree_plot_uncorrected)) {
             save_ggplot(scree_plot_uncorrected, file.path(save_dir, "pca_scree_uncorrected.pdf"),
                         width = 6, height = 4.5)
         }
         if (!is.null(top_loadings_plot_uncorrected)) {
             save_ggplot(top_loadings_plot_uncorrected,
-                        file.path(save_dir, "pca_top_loadings_uncorrected.pdf"), width = 12, height = 6)
+                        file.path(save_dir, "pca_top_loadings_uncorrected.pdf"),
+                        width = loadings_sz$pdf_width, height = loadings_sz$pdf_height)
+        }
+        if (!is.null(pca_assoc_plot)) {
+            n_cov <- max(1L, length(assoc_vars))
+            n_pc_show <- max(1L, min(n_assoc_pcs, sum(grepl("^PC[0-9]+$", colnames(pca_df)))))
+            # 30% smaller than the original footprint.
+            assoc_w <- 0.7 * max(4, 0.55 * n_pc_show + 2)
+            assoc_h <- 0.7 * max(2.5, 0.45 * n_cov + 1.5)
+            save_pheatmap(
+                pca_assoc_plot,
+                file.path(save_dir, "pca_covariate_association.pdf"),
+                width = assoc_w,
+                height = assoc_h
+            )
+            if (!is.null(pca_assoc_plot_uncorrected)) {
+                save_pheatmap(
+                    pca_assoc_plot_uncorrected,
+                    file.path(save_dir, "pca_covariate_association_uncorrected.pdf"),
+                    width = assoc_w,
+                    height = assoc_h
+                )
+            }
         }
         save_pheatmap(similarity_plot, file.path(save_dir, "sample_similarity_heatmap.pdf"))
+        if (!is.null(similarity_plot_corrected)) {
+            save_pheatmap(
+                similarity_plot_corrected,
+                file.path(save_dir, "sample_similarity_heatmap_batch_corrected.pdf")
+            )
+        }
     }
     write_output(pca_df, file.path(save_dir, "pca_coordinates.csv"), format = "csv")
     write_output(loadings_df, file.path(save_dir, "pca_loadings.csv"), format = "csv")
@@ -188,7 +289,24 @@ run_distance_pca <- function(
         write_output(top_genes_df_uncorrected, file.path(save_dir, "pca_top_genes_per_pc_uncorrected.csv"),
                      format = "csv")
     }
+    if (!is.null(pca_assoc)) {
+        write_output(pca_assoc, file.path(save_dir, "pca_covariate_association.csv"), format = "csv")
+    }
+    if (!is.null(pca_assoc_uncorrected)) {
+        write_output(
+            pca_assoc_uncorrected,
+            file.path(save_dir, "pca_covariate_association_uncorrected.csv"),
+            format = "csv"
+        )
+    }
     write_output(cor_df, file.path(save_dir, "sample_similarity_matrix.csv"), format = "csv")
+    if (!is.null(cor_df_corrected)) {
+        write_output(
+            cor_df_corrected,
+            file.path(save_dir, "sample_similarity_matrix_batch_corrected.csv"),
+            format = "csv"
+        )
+    }
 
     list(
         dds = dds,
@@ -205,8 +323,15 @@ run_distance_pca <- function(
         top_genes_uncorrected = top_genes_df_uncorrected,
         top_loadings_plot = top_loadings_plot,
         top_loadings_plot_uncorrected = top_loadings_plot_uncorrected,
+        pca_assoc = pca_assoc,
+        pca_assoc_plot = pca_assoc_plot,
+        pca_assoc_uncorrected = pca_assoc_uncorrected,
+        pca_assoc_plot_uncorrected = pca_assoc_plot_uncorrected,
         similarity_plot = similarity_plot,
         similarity_matrix = cor_df,
+        similarity_plot_corrected = similarity_plot_corrected,
+        similarity_matrix_corrected = cor_df_corrected,
+        batch_correction = correction_label,
         percent_var = percent_var
     )
 }
@@ -223,22 +348,179 @@ pca_scores_df <- function(pca_result, coldata_df) {
     merge(pca_df, coldata_df, by = "sample")
 }
 
-#' Apply batch correction to a VST/rlog expression matrix for visualization
-#' @param mat Numeric matrix, genes x samples.
-#' @param coldata `DataFrame`/data.frame of sample metadata.
-#' @param batch Batch column name.
-#' @param method `"limma"` or `"combat"`.
-#' @return The batch-corrected matrix.
+#' Spearman correlation matrix attached to a similarity heatmap, as a data frame
+#' @param similarity_plot Result of [plot_sample_similarity()].
+#' @return Data frame with a leading `sample` column.
 #' @noRd
-apply_batch_correction <- function(mat, coldata, batch, method) {
-    batch_factor <- factor(as.data.frame(coldata)[[batch]])
-    if (method == "limma") {
-        limma::removeBatchEffect(mat, batch = batch_factor)
-    } else if (method == "combat") {
-        sva::ComBat(dat = mat, batch = batch_factor, par.prior = TRUE, mean.only = FALSE)
+similarity_cor_df <- function(similarity_plot) {
+    cor_mat <- attr(similarity_plot, "cor_matrix")
+    cor_df <- as.data.frame(cor_mat, check.names = FALSE)
+    cor_df$sample <- rownames(cor_df)
+    cor_df[, c("sample", setdiff(colnames(cor_df), "sample")), drop = FALSE]
+}
+
+#' Variance-stabilized expression, no batch correction
+#' @param dds A `DESeqDataSet`.
+#' @param transform `"vst"` or `"rlog"`.
+#' @return Genes × samples numeric matrix.
+#' @noRd
+transformed_matrix <- function(dds, transform = "vst") {
+    vsd <- if (identical(transform, "rlog")) {
+        DESeq2::rlog(dds, blind = TRUE)
     } else {
-        mat
+        safe_vst(dds, blind = TRUE)
     }
+    as.matrix(SummarizedExperiment::assay(vsd))
+}
+
+#' ComBat (microarray) on a VST/rlog matrix, protecting the biological group
+#'
+#' The RNA-seq counterpart ([combat_seq_transformed_matrix()]) protects the
+#' group of interest via `ComBat_seq(group = )`; the equivalent for
+#' `sva::ComBat()` is a design matrix passed as `mod`. That fails when the
+#' group is confounded with batch, so fall back to a batch-only fit rather
+#' than aborting the run.
+#' @param dds A `DESeqDataSet`.
+#' @param batch Batch column name in `colData(dds)`.
+#' @param var Biological group column protected by ComBat.
+#' @param transform `"vst"` or `"rlog"`.
+#' @return Genes × samples numeric matrix.
+#' @noRd
+combat_transformed_matrix <- function(dds, batch, var, transform = "vst") {
+    mat <- transformed_matrix(dds, transform = transform)
+    coldata <- as.data.frame(SummarizedExperiment::colData(dds))
+    batch_factor <- factor(coldata[[batch]])
+    group_factor <- factor(coldata[[var]])
+    mod <- NULL
+    if (nlevels(group_factor) > 1L) {
+        mod <- stats::model.matrix(~group_factor)
+    }
+    corrected <- NULL
+    if (!is.null(mod)) {
+        corrected <- tryCatch(
+            quiet(sva::ComBat(dat = mat, batch = batch_factor, mod = mod,
+                              par.prior = TRUE, mean.only = FALSE)),
+            error = function(e) {
+                warning("ComBat could not protect \"", var, "\" (",
+                        conditionMessage(e),
+                        "); correcting for batch only.", call. = FALSE)
+                NULL
+            }
+        )
+    }
+    if (is.null(corrected)) {
+        corrected <- quiet(sva::ComBat(dat = mat, batch = batch_factor,
+                                       par.prior = TRUE, mean.only = FALSE))
+    }
+    dimnames(corrected) <- dimnames(mat)
+    as.matrix(corrected)
+}
+
+#' ComBat-seq on raw counts, then VST/rlog for visualization
+#' @param dds A `DESeqDataSet`.
+#' @param batch Batch column name in `colData(dds)`.
+#' @param var Biological group column protected by ComBat-seq.
+#' @param transform `"vst"` or `"rlog"`.
+#' @return Genes × samples numeric matrix.
+#' @noRd
+combat_seq_transformed_matrix <- function(dds, batch, var, transform = "vst") {
+    raw_counts <- DESeq2::counts(dds, normalized = FALSE)
+    coldata <- SummarizedExperiment::colData(dds)
+    combat_mat <- quiet(sva::ComBat_seq(
+        counts = as.matrix(raw_counts),
+        batch = coldata[[batch]],
+        group = coldata[[var]]
+    ))
+    combat_int <- pmax(round(combat_mat), 0)
+    storage.mode(combat_int) <- "integer"
+    dimnames(combat_int) <- dimnames(raw_counts)
+    dds_c <- DESeq2::DESeqDataSetFromMatrix(
+        countData = combat_int,
+        colData = as.data.frame(coldata),
+        design = ~1
+    )
+    vsd <- if (identical(transform, "rlog")) {
+        DESeq2::rlog(dds_c, blind = TRUE)
+    } else {
+        safe_vst(dds_c, blind = TRUE)
+    }
+    SummarizedExperiment::assay(vsd)
+}
+
+#' Batch-corrected expression matrix for the given assay platform
+#'
+#' The single place that decides *how* `batch` is removed. RNA-seq goes
+#' through ComBat-seq on raw counts (then VST); microarray goes through
+#' ComBat on the VST matrix. PCA, the QC similarity heatmap, and every
+#' sample-level module ([sample_level_expr_matrix()]) share this so the
+#' report never shows one correction while a module used another.
+#'
+#' @param dds A `DESeqDataSet`.
+#' @param batch Batch column name in `colData(dds)`.
+#' @param var Biological group column to protect.
+#' @param platform `"rnaseq"` or `"microarray"`.
+#' @param transform `"vst"` or `"rlog"`.
+#' @return Genes × samples numeric matrix, with an `expr_correction`
+#'   attribute of `"combat_seq_vst"` or `"combat_vst"`.
+#' @noRd
+batch_corrected_matrix <- function(dds, batch, var, platform = "rnaseq",
+                                   transform = "vst") {
+    platform <- validate_platform(platform)
+    mat <- if (identical(platform, "microarray")) {
+        combat_transformed_matrix(dds, batch = batch, var = var,
+                                  transform = transform)
+    } else {
+        combat_seq_transformed_matrix(dds, batch = batch, var = var,
+                                      transform = transform)
+    }
+    mat <- as.matrix(mat)
+    attr(mat, "expr_correction") <- .expr_correction_label(platform)
+    mat
+}
+
+#' `expr_correction` tag for a platform's batch correction
+#' @noRd
+.expr_correction_label <- function(platform) {
+    if (identical(platform, "microarray")) "combat_vst" else "combat_seq_vst"
+}
+
+#' Name the batch-correction method behind an expression matrix
+#'
+#' Both of these turn the `expr_correction` tag carried by module outputs
+#' (`"vst"`, `"combat_seq_vst"`, `"combat_vst"`, or `NA`) into prose, so the
+#' HTML report can describe what a module actually scored without
+#' re-deriving it from `platform` and `batch`.
+#'
+#' @param expr_correction The `expr_correction` element of a module output
+#'   (e.g. `wgcna_out$expr_correction`), or the attribute of the same name
+#'   on a sample-level expression matrix.
+#' @return `batch_correction_label()` returns the method name (`"ComBat-seq"`,
+#'   `"ComBat"`, or `"none"`); `expr_correction_label()` returns the full
+#'   transform description (`"ComBat-seq then VST"`, `"ComBat on VST"`, or
+#'   `"blind VST"`).
+#' @examples
+#' batch_correction_label("combat_seq_vst")
+#' expr_correction_label("combat_vst")
+#' expr_correction_label("vst")
+#' @export
+batch_correction_label <- function(expr_correction) {
+    switch(
+        as.character(expr_correction)[1L],
+        combat_vst = "ComBat",
+        combat_seq_vst = "ComBat-seq",
+        "none"
+    )
+}
+
+#' @rdname batch_correction_label
+#' @export
+expr_correction_label <- function(expr_correction) {
+    switch(
+        as.character(expr_correction)[1L],
+        combat_vst = "ComBat on VST",
+        combat_seq_vst = "ComBat-seq then VST",
+        "blind VST"
+    )
 }
 
 #' Compute PCA on the top-variance genes of an expression matrix
@@ -739,6 +1021,158 @@ plot_pca_scree <- function(percent_var, n_pcs = 10) {
         ggplot2::xlab(NULL)
 }
 
+#' Associate leading PC scores with sample covariates
+#'
+#' For each of the first `n_pcs` principal components and each column in
+#' `assoc_vars`, computes a p-value for association (ANOVA / linear model
+#' for factors; Pearson correlation for numeric covariates). Returns a long
+#' table including `-log10(p)` for heatmap display.
+#'
+#' @param pca_df Data frame of PC scores merged with sample metadata (as
+#'   returned in `run_distance_pca()$pca`).
+#' @param assoc_vars Character vector of metadata column names present in
+#'   `pca_df`.
+#' @param n_pcs Number of leading PCs to test. Default `15`.
+#' @return A data frame with columns `pc`, `covariate`, `p_value`,
+#'   `neglog10_p`, and `r2` (model / correlation R-squared).
+#' @export
+pca_covariate_association <- function(pca_df, assoc_vars, n_pcs = 15) {
+    if (!is.data.frame(pca_df)) {
+        stop("`pca_df` must be a data frame.", call. = FALSE)
+    }
+    pc_cols <- grep("^PC[0-9]+$", colnames(pca_df), value = TRUE)
+    if (!length(pc_cols)) {
+        stop("`pca_df` has no PC score columns (expected names like PC1, PC2, ...).",
+             call. = FALSE)
+    }
+    pc_idx <- as.integer(sub("^PC", "", pc_cols))
+    ord <- order(pc_idx)
+    pc_cols <- pc_cols[ord]
+    n_pcs <- min(as.integer(n_pcs), length(pc_cols))
+    pc_cols <- pc_cols[seq_len(n_pcs)]
+
+    assoc_vars <- unique(as.character(assoc_vars))
+    assoc_vars <- assoc_vars[assoc_vars %in% colnames(pca_df)]
+    if (!length(assoc_vars)) {
+        stop("None of `assoc_vars` are columns of `pca_df`.", call. = FALSE)
+    }
+
+    rows <- list()
+    for (covar in assoc_vars) {
+        x <- pca_df[[covar]]
+        for (pc in pc_cols) {
+            y <- as.numeric(pca_df[[pc]])
+            ok <- !is.na(y) & !is.na(x)
+            y_ok <- y[ok]
+            x_ok <- x[ok]
+            p_val <- NA_real_
+            r2 <- NA_real_
+            if (length(unique(x_ok)) >= 2L && length(y_ok) >= 3L) {
+                if (is.numeric(x_ok) && !is.factor(x)) {
+                    ct <- suppressWarnings(stats::cor.test(x_ok, y_ok, method = "pearson"))
+                    p_val <- ct$p.value
+                    r2 <- as.numeric(ct$estimate)^2
+                } else {
+                    x_f <- factor(x_ok)
+                    if (nlevels(x_f) >= 2L) {
+                        fit <- stats::lm(y_ok ~ x_f)
+                        aov_tab <- stats::anova(fit)
+                        p_val <- aov_tab[["Pr(>F)"]][1]
+                        r2 <- summary(fit)$r.squared
+                    }
+                }
+            }
+            neglog <- if (is.na(p_val) || p_val <= 0) {
+                NA_real_
+            } else {
+                -log10(p_val)
+            }
+            rows[[length(rows) + 1L]] <- data.frame(
+                pc = pc,
+                covariate = covar,
+                p_value = p_val,
+                neglog10_p = neglog,
+                r2 = r2,
+                stringsAsFactors = FALSE
+            )
+        }
+    }
+    out <- do.call(rbind, rows)
+    rownames(out) <- NULL
+    out$pc <- factor(out$pc, levels = pc_cols)
+    out$covariate <- factor(out$covariate, levels = assoc_vars)
+    out
+}
+
+#' Heatmap of PC–covariate association strength (`-log10(p)`)
+#'
+#' @param assoc_df Data frame from [pca_covariate_association()].
+#' @param p_cutoff Significance threshold used to annotate cells (default
+#'   `0.05`). Cells with `p < p_cutoff` show the `-log10(p)` value.
+#' @param title Optional plot title. Default `NULL` uses
+#'   `-log10(p) PC–covariate association`.
+#' @return A `pheatmap` object (`silent = TRUE`).
+#' @export
+plot_pca_covariate_heatmap <- function(assoc_df, p_cutoff = 0.05, title = NULL) {
+    if (!is.data.frame(assoc_df) || !nrow(assoc_df)) {
+        stop("`assoc_df` must be a non-empty data frame from pca_covariate_association().",
+             call. = FALSE)
+    }
+    req <- c("pc", "covariate", "neglog10_p", "p_value")
+    missing <- setdiff(req, colnames(assoc_df))
+    if (length(missing)) {
+        stop("`assoc_df` is missing column(s): ", paste(missing, collapse = ", "),
+             call. = FALSE)
+    }
+
+    pcs <- levels(factor(assoc_df$pc))
+    covars <- levels(factor(assoc_df$covariate))
+    mat <- matrix(NA_real_, nrow = length(covars), ncol = length(pcs),
+                  dimnames = list(covars, pcs))
+    label_mat <- matrix("", nrow = length(covars), ncol = length(pcs),
+                        dimnames = list(covars, pcs))
+    for (i in seq_len(nrow(assoc_df))) {
+        r <- as.character(assoc_df$covariate[i])
+        c <- as.character(assoc_df$pc[i])
+        val <- assoc_df$neglog10_p[i]
+        mat[r, c] <- if (is.na(val)) 0 else val
+        if (!is.na(assoc_df$p_value[i]) && assoc_df$p_value[i] < p_cutoff) {
+            label_mat[r, c] <- sprintf("%.1f", val)
+        }
+    }
+
+    colours <- grDevices::colorRampPalette(c("#F7F7F7", "#FDBB84", "#B30000"))(100)
+    hi <- max(mat, na.rm = TRUE)
+    if (!is.finite(hi) || hi <= 0) hi <- 1
+    breaks <- seq(0, hi, length.out = length(colours) + 1)
+
+    # Short, wide cells so the heatmap is compact without CSS-stretching
+    # (which squashed titles, axis labels, and cell numbers).
+    pheatmap::pheatmap(
+        mat,
+        cluster_rows = FALSE,
+        cluster_cols = FALSE,
+        color = colours,
+        breaks = breaks,
+        display_numbers = label_mat,
+        number_color = "black",
+        fontsize = 10,
+        fontsize_number = 8,
+        fontsize_row = 10,
+        fontsize_col = 10,
+        cellwidth = 22,
+        cellheight = 12,
+        treeheight_row = 0,
+        treeheight_col = 0,
+        main = if (is.null(title) || !nzchar(as.character(title)[1])) {
+            expression(-log[10](p) ~ "PC–covariate association")
+        } else {
+            as.character(title)[1]
+        },
+        silent = TRUE
+    )
+}
+
 #' Extract per-gene PCA loadings (rotation matrix) as a tidy data frame
 #' @param pca_result Result of `compute_pca()` (a `stats::prcomp` object).
 #' @return A data frame with column `gene` plus one column per PC
@@ -800,6 +1234,13 @@ top_genes_per_pc <- function(loadings_df, n_pcs = 6, n_top = 10) {
 #' @return A `ggplot` object: one facet per PC, genes on the x-axis
 #'   (ordered by loading), loading value on the y-axis, coloured by
 #'   direction (up/down).
+#' @details
+#' Exempt from the package's [square_panel_theme()] convention: each facet
+#' carries `2 * n_top_genes` rotated gene labels, and a square panel caps its
+#' width at the (much smaller) available panel height, crushing those labels
+#' into an unreadable band no matter how wide the figure is drawn. Letting the
+#' panels fill the box means [pca_loadings_figure_size()]'s width sets the
+#' per-label spacing.
 #' @export
 plot_pca_top_loadings <- function(top_genes_df) {
     top_genes_df$sign <- ifelse(top_genes_df$loading >= 0, "positive", "negative")
@@ -814,37 +1255,53 @@ plot_pca_top_loadings <- function(top_genes_df) {
         ggplot2::scale_fill_manual(values = c(positive = "#de2d26", negative = "#3182bd")) +
         ggplot2::facet_wrap(~pc, scales = "free") +
         ggplot2::theme_bw(base_size = 11) +
-        square_panel_theme() +
         ggplot2::theme(legend.position = "none",
                         axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5)) +
         ggplot2::xlab(NULL) +
         ggplot2::ylab("Loading")
 }
 
+#' Figure size for the top PCA loadings plot
+#'
+#' Shared by [run_distance_pca()] (the `pca_top_loadings*.pdf` files it
+#' writes) and `report_qc.Rmd` (the on-page figure and its "Download PDF"
+#' button), so the report and the saved file agree.
+#'
+#' The HTML box is landscape: gene labels are rotated 90 degrees, so horizontal
+#' room is what separates them. It is sized to sit within the report's content
+#' column rather than to spread the labels as far apart as possible -- the
+#' download is the readable copy. That PDF is portrait instead, since a page
+#' cannot scroll sideways: narrower, with the height needed to keep the labels
+#' from colliding at that reduced panel width.
+#'
+#' @return A named list of inches: `width`/`height` for the on-page HTML
+#'   figure, `pdf_width`/`pdf_height` for the PDF page.
+#' @export
+pca_loadings_figure_size <- function() {
+    list(width = 7.2, height = 3.6, pdf_width = 9, pdf_height = 12)
+}
+
 #' Save a pheatmap grob to PDF
 #'
-#' By default, sizes the PDF device to the gtable's own physical size (as
-#' computed by `pheatmap`/`grid`), so panels built with a fixed
-#' `cellwidth`/`cellheight` (e.g. via `pheatmap_cell_size()`) render at
-#' their intended size without clipping or added whitespace. Pass explicit
-#' `width`/`height` to override.
+#' By default, sizes the PDF device with [gtable_page_size()], which builds the
+#' page from the heatmap's fixed furniture plus one cell per row and column.
+#' Measuring `sum(gt$widths)` instead would be circular: a `pheatmap` gtable's
+#' matrix row and column are `npc`, so they report back whatever device is
+#' current. Pass explicit `width`/`height` to override.
 #'
 #' @param heatmap_grob A `pheatmap` object (as returned by [plot_sample_similarity()]).
 #' @param path Output file path.
 #' @param width,height Plot dimensions in inches, or `NULL` (default) to
-#'   auto-size from the gtable.
+#'   auto-size from the gtable's contents.
 #' @return Invisibly, `path`.
 #' @noRd
 save_pheatmap <- function(heatmap_grob, path, width = NULL, height = NULL) {
     dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
     gt <- heatmap_grob$gtable
     if (is.null(width) || is.null(height)) {
-        grDevices::pdf(NULL)
-        auto_w <- grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE)
-        auto_h <- grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE)
-        grDevices::dev.off()
-        if (is.null(width)) width <- auto_w
-        if (is.null(height)) height <- auto_h
+        auto <- gtable_page_size(heatmap_grob)
+        if (is.null(width)) width <- auto$width
+        if (is.null(height)) height <- auto$height
     }
     grDevices::pdf(path, width = width, height = height)
     grid::grid.newpage()

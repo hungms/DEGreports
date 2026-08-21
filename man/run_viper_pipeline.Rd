@@ -5,31 +5,36 @@
 \title{Run VIPER / msVIPER with the bcellViper B-cell regulon}
 \usage{
 run_viper_pipeline(
-  dds,
-  var,
+  dds = NULL,
+  var = NULL,
   diffexp_out,
   n_tfs = 10,
   n_tfs_heatmap = 50,
   minsize = 25,
   gene_col = "gene",
+  batch = NULL,
+  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
 }
 \arguments{
-\item{dds}{A QC-filtered \code{DESeqDataSet}.}
+\item{dds}{A QC-filtered \code{DESeqDataSet}, or \code{NULL} to skip sample-level
+VIPER and run \strong{contrast-level} \code{msviper()} only (needs
+\code{diffexp_out$by_comparison} with a \code{stat} column).}
 
-\item{var}{Grouping column (unused for scoring; kept for API symmetry
-with other modules).}
+\item{var}{Grouping column (used as ComBat-seq's protected group when
+\code{batch} is set). Ignored when \code{dds = NULL}.}
 
-\item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} (needs
-\verb{$by_comparison} with a \code{stat} column per gene).}
+\item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} or
+\code{\link[=prepare_diffexp_from_deg]{prepare_diffexp_from_deg()}} (needs \verb{$by_comparison} with a \code{stat}
+column per gene).}
 
 \item{n_tfs}{Number of top master regulators shown in each contrast
 barcode plot (\code{plot.msviper}). Default \code{10}.}
 
 \item{n_tfs_heatmap}{Number of most variable TFs in the sample-level
-activity heatmap. Default \code{50}.}
+activity heatmap. Default \code{50}. Ignored when \code{dds = NULL}.}
 
 \item{minsize}{Minimum regulon size passed to \code{viper} / \code{msviper}.
 Default \code{25} (VIPER default); mouse ortholog mapping may leave fewer
@@ -37,14 +42,21 @@ targets -- lower if many regulons are filtered out.}
 
 \item{gene_col}{Gene-id column name in diffexp tables. Default \code{"gene"}.}
 
+\item{batch}{Optional batch column. When set (and \code{dds} is supplied),
+sample-level VIPER uses batch-corrected expression. Contrast msVIPER
+still uses DESeq2 \code{stat}.}
+
+\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
+\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
+
 \item{save_dir}{Output directory. Default \code{getwd()}.}
 
 \item{save_plot}{Logical; write PDFs alongside CSVs. Default \code{TRUE}.}
 }
 \value{
 A list with \code{org}, \code{regulon_n}, \code{sample_acts} (TF × sample
-matrix), \code{sample_heatmap}, \code{contrast_acts}, \code{contrast_msviper},
-\code{n_tfs}, and \code{n_tfs_heatmap}.
+matrix, or \code{NULL} when \code{dds = NULL}), \code{sample_heatmap},
+\code{contrast_acts}, \code{contrast_msviper}, \code{n_tfs}, and \code{n_tfs_heatmap}.
 }
 \description{
 Uses the human B-cell transcriptional regulatory network from the
@@ -60,6 +72,6 @@ Mouse datasets are mapped to human symbols with \code{babelgene} before
 scoring against the human regulon.
 }
 \details{
-Requires Suggests packages \code{viper}, \code{bcellViper}, and (for mouse)
+Requires Imports packages \code{viper}, \code{bcellViper}, and (for mouse)
 \code{babelgene}.
 }

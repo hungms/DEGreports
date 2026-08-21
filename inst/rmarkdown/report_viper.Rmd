@@ -24,10 +24,12 @@ params:
   degpatterns_out: NULL
   cluster_ora_out: NULL
   wgcna_out: NULL
-  decoupler_out: NULL
+  decoupler_tf_out: NULL
   ppi_out: NULL
   viper_out: NULL
   cspa_out: NULL
+  gsva_out: NULL
+  decoupler_ccc_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
@@ -70,7 +72,9 @@ cat("\n\nMaster-regulator / protein activity inferred with ",
       "."
     },
     " Regulons loaded: **", params$viper_out$regulon_n, "**.\n\n",
-    "Sample-level scores use gene-wise z-scored VST expression with `viper()`. ",
+    "Sample-level scores use gene-wise z-scored ",
+    deseq2reports::expr_correction_label(params$viper_out$expr_correction),
+    " expression with `viper()`. ",
     if (is_lrt) {
       paste0("Cluster-level master-regulator analysis uses each degPatterns ",
              "cluster's LRT `stat` signature with `msviper()`.")
@@ -105,39 +109,13 @@ cat("\n\nTop **", n_heat,
     "(rows = samples, columns = TFs; scores scaled per sample). ",
     "Dark blue = inactive, red = active.\n\n", sep = "")
 
-hm <- params$viper_out$sample_heatmap
-gt <- hm$gtable
-native_w <- min(grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE), 10)
-native_h <- min(grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE), 10)
-disp_w <- 0.5 * min(native_w, 6.5) * 1.25
-disp_h <- 0.5 * min(native_h, 5)
-dpi <- 150
-pixelratio <- dpi / 72
-css_w <- as.integer(round(native_w * 72))
-css_h <- as.integer(round(native_h * 72))
-display_w <- as.integer(round(disp_w * dpi))
-display_h <- as.integer(round(disp_h * dpi))
-img <- htmltools::plotTag({
-  grid::grid.newpage()
-  grid::grid.draw(gt)
-}, alt = "viper_sample_heatmap", width = css_w, height = css_h, pixelratio = pixelratio,
-   suppressSize = "xy",
-   attribs = list(
-     width = display_w, height = display_h,
-     style = sprintf("max-width: none !important; width: %dpx; height: %dpx;", display_w, display_h)
-   ))
-sample_df <- data.frame(
-  tf = rownames(params$viper_out$sample_acts),
-  params$viper_out$sample_acts,
-  check.names = FALSE,
-  stringsAsFactors = FALSE
+deseq2reports::emit_heatmap_with_download(
+  params$viper_out$sample_heatmap,
+  filename = "viper_sample_tf_heatmap",
+  buttons = list(deseq2reports::link_output_file(
+    "viper_sample_activities.csv", label = "Download sample activities CSV"
+  ))
 )
-buttons <- list(
-  deseq2reports::download_grid_plot_button(hm, filename = "viper_sample_tf_heatmap",
-                                           width = 0.5 * native_w, height = 0.5 * native_h),
-  deseq2reports::link_output_file("viper_sample_activities.csv", label = "Download sample activities CSV")
-)
-deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(img, buttons))
 ```
 
 ```{r viper-helpers, include=FALSE}
@@ -186,7 +164,7 @@ if (!is.null(params$diffexp_out) && !is_lrt) {
 if (!is.null(specs) && !is.null(params$viper_out$contrast_acts)) {
   specs <- specs[specs$label %in% names(params$viper_out$contrast_acts), , drop = FALSE]
 }
-two_factor <- !is.null(specs) && any(specs$class %in% c("within_A", "within_B", "interaction"))
+two_factor <- !is.null(specs) && any(specs$class %in% c("within_A", "within_B", "within_C", "interaction"))
 
 cluster_tf_labels <- if (has_cluster_tf) {
   names(params$viper_out$contrast_acts)
@@ -263,35 +241,39 @@ if (length(vp_one_vs_all) > 0) {
 ```{r viper-contrast-two-factor, results='asis', eval=has_wald_tf && two_factor}
 var <- params$var
 n_tfs <- params$viper_out$n_tfs
-for (cls in c("within_A", "within_B", "interaction")) {
+for (cls in c("main", "within_A", "within_B", "within_C", "interaction")) {
   sub <- specs[specs$class == cls, , drop = FALSE]
   if (nrow(sub) == 0) next
   title <- deseq2reports::contrast_class_title(cls, var)
   cat("\n\n#### ", title, " {.tabset}\n\n", sep = "")
 
-  if (identical(cls, "interaction")) {
-    has_sub <- "coef_subtract" %in% names(sub)
-    is_pw <- if (has_sub) {
-      !is.na(sub$coef_subtract) & nzchar(as.character(sub$coef_subtract))
-    } else {
-      rep(FALSE, nrow(sub))
+  if (identical(cls, "main")) {
+    ordered <- c(sub$label[sub$type == "pairwise"],
+                 sub$label[sub$type == "one_vs_all"])
+    for (comp in ordered) {
+      cat("\n\n##### ", comp, "\n\n", sep = "")
+      emit_viper_contrast(comp,
+                          params$viper_out$contrast_msviper[[comp]],
+                          params$viper_out$contrast_acts[[comp]],
+                          n_tfs)
     }
-    ref_labs <- sub$label[!is_pw]
-    pw_labs <- sub$label[is_pw]
+    next
+  }
 
-    if (length(ref_labs) > 0) {
-      cat("\n\n##### Vs reference {.tabset}\n\n")
-      for (comp in ref_labs) {
-        cat("\n\n###### ", comp, "\n\n", sep = "")
-        emit_viper_contrast(comp,
-                            params$viper_out$contrast_msviper[[comp]],
-                            params$viper_out$contrast_acts[[comp]],
-                            n_tfs)
-      }
+  if (identical(cls, "interaction")) {
+    # Interaction rows are grouped by the factor level they hold fixed;
+    # three-way rows hold nothing fixed and sit at the top level.
+    held <- deseq2reports::contrast_stratum_labels(sub)
+    for (comp in sub$label[is.na(held)]) {
+      cat("\n\n##### ", comp, "\n\n", sep = "")
+      emit_viper_contrast(comp,
+                          params$viper_out$contrast_msviper[[comp]],
+                          params$viper_out$contrast_acts[[comp]],
+                          n_tfs)
     }
-    if (length(pw_labs) > 0) {
-      cat("\n\n##### Pairwise (non-reference) {.tabset}\n\n")
-      for (comp in pw_labs) {
+    for (st in unique(held[!is.na(held)])) {
+      cat("\n\n##### Within ", st, " {.tabset}\n\n", sep = "")
+      for (comp in sub$label[!is.na(held) & held == st]) {
         cat("\n\n###### ", comp, "\n\n", sep = "")
         emit_viper_contrast(comp,
                             params$viper_out$contrast_msviper[[comp]],

@@ -169,6 +169,10 @@ plot_soft_threshold <- function(fit_indices, power, rsq_cutoff = 0.85) {
 #' @param dds A `DESeqDataSet` object (typically post-[run_qc()]).
 #' @param var Column name in `colData(dds)` identifying the biological
 #'   group of interest; module eigengenes are correlated against this.
+#' @param batch Optional batch column. When set, the network is built on
+#'   batch-corrected expression (protecting `var`), not uncorrected VST.
+#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
+#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param power Soft-thresholding power. Default `NULL` auto-selects via
 #'   `pick_wgcna_power()`.
 #' @param power_vector Candidate powers evaluated (and shown on the
@@ -199,9 +203,9 @@ plot_soft_threshold <- function(fit_indices, power, rsq_cutoff = 0.85) {
 #' @param ora_collection MSigDB collection alias(es) for the per-module
 #'   over-representation analysis (see `validate_msigdb_collections()`):
 #'   one or more of `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`,
-#'   `"KEGG_MEDICUS"`, `"KEGG_LEGACY"`, `"REACTOME"`, `"PID"`. Default
+#'   `"KEGG"`, `"REACTOME"`, `"PID"`. Default
 #'   matches the GSEA default
-#'   (`c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID")`).
+#'   (`c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID")`).
 #'   [run_deseq2_pipeline()] passes its `collections` argument through so
 #'   WGCNA ORA and GSEA use the same set. The leftover/unassigned "grey"
 #'   module (renamed "Unassigned") is always excluded (see `ora_by_module`
@@ -258,9 +262,11 @@ run_wgcna_pipeline <- function(
     max_modules = 15L,
     cor_type = "pearson",
     top_n_hub_genes = 10,
-    ora_collection = c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID"),
+    ora_collection = c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID"),
     top_n_ora = 10,
     gene_col = "gene",
+    batch = NULL,
+    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -272,11 +278,14 @@ run_wgcna_pipeline <- function(
     }
     dds <- validate_dds(dds)
     dds <- validate_var(dds, var)
+    if (!is.null(batch)) dds <- validate_batch(dds, batch)
     ora_collection <- validate_msigdb_collections(ora_collection)
     validate_logical(save_plot, "save_plot")
     save_dir <- validate_save_dir(save_dir)
 
-    vst_mat <- SummarizedExperiment::assay(quiet(safe_vst(dds, blind = TRUE)))
+    vst_mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
+                                        platform = platform)
+    expr_correction <- attr(vst_mat, "expr_correction")
     datExpr <- t(vst_mat)
 
     message("Checking for genes/samples with excessive missing data...")
@@ -537,7 +546,8 @@ run_wgcna_pipeline <- function(
         hub_genes = hub_genes, ora_by_module = ora_by_module, net = net,
         soft_threshold_plot = p_power, module_size_plot = p_size,
         module_trait_heatmap = p_heat, module_eigengene_heatmap = p_me_heat,
-        ora_plots_by_module = p_ora_by_module
+        ora_plots_by_module = p_ora_by_module,
+        expr_correction = expr_correction
     )
 }
 

@@ -478,18 +478,19 @@ run_gsea_overlap_pipeline <- function(
         # Alongside GSEA outputs: clusterprofiler/<comp>/gsea_overlap/
         comp_dir <- file.path(save_dir, comp, "gsea_overlap")
         dir.create(comp_dir, recursive = TRUE, showWarnings = FALSE)
+        stem <- contrast_file_stem(comp)
 
         write_output(
             sig[, c("pathway", "collection", "NES", "padj", "size",
                     "n_leadingEdge", "label", "leadingEdge"), drop = FALSE],
-            file.path(comp_dir, paste0(comp, "_sig_pathways.csv")),
+            file.path(comp_dir, paste0(stem, "_sig_pathways.csv")),
             format = "csv"
         )
         if (!is.null(jac_full)) {
             jac_df <- as.data.frame(jac_full)
             jac_df$pathway <- rownames(jac_df)
             jac_df <- jac_df[, c("pathway", setdiff(colnames(jac_df), "pathway"))]
-            write_output(jac_df, file.path(comp_dir, paste0(comp, "_pathway_jaccard.csv")),
+            write_output(jac_df, file.path(comp_dir, paste0(stem, "_pathway_jaccard.csv")),
                          format = "csv")
         }
         if (!is.null(clusters) && length(heat_labels)) {
@@ -499,11 +500,11 @@ run_gsea_overlap_pipeline <- function(
                 cluster = as.integer(clusters),
                 stringsAsFactors = FALSE
             )
-            write_output(cl_df, file.path(comp_dir, paste0(comp, "_pathway_clusters.csv")),
+            write_output(cl_df, file.path(comp_dir, paste0(stem, "_pathway_clusters.csv")),
                          format = "csv")
         }
 
-        heat_pdf <- file.path(comp_dir, paste0(comp, "_pathway_jaccard_heatmap.pdf"))
+        heat_pdf <- file.path(comp_dir, paste0(stem, "_pathway_jaccard_heatmap.pdf"))
         if (save_plot && !is.null(heat)) {
             .save_pathway_jaccard_heatmap(heat, heat_pdf)
         }

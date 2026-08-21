@@ -636,7 +636,7 @@ make_interactive_ppi <- function(nodes, edges = NULL, title = NULL,
 #' module, maps seed genes to [STRINGdb], retrieves interactions among them,
 #' and draws a BioNERO-style connectivity plot (Louvain communities, degree-
 #' sized nodes, top hubs labelled). Also writes STRINGdb's native network
-#' PNG alongside each ggplot PDF. Requires Suggests packages `STRINGdb` and
+#' PNG alongside each ggplot PDF. Imports packages `STRINGdb` and
 #' `igraph` (and network access on first run to download STRING files).
 #'
 #' @param diffexp_out Output of [run_diffexp_pipeline()].
@@ -656,7 +656,14 @@ make_interactive_ppi <- function(nodes, edges = NULL, title = NULL,
 #' @param gene_col Gene-id column name. Default `"gene"`.
 #' @param alpha,lfc_threshold Thresholds used only to annotate DE direction
 #'   on node tables. Defaults `0.05`, `0.5`.
-#' @param save_dir Output directory. Default `getwd()`.
+#' @param save_dir Directory for **contrast** PPI folders
+#'   (`<save_dir>/<comparison>/ppi/`). Pipeline uses `deseq2/`. Default `getwd()`.
+#' @param module_save_dir Directory for **LRT-cluster** (non-WGCNA) module PPI
+#'   folders (`<module_save_dir>/<module>/ppi/`). Default `NULL` uses `save_dir`
+#'   (pipeline uses `ppi/`).
+#' @param wgcna_module_save_dir Base directory for **WGCNA** module PPI
+#'   (`<wgcna_module_save_dir>/<Module_N>/ppi/`). Default `NULL` writes WGCNA
+#'   modules under `module_save_dir` (pipeline uses `wgcna/`).
 #' @param save_plot Logical; write PDFs/PNGs alongside CSVs. Default `TRUE`.
 #' @return A list with `org`, `by_comparison`, `by_module`, and STRING
 #'   parameters. The full organism-wide edge list is not retained.
@@ -673,6 +680,8 @@ run_ppi_pipeline <- function(
     alpha = 0.05,
     lfc_threshold = 0.5,
     save_dir = getwd(),
+    module_save_dir = NULL,
+    wgcna_module_save_dir = NULL,
     save_plot = TRUE) {
 
     if (!requireNamespace("igraph", quietly = TRUE)) {
@@ -685,6 +694,14 @@ run_ppi_pipeline <- function(
     }
 
     save_dir <- validate_save_dir(save_dir)
+    if (is.null(module_save_dir)) {
+        module_save_dir <- save_dir
+    } else {
+        module_save_dir <- validate_save_dir(module_save_dir)
+    }
+    if (!is.null(wgcna_module_save_dir)) {
+        wgcna_module_save_dir <- validate_save_dir(wgcna_module_save_dir)
+    }
     top_n_hubs <- as.integer(top_n_hubs)[1]
     max_plot_nodes <- as.integer(max_plot_nodes)[1]
     if (!is.null(max_genes) && is.finite(max_genes)) {
@@ -718,7 +735,7 @@ run_ppi_pipeline <- function(
         org <- match.arg(as.character(org)[1], c("human", "mouse"))
     }
 
-    cache_dir <- file.path(save_dir, "stringdb_cache")
+    cache_dir <- file.path(module_save_dir, "stringdb_cache")
     message("Initializing STRINGdb for organism=\"", org,
             "\" (score >= ", score_threshold, ") ...")
     string_db <- .init_string_db(
@@ -776,7 +793,7 @@ run_ppi_pipeline <- function(
                 " -> with edges=", out$n_with_edge,
                 " -> plotted=", out$n_plotted)
         by_comparison[[comp]] <- out
-        .write_ppi_outputs(out, file.path(save_dir, comp), save_plot)
+        .write_ppi_outputs(out, file.path(save_dir, comp, "ppi"), save_plot)
     }
 
     by_module <- list()
@@ -804,7 +821,13 @@ run_ppi_pipeline <- function(
                 next
             }
             by_module[[mod]] <- out
-            .write_ppi_outputs(out, file.path(save_dir, safe_mod_dir(mod)), save_plot)
+            mod_base <- if (!is.null(wgcna_module_save_dir) &&
+                            grepl("^Module ", as.character(mod), perl = TRUE)) {
+                wgcna_module_save_dir
+            } else {
+                module_save_dir
+            }
+            .write_ppi_outputs(out, file.path(mod_base, safe_mod_dir(mod), "ppi"), save_plot)
         }
     }
 
@@ -817,4 +840,23 @@ run_ppi_pipeline <- function(
         score_threshold = as.integer(score_threshold)[1],
         source = "STRINGdb"
     )
+}
+
+#' Remove the top-level `ppi/` folder (LRT-cluster PPI + STRINGdb cache)
+#'
+#' Called automatically at the end of [run_deseq2_wald()] and
+#' [run_deseq2_lrt()] after HTML rendering. Contrast PPI under
+#' `deseq2/<contrast>/ppi/` and WGCNA module PPI under
+#' `wgcna/<Module_N>/ppi/` are kept.
+#'
+#' @param save_dir Pipeline root directory.
+#' @return Invisibly `NULL`.
+#' @export
+cleanup_ppi_dir <- function(save_dir) {
+    save_dir <- validate_save_dir(save_dir)
+    ppi_dir <- file.path(save_dir, "ppi")
+    if (dir.exists(ppi_dir)) {
+        unlink(ppi_dir, recursive = TRUE, force = TRUE)
+    }
+    invisible(NULL)
 }

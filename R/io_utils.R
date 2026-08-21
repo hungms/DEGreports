@@ -126,3 +126,56 @@ quiet <- function(expr) {
     )
     result
 }
+
+#' colData column ComBat-seq should protect (`var`, or `A_x_B` if present)
+#' @noRd
+.expr_protect_column <- function(dds, var) {
+    var <- as.character(var)
+    var <- var[!is.na(var) & nzchar(var)]
+    if (!length(var)) {
+        stop("`var` must name at least one colData column for ComBat-seq.",
+             call. = FALSE)
+    }
+    if (length(var) == 1L) return(var)
+    pasted <- paste(var, collapse = "_x_")
+    cd <- colnames(SummarizedExperiment::colData(dds))
+    if (pasted %in% cd) pasted else var[[1L]]
+}
+
+#' Sample-level expression: blind VST, batch-corrected when `batch` is set
+#'
+#' Used by WGCNA, GSVA, sample ULM, sample VIPER, and CSPA heatmaps.
+#' DESeq2 itself is never given this matrix.
+#'
+#' With `batch` set, `platform` picks the correction: ComBat-seq on raw
+#' counts then VST for `"rnaseq"`, ComBat on the VST matrix for
+#' `"microarray"`. This is the same matrix [run_distance_pca()] uses for the
+#' corrected PCA, so the report never shows one correction while a module
+#' used another.
+#'
+#' @return Genes × samples numeric matrix. Attribute `expr_correction` is
+#'   `"vst"`, `"combat_seq_vst"`, or `"combat_vst"`.
+#' @noRd
+sample_level_expr_matrix <- function(dds, var, batch = NULL, platform = "rnaseq") {
+    dds <- validate_dds(dds)
+    if (is.null(batch)) {
+        message("Sample-level expression: blind VST (no batch correction).")
+        vsd <- quiet(safe_vst(dds, blind = TRUE))
+        mat <- as.matrix(SummarizedExperiment::assay(vsd))
+        attr(mat, "expr_correction") <- "vst"
+        return(mat)
+    }
+    platform <- validate_platform(platform)
+    protect <- .expr_protect_column(dds, var)
+    dds <- validate_batch(dds, batch)
+    dds <- validate_var(dds, protect)
+    message(
+        "Sample-level expression: ",
+        batch_correction_label(.expr_correction_label(platform)),
+        " (batch = \"", batch, "\", protecting \"", protect, "\")."
+    )
+    batch_corrected_matrix(
+        dds, batch = batch, var = protect, platform = platform,
+        transform = "vst"
+    )
+}

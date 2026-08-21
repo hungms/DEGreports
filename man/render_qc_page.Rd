@@ -11,7 +11,7 @@ render_qc_page(
   diffexp_out,
   gsea_out,
   wgcna_out = NULL,
-  decoupler_out = NULL,
+  decoupler_tf_out = NULL,
   ppi_out = NULL,
   viper_out = NULL,
   cspa_out = NULL,
@@ -30,22 +30,27 @@ counts and the design formula in the report header. If it carries
 of genes removed at each filtering step, the library-size plot, and
 the count-distribution diagnostic plot (with the expression cutoff
 marked) -- omitted if that metadata is absent, e.g. when \code{dds} was
-QC-filtered manually rather than via \code{\link[=run_qc]{run_qc()}}.}
+QC-filtered manually rather than via \code{\link[=run_qc]{run_qc()}}. Pass \code{NULL} for
+DEG-table-only reports (\code{\link[=run_deseq2_deg]{run_deseq2_deg()}}): the QC page is skipped
+and greyed out in the nav.}
 
-\item{var}{Column name in \code{colData(dds)} used for grouping.}
+\item{var}{Column name in \code{colData(dds)} used for grouping (or a label
+such as \code{"comparison"} when \code{dds = NULL}).}
 
-\item{distance_out}{Output of \code{\link[=run_distance_pca]{run_distance_pca()}}.}
+\item{distance_out}{Output of \code{\link[=run_distance_pca]{run_distance_pca()}}, or \code{NULL} when
+starting from a DEG table.}
 
-\item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}.}
+\item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}},
+\code{\link[=run_diffexp_lrt_pipeline]{run_diffexp_lrt_pipeline()}}, or \code{\link[=prepare_diffexp_from_deg]{prepare_diffexp_from_deg()}}.}
 
-\item{gsea_out}{Output of \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}.}
+\item{gsea_out}{Output of \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}} (may be \code{NULL}).}
 
 \item{wgcna_out}{Output of \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, or \code{NULL} (default)
 to omit the WGCNA page entirely (its link is greyed out, not removed,
 in the navigation bar of the other pages).}
 
-\item{decoupler_out}{Output of \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, or \code{NULL}
-(default) to omit the decoupleR page.}
+\item{decoupler_tf_out}{Output of \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}, or \code{NULL}
+(default) to omit the decoupleR-TF page.}
 
 \item{ppi_out}{Output of \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}, or \code{NULL} (default) to
 omit PPI connectivity sections on the DE and WGCNA pages.}
@@ -62,7 +67,8 @@ Default \code{0.05}.}
 colouring on MA/volcano plots. Default \code{0.5}.}
 
 \item{run_args}{Optional named list of pipeline arguments (as built by
-\code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}}) to display on the index page. Default \code{NULL}.}
+\code{\link[=run_deseq2_wald]{run_deseq2_wald()}} / \code{\link[=run_deseq2_deg]{run_deseq2_deg()}}) to display on the index page.
+Default \code{NULL}.}
 
 \item{disabled_labels}{Page labels to grey out in the nav bar.}
 

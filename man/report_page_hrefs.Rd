@@ -8,7 +8,8 @@ report_page_hrefs(from = "Index")
 }
 \arguments{
 \item{from}{One of \code{"Index"}, \code{"QC"}, \code{"DESeq2"}, \code{"clusterProfiler"},
-\code{"WGCNA"}, \code{"decoupleR"}, \code{"VIPER"}.}
+\code{"GSVA"}, \code{"WGCNA"}, \code{"decoupleR-TF"}, \code{"decoupleR-CCC"}, \code{"VIPER"},
+\code{"Multihit"}.}
 }
 \value{
 Named character vector of hrefs, names = page labels.

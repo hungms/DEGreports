@@ -22,10 +22,12 @@ params:
   degpatterns_out: NULL
   cluster_ora_out: NULL
   wgcna_out: NULL
-  decoupler_out: NULL
+  decoupler_tf_out: NULL
   ppi_out: NULL
   viper_out: NULL
   cspa_out: NULL
+  gsva_out: NULL
+  decoupler_ccc_out: NULL
   alpha: 0.05
   lfc_threshold: 0.5
   run_args: NULL
@@ -50,15 +52,30 @@ cat(deseq2reports::report_nav_links(
 ## Run summary
 
 ```{r index-methods, results='asis'}
-deseq2reports::emit_code_block(
-  caption = "Reproduce this report with the package entry point:",
-  "library(deseq2reports)",
-  "out <- run_deseq2_pipeline(",
-  "  dds, var = \"condition\",",
-  "  run_wgcna = TRUE, run_decoupler = TRUE, run_viper = TRUE,",
-  "  run_ppi = TRUE, save_dir = \"results\"",
-  ")"
-)
+is_deg_table <- identical(params$run_args$analysis_mode, "deg_table") ||
+  identical(params$diffexp_out$source, "deg_table")
+if (is_deg_table) {
+  deseq2reports::emit_code_block(
+    caption = "Reproduce this report from a merged DEG table:",
+    "library(deseq2reports)",
+    "out <- run_deseq2_deg(",
+    "  deg_table = \"all_contrasts_deg.csv\",",
+    "  collections = c(\"HALLMARK\", \"GOBP\"),",
+    "  save_dir = \"results\"",
+    ")"
+  )
+} else {
+  deseq2reports::emit_code_block(
+    caption = "Reproduce this report with the package entry point:",
+    "library(deseq2reports)",
+    "out <- run_deseq2_wald(",
+    "  dds, var = \"condition\",",
+    "  run_gsva = TRUE, run_wgcna = TRUE, run_decoupler_tf = TRUE,",
+    "  run_decoupler_ccc = TRUE, run_viper = TRUE,",
+    "  save_dir = \"results\"",
+    ")"
+  )
+}
 ```
 
 ```{r summary-table}
@@ -73,14 +90,20 @@ vdj_label <- if (!is.null(params$qc_out$remove_vdj) && length(params$qc_out$remo
   "none"
 }
 
+is_deg_table <- identical(params$run_args$analysis_mode, "deg_table") ||
+  identical(params$diffexp_out$source, "deg_table")
 summary_df <- data.frame(
-  Field = c("Grouping variable", "Design formula", "Organism", "Samples", "Genes (post-QC)",
+  Field = c("Grouping variable", "Design formula", "Organism",
+            "Samples",
+            if (is_deg_table) "Genes (in DEG table)" else "Genes (post-QC)",
             "Significance threshold (alpha)", "LFC threshold", "VDJ gene removal",
             "deseq2reports version"),
   Value = c(paste(params$var, collapse = ", "), params$design_str, params$org,
-            as.character(params$n_samples), as.character(params$n_genes),
+            if (is_deg_table) "n/a (DEG table)" else as.character(params$n_samples),
+            as.character(params$n_genes),
             as.character(params$alpha), as.character(params$lfc_threshold),
-            vdj_label, as.character(params$package_version))
+            if (is_deg_table) "n/a" else vdj_label,
+            as.character(params$package_version))
 )
 knitr::kable(summary_df)
 ```
@@ -97,9 +120,18 @@ if (!is.null(specs) && nrow(specs) > 0) {
 }
 ```
 
-```{r run-args, results='asis'}if (!is.null(params$run_args) && length(params$run_args)) {
+```{r run-args, results='asis'}
+if (!is.null(params$run_args) && length(params$run_args)) {
   cat("\n\n## Pipeline arguments\n\n")
-  cat("Arguments passed to `run_deseq2_pipeline()` for this run:\n\n")
+  entry <- if (identical(params$run_args$analysis_mode, "deg_table") ||
+               identical(params$diffexp_out$source, "deg_table")) {
+    "`run_deseq2_deg()`"
+  } else if (identical(params$run_args$analysis_mode, "lrt")) {
+    "`run_deseq2_lrt()`"
+  } else {
+    "`run_deseq2_wald()`"
+  }
+  cat("Arguments passed to ", entry, " for this run:\n\n", sep = "")
   args <- params$run_args
   fmt <- function(x) {
     if (is.null(x)) return("NULL")
@@ -124,8 +156,9 @@ if (!is.null(specs) && nrow(specs) > 0) {
 hrefs <- params$page_hrefs
 if (is.null(hrefs)) hrefs <- deseq2reports::report_page_hrefs(params$current_page)
 cat("\n\nThis report is split across the following linked pages (each module's HTML ",
-    "lives in its own folder; every page is fully self-contained and viewable offline):\n\n", sep = "")
-cat("\n\n- [**QC**](", hrefs[["QC"]], ") -- library QC, PCA, and sample-similarity heatmap\n", sep = "")
+    "lives in its own folder, alongside the figures and downloads it links to, ",
+    "and is viewable offline):\n\n", sep = "")
+cat("\n\n- [**QC**](", hrefs[["QC"]], ") -- sample QC, library QC, PCA, and sample-similarity heatmap\n", sep = "")
 cat("- [**DESeq2**](", hrefs[["DESeq2"]],
     ") -- per-comparison MA plot, volcano plot, DEG table",
     if (!is.null(params$ppi_out)) ", and PPI connectivity" else "",
@@ -150,11 +183,23 @@ if (!is.null(params$wgcna_out)) {
 } else {
   cat("- WGCNA -- not run for this report (`wgcna_out = NULL`)\n")
 }
-if (!is.null(params$decoupler_out)) {
-  cat("- [**decoupleR**](", hrefs[["decoupleR"]],
+if (!is.null(params$gsva_out)) {
+  cat("- [**GSVA**](", hrefs[["GSVA"]],
+      ") -- sample-level gene-set variation analysis (HALLMARK always; large collections heatmapped by group association)\n", sep = "")
+} else {
+  cat("- GSVA -- not run for this report (`gsva_out = NULL`)\n")
+}
+if (!is.null(params$decoupler_tf_out)) {
+  cat("- [**decoupleR-TF**](", hrefs[["decoupleR-TF"]],
       ") -- CollecTRI network + ULM transcription-factor activities\n", sep = "")
 } else {
-  cat("- decoupleR -- not run for this report (`decoupler_out = NULL`)\n")
+  cat("- decoupleR-TF -- not run for this report (`decoupler_tf_out = NULL`)\n")
+}
+if (!is.null(params$decoupler_ccc_out)) {
+  cat("- [**decoupleR-CCC**](", hrefs[["decoupleR-CCC"]],
+      ") -- LIANA / OmniPath ligand–receptor pairs + ULM (per comparison)\n", sep = "")
+} else {
+  cat("- decoupleR-CCC -- not run for this report (`decoupler_ccc_out = NULL`)\n")
 }
 if (!is.null(params$viper_out)) {
   cat("- [**VIPER**](", hrefs[["VIPER"]],
@@ -162,203 +207,13 @@ if (!is.null(params$viper_out)) {
 } else {
   cat("- VIPER -- not run for this report (`viper_out = NULL`)\n")
 }
+if (!is.null(params$multihit_out)) {
+  cat("- [**Multihit**](", hrefs[["Multihit"]],
+      ") -- cross-analysis gene ranking (DEG / GSEA / VIPER / decoupleR-TF / decoupleR-CCC / CSPA)\n", sep = "")
+} else {
+  cat("- Multihit -- not run for this report (`multihit_out = NULL`)\n")
+}
 cat("\n\n")
-```
-
-## Cross-analysis gene hits
-
-```{r multihit-setup, include=FALSE}
-is_lrt_mh <- identical(params$multihit_out$mode, "lrt_module") ||
-  isTRUE(params$run_args$analysis_mode == "lrt")
-has_lrt_mh <- is_lrt_mh && !is.null(params$multihit_out$by_module) &&
-  length(params$multihit_out$by_module) > 0
-has_wald_mh <- !is_lrt_mh && !is.null(params$multihit_out$by_comparison) &&
-  length(params$multihit_out$by_comparison) > 0
-```
-
-```{r multihit-intro, results='asis'}
-mh <- params$multihit_out
-if (has_lrt_mh) {
-  layers <- paste(mh$layers_used, collapse = ", ")
-  cat("\n\nTop **", mh$top_n, "** genes per **degPatterns cluster**, ranked by ",
-      "co-occurrence across ", layers,
-      " (LRT DEG = cluster membership; WGCNA = any co-expression module; ",
-      "VIPER / decoupleR = significant TF at alpha = ", mh$alpha, "). ",
-      "Tables only (no directional barplots in LRT mode).\n\n", sep = "")
-  deseq2reports::emit_code_block(
-    caption = "Reproduce LRT multi-hit ranking with this package module:",
-    "multihit_out <- run_multihit_lrt_pipeline(",
-    "  degpatterns_out, diffexp_out,",
-    "  wgcna_out = wgcna_out,",
-    "  viper_out = viper_out, decoupler_out = decoupler_out",
-    ")"
-  )
-} else if (has_wald_mh) {
-  layers <- paste(mh$layers_used, collapse = ", ")
-  cat("\n\nTop ", mh$top_n, " **up** and top ", mh$top_n,
-      " **down** genes per contrast (direction from DEG log2FoldChange), ",
-      "ranked by hit count across ", layers,
-      " (GSEA contributes +1 if the gene is in **any** significant ",
-      "pathway leading edge; DEG / VIPER / decoupleR / CSPA contribute +1 ",
-      "when selected or significant at alpha = ", mh$alpha, ").\n\n", sep = "")
-  deseq2reports::emit_code_block(
-    caption = "Reproduce multi-hit ranking with this package module:",
-    "multihit_out <- run_multihit_pipeline(",
-    "  diffexp_out, gsea_out = gsea_out,",
-    "  viper_out = viper_out, decoupler_out = decoupler_out,",
-    "  cspa_out = cspa_out",
-    ")"
-  )
-} else {
-  cat("\n\nMulti-hit gene ranking was not available for this run.\n\n")
-}
-```
-
-```{r multihit-lrt-tables, results='asis', eval=has_lrt_mh}
-by_mod <- params$multihit_out$by_module
-mods <- names(by_mod)
-short_labs <- sub("^.* cluster ", "cluster ", mods)
-if (anyDuplicated(short_labs) || any(!nzchar(short_labs))) {
-  short_labs <- mods
-}
-pane_ids <- deseq2reports::bs_tabset_start("index-lrt-multihit", short_labs)
-for (i in seq_along(mods)) {
-  mod <- mods[i]
-  deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
-  ranked <- by_mod[[mod]]
-  if (is.null(ranked) || !nrow(ranked)) {
-    cat("\n\nNo genes scored for this cluster.\n\n")
-  } else {
-    show <- ranked
-    # Present hit columns as 0/1 for readability
-    for (col in intersect(c("deg", "wgcna", "viper", "decoupler"), colnames(show))) {
-      show[[col]] <- as.integer(show[[col]])
-    }
-    print(knitr::kable(show, row.names = FALSE))
-    safe <- gsub("[^A-Za-z0-9]+", "_", mod)
-    deseq2reports::emit_widget(
-      deseq2reports::link_output_file(
-        file.path("multihit", safe, paste0(safe, "_top_genes.csv")),
-        label = "Download top genes CSV"
-      )
-    )
-  }
-  deseq2reports::bs_tab_pane_end()
-}
-deseq2reports::bs_tabset_end()
-```
-
-```{r multihit-helpers, include=FALSE}
-emit_multihit_contrast <- function(comp, ranked, plot) {
-  if (is.null(ranked) || !nrow(ranked)) {
-    cat("\n\nNo genes scored for this contrast.\n\n")
-    return(invisible(NULL))
-  }
-  if (!is.null(plot)) {
-    sz <- attr(plot, "plot_size")
-    w <- if (!is.null(sz)) sz$width else 4.9
-    h <- if (!is.null(sz)) sz$height else max(2.8, 0.2 * nrow(ranked) + 1.5)
-    deseq2reports::emit_plot_with_download(
-      plot, filename = paste0(comp, "_multihit_barplot"),
-      width = w, height = h, dpi = 150
-    )
-  }
-  deseq2reports::emit_widget(
-    deseq2reports::link_output_file(
-      file.path("multihit", comp, paste0(comp, "_top_genes.csv")),
-      label = "Download top genes CSV"
-    )
-  )
-  cat("\n\n")
-}
-
-specs_mh <- params$diffexp_out$contrast_specs
-if (is.null(specs_mh) && has_wald_mh) {
-  labs <- names(params$multihit_out$by_comparison)
-  specs_mh <- data.frame(
-    label = labs, class = "single",
-    type = deseq2reports::classify_comparison_type(labs),
-    stratum_level = NA_character_,
-    stringsAsFactors = FALSE
-  )
-}
-two_factor_mh <- !is.null(specs_mh) &&
-  any(specs_mh$class %in% c("within_A", "within_B", "interaction"))
-by_mh <- if (has_wald_mh) params$multihit_out$by_comparison else list()
-plots_mh <- if (has_wald_mh) params$multihit_out$plots else list()
-```
-
-```{r multihit-single, results='asis', eval=has_wald_mh && !two_factor_mh}
-de_pairwise <- specs_mh$label[specs_mh$type == "pairwise"]
-de_one_vs_all <- specs_mh$label[specs_mh$type == "one_vs_all"]
-
-cat("\n\n### Pairwise {.tabset}\n\n")
-if (length(de_pairwise) > 0) {
-  for (comp in de_pairwise) {
-    cat("\n\n#### ", comp, "\n\n", sep = "")
-    emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-  }
-} else {
-  cat("\n\nNo pairwise comparisons.\n\n")
-}
-
-cat("\n\n### One vs. all {.tabset}\n\n")
-if (length(de_one_vs_all) > 0) {
-  for (comp in de_one_vs_all) {
-    cat("\n\n#### ", comp, "\n\n", sep = "")
-    emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-  }
-} else {
-  cat("\n\nNo one-vs-all comparisons.\n\n")
-}
-```
-
-```{r multihit-two-factor, results='asis', eval=has_wald_mh && two_factor_mh}
-var <- params$var
-for (cls in c("within_A", "within_B", "interaction")) {
-  sub <- specs_mh[specs_mh$class == cls, , drop = FALSE]
-  if (nrow(sub) == 0) next
-  title <- deseq2reports::contrast_class_title(cls, var)
-  cat("\n\n### ", title, " {.tabset}\n\n", sep = "")
-
-  if (identical(cls, "interaction")) {
-    has_sub <- "coef_subtract" %in% names(sub)
-    is_pw <- if (has_sub) {
-      !is.na(sub$coef_subtract) & nzchar(as.character(sub$coef_subtract))
-    } else {
-      rep(FALSE, nrow(sub))
-    }
-    ref_labs <- sub$label[!is_pw]
-    pw_labs <- sub$label[is_pw]
-    if (length(ref_labs) > 0) {
-      cat("\n\n#### Vs reference {.tabset}\n\n")
-      for (comp in ref_labs) {
-        cat("\n\n##### ", comp, "\n\n", sep = "")
-        emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-      }
-    }
-    if (length(pw_labs) > 0) {
-      cat("\n\n#### Pairwise (non-reference) {.tabset}\n\n")
-      for (comp in pw_labs) {
-        cat("\n\n##### ", comp, "\n\n", sep = "")
-        emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-      }
-    }
-    next
-  }
-
-  strata <- unique(sub$stratum_level)
-  for (st in strata) {
-    cat("\n\n#### ", st, " {.tabset}\n\n", sep = "")
-    st_sub <- sub[sub$stratum_level == st, , drop = FALSE]
-    ordered <- c(st_sub$label[st_sub$type == "pairwise"],
-                 st_sub$label[st_sub$type == "one_vs_all"])
-    for (comp in ordered) {
-      cat("\n\n##### ", comp, "\n\n", sep = "")
-      emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-    }
-  }
-}
 ```
 
 ## Session info

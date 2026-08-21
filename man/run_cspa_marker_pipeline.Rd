@@ -12,6 +12,8 @@ run_cspa_marker_pipeline(
   cspa_file = NULL,
   gene_col = "gene",
   significant_only = TRUE,
+  batch = NULL,
+  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -32,8 +34,17 @@ annotation. Length 1–2; two factors are pasted for annotation.}
 
 \item{significant_only}{Passed to \code{\link[=select_cspa_markers]{select_cspa_markers()}}. Default \code{TRUE}.}
 
-\item{save_dir}{Output directory (pipeline uses \verb{deseq2/cspa/} if the caller
-already chose that folder). Default \code{getwd()}.}
+\item{batch}{Optional batch column. When set, heatmaps use
+batch-corrected expression (protecting \code{var[1]}, or the \code{A_x_B}
+interaction column if present). Marker \emph{selection} still uses DESeq2
+DEGs.}
+
+\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
+\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
+
+\item{save_dir}{Output root. Per-contrast files go in
+\verb{<save_dir>/<comparison>/cspa/}; combined heatmap/CSV at
+\verb{<save_dir>/cspa_markers_combined.csv} (pipeline uses \verb{deseq2/}).}
 
 \item{save_plot}{Logical; write PDFs. Default \code{TRUE}.}
 }
@@ -44,10 +55,10 @@ and \code{annotation_col}.
 }
 \description{
 For each DE contrast, selects up to \code{n_markers} CSPA genes among that
-contrast's DEGs, then plots a \strong{row-scaled VST heatmap across all
-samples} (not just the contrast groups). Also builds a combined
+contrast's DEGs, then plots a \strong{row-scaled heatmap across all samples}
+(VST, or ComBat-seq then VST when \code{batch} is set). Also builds a combined
 heatmap from the union of per-contrast selections.
 }
 \details{
-Requires Suggests package \code{readxl} to read the CSPA workbook.
+Requires Imports package \code{readxl} to read the CSPA workbook.
 }

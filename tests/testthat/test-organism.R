@@ -36,7 +36,7 @@ test_that("detect_organism respects a custom min_fraction threshold", {
 })
 
 test_that("validate_msigdb_collections accepts each supported collection and rejects unknown ones", {
-    for (coll in c("HALLMARK", "GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME")) {
+    for (coll in c("HALLMARK", "GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID")) {
         expect_equal(validate_msigdb_collections(coll), coll)
     }
     expect_equal(
@@ -44,7 +44,9 @@ test_that("validate_msigdb_collections accepts each supported collection and rej
         c("HALLMARK", "GOBP", "REACTOME")
     )
     expect_error(validate_msigdb_collections("NOT_A_REAL_COLLECTION"), "Unsupported MSigDB collection")
+    expect_error(validate_msigdb_collections("KEGG_MEDICUS"), "Unsupported MSigDB collection")
     expect_error(validate_msigdb_collections(character(0)), "non-empty character vector")
+    expect_equal(validate_msigdb_collections("KEGG_LEGACY"), "KEGG")
 })
 
 test_that("import_msigdbr and import_msigdbr_term2gene fetch a non-empty REACTOME gene set", {
@@ -59,28 +61,17 @@ test_that("import_msigdbr and import_msigdbr_term2gene fetch a non-empty REACTOM
     expect_true(all(startsWith(unique(term2gene$term), "REACTOME_")))
 })
 
-test_that("import_msigdbr and import_msigdbr_term2gene fetch a non-empty KEGG_LEGACY gene set", {
+test_that("import_msigdbr and import_msigdbr_term2gene fetch a non-empty KEGG gene set", {
     skip_if_not_installed("msigdbr")
-    gene_sets <- import_msigdbr("human", "KEGG_LEGACY")
+    gene_sets <- import_msigdbr("human", "KEGG")
     expect_gt(length(gene_sets), 0)
     # NOTE: msigdbr's `CP:KEGG_LEGACY` subcollection still names its gene
-    # sets with the older bare "KEGG_" prefix, not "KEGG_LEGACY_".
+    # sets with the older bare "KEGG_" prefix.
     expect_true(all(startsWith(names(gene_sets), "KEGG_")))
 
-    term2gene <- import_msigdbr_term2gene("human", "KEGG_LEGACY")
+    term2gene <- import_msigdbr_term2gene("human", "KEGG")
     expect_true(all(c("term", "gene") %in% colnames(term2gene)))
     expect_gt(nrow(term2gene), 0)
     expect_true(all(startsWith(unique(term2gene$term), "KEGG_")))
 })
 
-test_that("import_msigdbr and import_msigdbr_term2gene fetch a non-empty KEGG_MEDICUS gene set", {
-    skip_if_not_installed("msigdbr")
-    gene_sets <- import_msigdbr("human", "KEGG_MEDICUS")
-    expect_gt(length(gene_sets), 0)
-    expect_true(all(startsWith(names(gene_sets), "KEGG_MEDICUS_")))
-
-    term2gene <- import_msigdbr_term2gene("human", "KEGG_MEDICUS")
-    expect_true(all(c("term", "gene") %in% colnames(term2gene)))
-    expect_gt(nrow(term2gene), 0)
-    expect_true(all(startsWith(unique(term2gene$term), "KEGG_MEDICUS_")))
-})

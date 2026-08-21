@@ -7,11 +7,12 @@
 \title{deseq2reports: Modular DESeq2 Pipeline with Automated HTML Reports}
 \description{
 A self-contained, modular pipeline for RNA-seq differential expression
-analysis built on DESeq2. See \code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}} for the one-command
-entry point, or use the standalone stage functions \code{\link[=run_qc]{run_qc()}},
-\code{\link[=run_distance_pca]{run_distance_pca()}}, \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}, \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}},
-\code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}}, \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, \code{\link[=run_viper_pipeline]{run_viper_pipeline()}},
-\code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}}, and \code{\link[=render_report]{render_report()}} independently.
+analysis built on DESeq2. See \code{\link[=run_deseq2_wald]{run_deseq2_wald()}}, \code{\link[=run_deseq2_lrt]{run_deseq2_lrt()}}, or
+\code{\link[=run_deseq2_deg]{run_deseq2_deg()}} for one-command entry points, or use the standalone
+stage functions \code{\link[=run_qc]{run_qc()}}, \code{\link[=run_distance_pca]{run_distance_pca()}}, \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}},
+\code{\link[=prepare_diffexp_from_deg]{prepare_diffexp_from_deg()}}, \code{\link[=run_gsea_pipeline]{run_gsea_pipeline()}}, \code{\link[=run_wgcna_pipeline]{run_wgcna_pipeline()}},
+\code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}, \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, \code{\link[=run_ppi_pipeline]{run_ppi_pipeline()}},
+and \code{\link[=render_report]{render_report()}} independently.
 }
 \details{
 Package vignettes (HTML):

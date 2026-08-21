@@ -1,7 +1,16 @@
 # Wald pipeline on example_data/GSE224465_counts.tsv (mouse GC B cells).
 # Sample names encode genotype.celltype_replicate, e.g. WT.CB_R1, CK.CC_R3.
-# Two-factor mode with include_interactions = TRUE: design ~ genotype * celltype
-# and the full within- + interaction contrast grid.
+#
+# Genotype WT/C/K/CK is split into two binary mutation factors so the model is
+# the three-way interaction:
+#   ~ celltype * C_mutation * K_mutation
+# where
+#   celltype    = CB, CC
+#   C_mutation  = noC (WT, K) / C (C, CK)
+#   K_mutation  = noK (WT, C) / K (K, CK)
+#
+# The replicate number is used as batch: CB and CC of the same genotype and
+# replicate (e.g. WT.CB_R1 / WT.CC_R1) come from the same animal/sort.
 #
 # Usage:
 #   mkdir -p example_run_GSE224465_wald/logs
@@ -28,7 +37,6 @@ counts_path <- file.path(root, "example_data", "GSE224465_counts.tsv")
 out_dir <- file.path(root, "example_run_GSE224465_wald")
 dir.create(file.path(out_dir, "logs"), recursive = TRUE, showWarnings = FALSE)
 
-message("Reading counts: ", counts_path)
 raw <- utils::read.delim(counts_path, check.names = FALSE, stringsAsFactors = FALSE)
 if (!"gene_name" %in% colnames(raw)) {
   stop("Expected a `gene_name` column in ", counts_path, call. = FALSE)
@@ -37,7 +45,10 @@ if (!"gene_name" %in% colnames(raw)) {
 sample_cols <- setdiff(colnames(raw), c("", "Geneid", "gene_name"))
 counts <- as.matrix(raw[, sample_cols, drop = FALSE])
 storage.mode(counts) <- "integer"
-rownames(counts) <- make.unique(as.character(raw$gene_name))
+gene_names <- as.character(raw$gene_name)
+# Temporary unique Geneid rownames so DESeqDataSetFromMatrix accepts the matrix;
+# collapse to gene_name symbols via summarize_genes_dds() below.
+rownames(counts) <- make.unique(as.character(raw$Geneid))
 
 parse_sample <- function(nm) {
   parts <- strsplit(nm, "\\.", perl = TRUE)[[1]]
@@ -45,6 +56,10 @@ parse_sample <- function(nm) {
     stop("Cannot parse genotype.celltype from sample name: ", nm, call. = FALSE)
   }
   genotype <- parts[[1]]
+  replicate <- sub("^[^_]+_R", "", parts[[2]])
+  if (!grepl("^[0-9]+$", replicate)) {
+    stop("Cannot parse replicate from sample name: ", nm, call. = FALSE)
+  }
   celltype <- sub("_R[0-9]+$", "", parts[[2]])
   if (!celltype %in% c("CB", "CC")) {
     stop("Unexpected celltype in sample name: ", nm, " (got ", celltype, ")",
@@ -54,18 +69,42 @@ parse_sample <- function(nm) {
     stop("Unexpected genotype in sample name: ", nm, " (got ", genotype, ")",
          call. = FALSE)
   }
-  list(genotype = genotype, celltype = celltype)
+  list(
+    genotype = genotype,
+    celltype = celltype,
+    replicate = replicate,
+    # C mutation present in C and CK; K mutation present in K and CK.
+    C_mutation = if (genotype %in% c("C", "CK")) "C" else "noC",
+    K_mutation = if (genotype %in% c("K", "CK")) "K" else "noK",
+    batch = paste0("rep", replicate)
+  )
 }
 
 meta <- lapply(sample_cols, parse_sample)
+batch_levels <- paste0(
+  "rep",
+  sort(unique(as.integer(vapply(meta, `[[`, character(1), "replicate"))))
+)
 coldata <- data.frame(
+  celltype = factor(
+    vapply(meta, `[[`, character(1), "celltype"),
+    levels = c("CB", "CC")
+  ),
+  C_mutation = factor(
+    vapply(meta, `[[`, character(1), "C_mutation"),
+    levels = c("noC", "C")
+  ),
+  K_mutation = factor(
+    vapply(meta, `[[`, character(1), "K_mutation"),
+    levels = c("noK", "K")
+  ),
   genotype = factor(
     vapply(meta, `[[`, character(1), "genotype"),
     levels = c("WT", "C", "K", "CK")
   ),
-  celltype = factor(
-    vapply(meta, `[[`, character(1), "celltype"),
-    levels = c("CB", "CC")
+  batch = factor(
+    vapply(meta, `[[`, character(1), "batch"),
+    levels = batch_levels
   ),
   row.names = sample_cols,
   check.names = FALSE
@@ -74,21 +113,19 @@ coldata <- data.frame(
 dds <- DESeqDataSetFromMatrix(
   countData = counts,
   colData = coldata,
-  design = ~ genotype * celltype
+  design = ~ C_mutation * K_mutation
 )
+# Sum duplicate gene_name symbols (no-op when already unique).
+SummarizedExperiment::rowData(dds)$gene_name <- gene_names
+dds <- summarize_genes_dds(dds, gene_sym_col = "gene_name")
 
-message("Samples: ", ncol(dds), " | Genes: ", nrow(dds),
-        " (", sum(duplicated(as.character(raw$gene_name))),
-        " duplicate gene_name(s) made unique)")
-message("genotype levels: ", paste(levels(dds$genotype), collapse = ", "))
-message("celltype levels: ", paste(levels(dds$celltype), collapse = ", "))
-message("Detected organism preview: ", detect_organism(rownames(dds)))
-message("Writing outputs to: ", out_dir)
 
 out <- run_deseq2_wald(
   dds = dds,
-  var = c("genotype", "celltype"),
+  var = c("celltype", "C_mutation", "K_mutation"),
+  batch = "batch",
   include_interactions = TRUE,
+  platform = "rnaseq",
   design = NULL,
   comparisons = NULL,
   filter_method = "cpm",
@@ -96,19 +133,16 @@ out <- run_deseq2_wald(
   remove_mt = TRUE,
   remove_xy = FALSE,
   remove_vdj = "BCR",
-  shrinkage = "ashr",
-  alpha = 0.05,
-  lfc_threshold = 0.5,
   ranking = "log2FoldChange",
-  collections = c("HALLMARK", "GOBP", "GOCC", "GOMF", "KEGG_MEDICUS",
-                  "KEGG_LEGACY", "REACTOME", "PID"),
+  collections = c("HALLMARK", "GOBP", "GOCC", "GOMF",
+                  "KEGG", "REACTOME", "PID"),
+  run_gsva = TRUE,
   run_wgcna = TRUE,
-  wgcna_min_module_size = 100,
-  run_decoupler = TRUE,
+  run_decoupler_tf = TRUE,
+  run_decoupler_ccc = TRUE,
   run_viper = TRUE,
-  run_ppi = TRUE,
-  run_cspa = TRUE,
   render_html = TRUE,
+  parallel_render = TRUE,
   save_dir = out_dir
 )
 

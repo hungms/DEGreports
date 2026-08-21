@@ -1,7 +1,8 @@
 # LRT pipeline on example_data/GSE189410_counts.txt (mouse BM plasma cells).
 # Demo: treat isotype (IgM → IgG → IgA) as the discrete `time` axis
-# (time-only LRT; no secondary `var`). For true genotype × time designs,
-# pass var = "genotype", time = "day", include_interactions = TRUE.
+# (time-only LRT; no secondary `var`). Replicate number is used as batch
+# (IgA/IgG/IgM from the same rep share one batch). For true genotype × time
+# designs, pass var = "genotype", time = "day", include_interactions = TRUE.
 #
 # Usage:
 #   mkdir -p example_run_GSE189410_lrt/logs
@@ -29,24 +30,40 @@ counts_path <- file.path(root, "example_data", "GSE189410_counts.txt")
 out_dir <- file.path(root, "example_run_GSE189410_lrt")
 dir.create(file.path(out_dir, "logs"), recursive = TRUE, showWarnings = FALSE)
 
-message("Reading counts: ", counts_path)
+# Read counts; rownames are gene symbols.
 counts <- as.matrix(
   utils::read.delim(counts_path, check.names = FALSE, row.names = 1,
                     stringsAsFactors = FALSE)
 )
 storage.mode(counts) <- "integer"
-rownames(counts) <- make.unique(rownames(counts))
+gene_names <- as.character(rownames(counts))
+# Temporary unique rownames so DESeqDataSetFromMatrix accepts the matrix;
+# collapse to gene symbols via summarize_genes_dds() below.
+rownames(counts) <- make.unique(gene_names)
 
 parse_sample <- function(nm) {
   parts <- strsplit(nm, "_", fixed = TRUE)[[1]]
   if (length(parts) < 3) {
     stop("Cannot parse tissue_isotype_rep from sample name: ", nm, call. = FALSE)
   }
-  list(tissue = parts[[1]], isotype = parts[[2]])
+  rep <- parts[[3]]
+  if (!grepl("^[0-9]+$", rep)) {
+    stop("Unexpected replicate in sample name: ", nm, " (got ", rep, ")",
+         call. = FALSE)
+  }
+  list(
+    tissue = parts[[1]],
+    isotype = parts[[2]],
+    batch = paste0("rep", rep)
+  )
 }
 
 sample_cols <- colnames(counts)
 meta <- lapply(sample_cols, parse_sample)
+batch_levels <- paste0(
+  "rep",
+  sort(unique(as.integer(sub("^rep", "", vapply(meta, `[[`, character(1), "batch")))))
+)
 coldata <- data.frame(
   tissue = factor(
     vapply(meta, `[[`, character(1), "tissue"),
@@ -57,6 +74,10 @@ coldata <- data.frame(
     vapply(meta, `[[`, character(1), "isotype"),
     levels = c("IgM", "IgG", "IgA")
   ),
+  batch = factor(
+    vapply(meta, `[[`, character(1), "batch"),
+    levels = batch_levels
+  ),
   row.names = sample_cols,
   check.names = FALSE
 )
@@ -66,33 +87,32 @@ dds <- DESeqDataSetFromMatrix(
   colData = coldata,
   design = ~ isotype
 )
-
-message("Samples: ", ncol(dds), " | Genes: ", nrow(dds))
-message("isotype levels (time axis): ", paste(levels(dds$isotype), collapse = ", "))
-message("Detected organism preview: ", detect_organism(rownames(dds)))
-message("Writing outputs to: ", out_dir)
+# Sum duplicate gene symbols (no-op when already unique).
+SummarizedExperiment::rowData(dds)$gene_name <- gene_names
+dds <- summarize_genes_dds(dds, gene_sym_col = "gene_name")
 
 out <- run_deseq2_lrt(
   dds = dds,
   var = NULL,
   time = "isotype",
+  batch = "batch",
+  platform = "rnaseq",
   include_interactions = FALSE,
   filter_method = "cpm",
   cpm_percentile = 0.05,
   remove_mt = TRUE,
   remove_xy = FALSE,
   remove_vdj = "BCR",
-  alpha = 0.05,
-  collections = c("HALLMARK", "GOBP", "GOCC", "GOMF", "KEGG_MEDICUS",
-                  "KEGG_LEGACY", "REACTOME", "PID"),
+  collections = c("HALLMARK", "GOBP", "GOCC", "GOMF",
+                  "KEGG", "REACTOME", "PID"),
+  run_gsva = TRUE,
   run_wgcna = TRUE,
-  wgcna_min_module_size = 100,
-  run_decoupler = TRUE,
+  run_decoupler_tf = TRUE,
+  run_decoupler_ccc = TRUE,
   run_viper = TRUE,
-  run_ppi = TRUE,
-  run_cspa = TRUE,
   degpatterns_minc = 15,
   render_html = TRUE,
+  parallel_render = TRUE,
   save_dir = out_dir
 )
 

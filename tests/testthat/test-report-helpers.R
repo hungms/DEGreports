@@ -247,6 +247,85 @@ test_that("emit_widget works for a plotly widget too (generic htmlwidget depende
     expect_true(any(grepl("plotly", dep_names, ignore.case = TRUE), na.rm = TRUE))
 })
 
+test_that("emit_contrast_nav heads each contrast class and links its own page", {
+    specs <- data.frame(
+        label = c("C_vs_noC", "C_vs_noC/CB__noK", "C_vs_noC_x_K_vs_noK_in_CB"),
+        class = c("main", "within_B", "interaction"),
+        stringsAsFactors = FALSE
+    )
+    md <- paste(capture.output(
+        emit_contrast_nav(specs, c("celltype", "C_mutation", "K_mutation"))
+    ), collapse = "\n")
+
+    expect_true(grepl("#### Main effects (across all other factors)", md, fixed = TRUE))
+    expect_true(grepl("#### C_vs_noC — by stratum", md, fixed = TRUE))
+    expect_true(grepl("#### Interactions (difference of differences)", md, fixed = TRUE))
+    expect_false(grepl("#### Other", md, fixed = TRUE))
+    expect_true(grepl("(C_vs_noC/CB__noK/CB__noK.html)", md, fixed = TRUE))
+    # Underscores in the link text are escaped so pandoc does not read a
+    # stem like CB__noK as emphasis.
+    expect_true(grepl("[**CB\\_\\_noK**]", md, fixed = TRUE))
+})
+
+test_that("emit_contrast_nav leaves a single-factor grid as a flat list", {
+    specs <- data.frame(label = c("B_vs_A", "C_vs_A"), class = "single",
+                        stringsAsFactors = FALSE)
+    md <- paste(capture.output(emit_contrast_nav(specs, "condition")), collapse = "\n")
+    expect_false(grepl("####", md, fixed = TRUE))
+    expect_true(grepl("(B_vs_A/B_vs_A.html)", md, fixed = TRUE))
+})
+
+test_that("interaction_question_table states each interaction as a question", {
+    specs <- data.frame(
+        label = c("C_vs_noC", "C_vs_noC_x_K_vs_noK_in_CB",
+                  "CA_vs_CB+CC_x_K_vs_noK_in_C",
+                  "CA_vs_CB+CC_x_C_vs_noC_x_K_vs_noK"),
+        class = c("main", "interaction", "interaction", "interaction"),
+        stratum_var = c(NA, "celltype", "C_mutation", NA),
+        stratum_level = c(NA, "CB", "C", NA),
+        ix_terms = c(
+            NA,
+            "C_mutation:C_vs_noC|K_mutation:K_vs_noK",
+            "celltype:CA_vs_CB+CC|K_mutation:K_vs_noK",
+            "celltype:CA_vs_CB+CC|C_mutation:C_vs_noC|K_mutation:K_vs_noK"
+        ),
+        stringsAsFactors = FALSE
+    )
+    tbl <- interaction_question_table(specs, link = FALSE)
+
+    # Main effects are not interactions and drop out.
+    expect_equal(tbl$contrast, specs$label[-1])
+    expect_equal(
+        tbl$question[[1]],
+        paste0("Does the K_mutation effect (`K_vs_noK`) differ between ",
+               "C_mutation C and noC, within celltype = CB?")
+    )
+    # A pooled side reads as an average, not as a merged group.
+    expect_true(grepl("between celltype CA and the average of CB and CC, within C_mutation = C?",
+                      tbl$question[[2]], fixed = TRUE))
+    # The three-way row asks about the interaction itself, not about an effect.
+    expect_true(grepl("C_mutation \u00d7 K_mutation interaction", tbl$question[[3]],
+                      fixed = TRUE))
+    expect_false(grepl("within", tbl$question[[3]], fixed = TRUE))
+    # Both readings of a positive log2FC, since the pair is symmetric.
+    expect_true(grepl("equivalently", tbl$positive[[1]], fixed = TRUE))
+
+    linked <- interaction_question_table(specs)
+    expect_equal(
+        linked$contrast[[2]],
+        "[`CA_vs_CB+CC_x_K_vs_noK_in_C`](CA_vs_CB+CC_x_K_vs_noK_in_C/CA_vs_CB+CC_x_K_vs_noK_in_C.html)"
+    )
+})
+
+test_that("interaction_question_table is empty without interaction rows", {
+    flat <- data.frame(label = c("B_vs_A", "C_vs_A"), class = "single",
+                       stringsAsFactors = FALSE)
+    expect_equal(nrow(interaction_question_table(flat)), 0L)
+    expect_named(interaction_question_table(flat),
+                 c("contrast", "question", "positive"))
+    expect_equal(nrow(interaction_question_table(NULL)), 0L)
+})
+
 test_that("diffexp_top_bottom_table returns top_n genes per direction ranked by rank_score", {
     res_df <- data.frame(
         gene = paste0("g", 1:10),

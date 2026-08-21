@@ -41,6 +41,12 @@ test_that("run_qc() tracks genes removed at each step and adds up correctly", {
     expect_equal(steps$n_removed[steps$step == "Mitochondrial gene removal"], 3)
     expect_equal(steps$n_removed[steps$step == "X/Y chromosome gene removal"], 6)
 
+    expect_true(!is.null(qc_meta$sample_qc_table))
+    expect_equal(nrow(qc_meta$sample_qc_table), ncol(dds))
+    expect_true(all(c("sample", "n_detected_genes", "n_total_transcripts") %in%
+                        colnames(qc_meta$sample_qc_table)))
+    expect_true(file.exists(file.path(save_dir, "qc_sample_summary.csv")))
+
     # CSV written and matches the in-memory summary
     csv_path <- file.path(save_dir, "qc_steps_summary.csv")
     expect_true(file.exists(csv_path))
@@ -62,10 +68,11 @@ test_that("run_qc() steps_summary has one row when only the expression filter ru
     expect_equal(nrow(steps), 2)
 })
 
-test_that("run_qc() defaults to no expression filtering when filter_method is NULL", {
+test_that("run_qc(filter_method = NULL) applies no expression filtering", {
     dds <- simulate_dds(n_genes = 25, group_levels = c("A", "B"), n_per_group = 3)
     save_dir <- withr::local_tempdir()
-    dds_qc <- run_qc(dds, var = "condition", remove_mt = FALSE, remove_xy = FALSE,
+    dds_qc <- run_qc(dds, var = "condition", filter_method = NULL,
+                      remove_mt = FALSE, remove_xy = FALSE,
                       save_plot = FALSE, save_dir = save_dir)
 
     expect_equal(nrow(dds_qc), 25)
@@ -89,8 +96,47 @@ test_that("run_qc() metadata records filter_method/cpm_percentile for the CPM pe
     expect_s3_class(qc_meta$count_dist_plot, "ggplot")
     expect_s3_class(qc_meta$library_size_plot, "ggplot")
     expect_true(any(grepl("Low-expression gene removal \\(CPM percentile\\)", qc_meta$steps_summary$step)))
-    # removing the bottom 10% of 200 genes should remove ~20 genes
-    expect_equal(nrow(dds_qc), 200 - 20)
+    # no unexpressed genes in this simulation, so the 10% percentile is the
+    # whole filter: ~20 of 200 genes
+    expect_equal(nrow(dds_qc), 200 - 20, tolerance = 0.05)
+})
+
+# A percentile taken over the raw mean-CPM distribution silently removes
+# *nothing* on real bulk RNA-seq: a full annotation leaves half the genes zero
+# in every sample, the quantile lands inside that tie at zero, and every gene
+# satisfies log2(mean CPM + 1) >= 0. GSE224465 lost 0 of 54,860 genes this way.
+
+test_that("run_qc() CPM filter removes unexpressed genes even when they outnumber cpm_percentile", {
+    dds <- simulate_dds(n_genes = 100, group_levels = c("A", "B"), n_per_group = 3)
+    # 60% of genes zero in every sample -- far more than the 5% percentile.
+    counts <- DESeq2::counts(dds)
+    counts[1:60, ] <- 0L
+    SummarizedExperiment::assay(dds, "counts") <- counts
+    save_dir <- withr::local_tempdir()
+
+    dds_qc <- run_qc(dds, var = "condition", filter_method = "cpm",
+                      cpm_percentile = 0.05, remove_mt = FALSE, remove_xy = FALSE,
+                      save_plot = FALSE, save_dir = save_dir)
+
+    expect_false(any(rownames(dds_qc) %in% rownames(dds)[1:60]))
+    # all 60 unexpressed, plus 5% of the 40 that are left
+    expect_equal(nrow(dds_qc), 38, tolerance = 0.1)
+    steps <- S4Vectors::metadata(dds_qc)$deseq2reports_qc$steps_summary
+    expect_gte(steps$n_removed[steps$step == "Low-expression gene removal (CPM percentile)"], 60)
+})
+
+test_that("run_qc() CPM filter with cpm_percentile = 0 removes only the unexpressed genes", {
+    dds <- simulate_dds(n_genes = 50, group_levels = c("A", "B"), n_per_group = 3)
+    counts <- DESeq2::counts(dds)
+    counts[1:10, ] <- 0L
+    SummarizedExperiment::assay(dds, "counts") <- counts
+    save_dir <- withr::local_tempdir()
+
+    dds_qc <- run_qc(dds, var = "condition", filter_method = "cpm",
+                      cpm_percentile = 0, remove_mt = FALSE, remove_xy = FALSE,
+                      save_plot = FALSE, save_dir = save_dir)
+
+    expect_equal(nrow(dds_qc), 40)
 })
 
 test_that("run_qc() metadata is NULL-safe: render_report() tolerates a dds without it", {

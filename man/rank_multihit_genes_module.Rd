@@ -11,6 +11,7 @@ rank_multihit_genes_module(
   wgcna_genes = character(0),
   viper_tfs = character(0),
   decoupler_tfs = character(0),
+  ccc_genes = character(0),
   top_n = 10
 )
 }
@@ -27,6 +28,8 @@ rank_multihit_genes_module(
 
 \item{decoupler_tfs}{Character vector of significant decoupleR TFs.}
 
+\item{ccc_genes}{Character vector of genes in significant CCC pairs.}
+
 \item{top_n}{Maximum genes to return. Default \code{10}.}
 }
 \value{
@@ -38,7 +41,9 @@ Scores each cluster gene as:
 \item LRT DEG: +1 (always, for genes in the cluster of significant LRT genes)
 \item WGCNA: +1 if the gene is assigned to any WGCNA module
 \item VIPER: +1 if the gene is a significant TF for this cluster
-\item decoupleR: +1 if the gene is a significant TF for this cluster
+\item decoupleR-TF: +1 if the gene is a significant TF for this cluster
+\item decoupleR-CCC: +1 if the gene is in a significant L–R pair for
+the parent LRT
 }
 Returns the top \code{top_n} genes by score (then by LRT \code{stat} when available).
 }

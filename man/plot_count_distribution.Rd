@@ -26,8 +26,10 @@ CPM, or log2 total count): one density for \emph{all} genes ("before
 filtering") and one for the subset retained after low-expression removal
 ("after filtering"), distinguished by colour on the same axes so the
 shift in the distribution is directly visible. The cutoff is overlaid as
-a vertical dashed line. For \code{filter_method = "cpm"} this line is the
-exact \code{cpm_percentile} cutoff on the mean-CPM axis. For
+a vertical dashed line. For \code{filter_method = "cpm"} this line is the exact
+boundary: it is the \code{cpm_percentile} cutoff taken over the expressed genes,
+and everything at or below it -- including the unexpressed genes piled up at
+zero -- is removed. For
 \code{filter_method = "count"} the underlying decision is per-group (whether
 \emph{any} group has \code{min_samples_per_group} samples clearing \code{min_count}),
 which cannot be reduced to a single point on the total-count axis, so the

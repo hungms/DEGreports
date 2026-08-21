@@ -1,0 +1,130 @@
+---
+title: "DESeq2Reports -- GSVA"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    df_print: paged
+    self_contained: false
+    mathjax: null
+params:
+  var: NULL
+  design_str: NULL
+  org: NULL
+  n_samples: NULL
+  n_genes: NULL
+  qc_out: NULL
+  distance_out: NULL
+  diffexp_out: NULL
+  gsea_out: NULL
+  gsea_overlap_out: NULL
+  multihit_out: NULL
+  degpatterns_out: NULL
+  cluster_ora_out: NULL
+  wgcna_out: NULL
+  decoupler_tf_out: NULL
+  ppi_out: NULL
+  viper_out: NULL
+  cspa_out: NULL
+  gsva_out: NULL
+  decoupler_ccc_out: NULL
+  alpha: 0.05
+  lfc_threshold: 0.5
+  run_args: NULL
+  package_version: NULL
+  current_page: "GSVA"
+  disabled_labels: !r character(0)
+  page_hrefs: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+```
+
+```{r nav, results='asis'}
+cat(deseq2reports::report_nav_links(
+  params$current_page,
+  disabled = params$disabled_labels,
+  hrefs = params$page_hrefs
+))
+```
+
+## GSVA
+
+```{r gsva-intro, results='asis', eval=!is.null(params$gsva_out)}
+cat("\n\nSample-level [GSVA](https://doi.org/10.1186/1471-2105-14-7) on ",
+    if (deseq2reports::batch_correction_label(params$gsva_out$expr_correction) != "none") {
+      paste0("**", deseq2reports::expr_correction_label(params$gsva_out$expr_correction),
+             "** (protecting the grouping variable; DESeq2 still uses raw counts with batch in the design)")
+    } else {
+      "blind VST expression"
+    },
+    ". This is **not** ranked-list GSEA: every gene set is scored in ",
+    "every sample, independently of clusterProfiler / fgsea (those pages are ",
+    "unchanged). Organism: **", params$gsva_out$org, "**.\n\n",
+    "**HALLMARK** (~50 sets) is always included and the heatmap shows every ",
+    "scored set.\n\n",
+    "GO / KEGG / REACTOME / PID have thousands of signatures, so a GSEA-style ",
+    "`padj` filter does not help: GSVA assigns a score to every set, and many ",
+    "would still pass a cutoff. Instead every set is scored (full CSV) and the ",
+    "heatmap keeps the top **", params$gsva_out$n_heatmap,
+    "** pathways whose sample scores differ most across `",
+    params$gsva_out$var, "` (Kruskal–Wallis; variance if the test is undefined). ",
+    "Change the number with `gsva_n_heatmap`.\n\n", sep = "")
+deseq2reports::emit_code_block(
+  caption = "Reproduce GSVA with this package module:",
+  "gsva_out <- run_gsva_pipeline(dds_qc, var = \"condition\")"
+)
+```
+
+```{r gsva-missing, results='asis', eval=is.null(params$gsva_out)}
+cat("\n\nGSVA was not run for this report (`run_gsva = FALSE` or `gsva_out = NULL`).\n\n")
+```
+
+```{r gsva-heatmaps, results='asis', eval=!is.null(params$gsva_out)}
+colls <- params$gsva_out$collections
+if (!length(colls)) {
+  cat("\n\nNo GSVA collections were scored.\n\n")
+} else {
+  pane_ids <- deseq2reports::bs_tabset_start("gsva-collections", colls)
+  for (i in seq_along(colls)) {
+    coll <- colls[i]
+    deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+    hm <- params$gsva_out$heatmaps[[coll]]
+    st <- params$gsva_out$stats[[coll]]
+    cat("<p>", if (identical(coll, "HALLMARK")) {
+      "All scored HALLMARK gene sets (row-scaled GSVA scores)."
+    } else {
+      paste0("All ", if (!is.null(st)) nrow(st) else "?",
+             " sets were scored; heatmap shows the top ",
+             params$gsva_out$n_heatmap,
+             " by Kruskal–Wallis p-value vs <code>",
+             params$gsva_out$var, "</code> (table below is the same ranking).")
+    }, "</p>\n", sep = "")
+    if (!is.null(hm)) {
+      deseq2reports::emit_heatmap_with_download(
+        hm, filename = paste0("gsva_", coll, "_heatmap"),
+        buttons = list(deseq2reports::link_output_file(
+          file.path(coll, "gsva_scores.csv"), label = "Download scores CSV"
+        ))
+      )
+    } else {
+      cat("<p>No heatmap for this collection.</p>\n")
+    }
+    if (!is.null(st) && nrow(st)) {
+      show <- utils::head(st, 25L)
+      btn <- deseq2reports::link_output_file(
+        file.path(coll, "gsva_pathway_stats.csv"),
+        label = "Download pathway stats CSV"
+      )
+      deseq2reports::emit_widget_with_download(
+        deseq2reports::make_gsea_datatable(show, page_length = 15), btn
+      )
+    }
+    deseq2reports::bs_tab_pane_end()
+  }
+  deseq2reports::bs_tabset_end()
+}
+```

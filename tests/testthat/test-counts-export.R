@@ -34,10 +34,22 @@ test_that("run_counts_export writes a ComBat_seq-corrected table when `batch` is
     out_dir <- tempfile("counts_batch_")
     out <- run_counts_export(dds, batch = "batch", var = "condition", save_dir = out_dir)
 
-    expect_true("combat_seq" %in% names(out))
+    expect_true("batch_corrected" %in% names(out))
     expect_true(file.exists(file.path(out_dir, "counts_combat_seq.csv")))
-    expect_equal(dim(out$combat_seq), dim(out$raw))
-    expect_equal(out$combat_seq$gene, out$raw$gene)
+    expect_equal(dim(out$batch_corrected), dim(out$raw))
+    expect_equal(out$batch_corrected$gene, out$raw$gene)
+})
+
+test_that("run_counts_export writes a ComBat-corrected table for microarray platform", {
+    dds <- simulate_dds(n_genes = 20, n_per_group = 3, batch = TRUE)
+    out_dir <- tempfile("counts_batch_array_")
+    out <- run_counts_export(dds, batch = "batch", var = "condition",
+                             platform = "microarray", save_dir = out_dir)
+
+    expect_true("batch_corrected" %in% names(out))
+    expect_true(file.exists(file.path(out_dir, "counts_combat_vst.csv")))
+    expect_false(file.exists(file.path(out_dir, "counts_combat_seq.csv")))
+    expect_equal(out$batch_corrected$gene, out$raw$gene)
 })
 
 test_that("run_qc filter_method = \"cpm\" retains fewer genes at a stricter (higher) percentile", {

@@ -3,22 +3,33 @@
 #' Follows the bulk RNA-seq TF activity vignette for
 #' [`decoupleR`](https://bioconductor.org/packages/decoupleR/): retrieves the
 #' CollecTRI network from OmniPath, then runs Univariate Linear Models
-#' (`run_ulm`) on (1) sample-level VST expression and (2) each contrast's
+#' (`run_ulm`) on (1) sample-level VST (or ComBat-seq then VST when `batch`
+#' is set) and (2) each contrast's DESeq2 Wald `stat` vector.
 #' DESeq2 Wald `stat` vector. Produces a sample×TF activity heatmap (top
 #' variable TFs), per-contrast TF activity barplots, and writes CSVs under
 #' `save_dir`.
 #'
-#' Requires Suggests packages `decoupleR` and `OmnipathR`.
+#' Requires Imports packages `decoupleR` and `OmnipathR`.
 #'
-#' @param dds A QC-filtered `DESeqDataSet`.
-#' @param var Grouping column (or visualization factor) in `colData(dds)`
-#'   used only for heatmap row annotation / ordering context.
-#' @param diffexp_out Output of [run_diffexp_pipeline()] (needs
-#'   `$by_comparison` with a `stat` column per gene).
+#' @param dds A QC-filtered `DESeqDataSet`, or `NULL` to skip sample-level
+#'   ULM and run **contrast-level** scoring only (needs
+#'   `diffexp_out$by_comparison` with a `stat` column).
+#' @param var Grouping column in `colData(dds)` used only for heatmap
+#'   context when `dds` is supplied. Ignored when `dds = NULL`. Required
+#'   as ComBat-seq's protected group when `batch` is set.
+#' @param batch Optional batch column. When set (and `dds` is supplied),
+#'   sample-level ULM uses batch-corrected expression. Contrast-level ULM
+#'   still uses DESeq2 `stat` from the design (batch as a covariate, not
+#'   corrected counts).
+#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
+#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
+#' @param diffexp_out Output of [run_diffexp_pipeline()] or
+#'   [prepare_diffexp_from_deg()] (needs `$by_comparison` with a `stat`
+#'   column per gene).
 #' @param n_tfs Number of top TFs to show in each contrast barplot.
 #'   Default `25`.
 #' @param n_tfs_heatmap Number of most variable TFs in the sample-level
-#'   activity heatmap. Default `50`.
+#'   activity heatmap. Default `50`. Ignored when `dds = NULL`.
 #' @param minsize Minimum number of targets per TF (passed to
 #'   `decoupleR::run_ulm`). Default `5`.
 #' @param gene_col Gene-id column name in diffexp tables. Default `"gene"`.
@@ -31,15 +42,17 @@
 #' @return A list with `net`, `sample_acts`, `contrast_acts` (named list),
 #'   `sample_heatmap`, `contrast_barplots` (named list), and `org`.
 #' @export
-run_decoupler_pipeline <- function(
-    dds,
-    var,
+run_decoupler_tf_pipeline <- function(
+    dds = NULL,
+    var = NULL,
     diffexp_out,
     n_tfs = 25,
     n_tfs_heatmap = 50,
     minsize = 5,
     gene_col = "gene",
     collectri_file = NULL,
+    batch = NULL,
+    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -48,7 +61,7 @@ run_decoupler_pipeline <- function(
              "Install with BiocManager::install(\"decoupleR\").", call. = FALSE)
     }
 
-    dds <- validate_dds(dds)
+    if (!is.null(dds)) dds <- validate_dds(dds)
     save_dir <- validate_save_dir(save_dir)
     n_tfs <- as.integer(n_tfs)[1]
     n_tfs_heatmap <- as.integer(n_tfs_heatmap)[1]
@@ -59,37 +72,56 @@ run_decoupler_pipeline <- function(
         stop("`n_tfs_heatmap` must be a positive integer.", call. = FALSE)
     }
 
-    org <- detect_organism(rownames(dds))
-    message("Fetching CollecTRI network for organism=\"", org, "\" ...")
-    net <- .get_collectri_network(org, file = collectri_file)
-    write_output(net, file.path(save_dir, "collectri_network.csv"))
-
-    message("Running sample-level ULM on VST expression ...")
-    vsd <- quiet(safe_vst(dds, blind = TRUE))
-    mat <- as.matrix(SummarizedExperiment::assay(vsd))
-    storage.mode(mat) <- "double"
-    sample_acts <- as.data.frame(decoupleR::run_ulm(
-        mat = mat, net = net,
-        .source = "source", .target = "target", .mor = "mor",
-        minsize = minsize
-    ))
-    write_output(sample_acts, file.path(save_dir, "ulm_sample_activities.csv"))
-
-    sample_heatmap <- plot_tf_sample_heatmap(sample_acts, n_tfs = n_tfs_heatmap)
-    if (save_plot && !is.null(sample_heatmap)) {
-        gt <- sample_heatmap$gtable
-        w <- 0.5 * min(grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE), 10)
-        h <- 0.5 * min(grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE), 10)
-        grDevices::pdf(file.path(save_dir, "ulm_sample_tf_heatmap.pdf"), width = w, height = h)
-        grid::grid.newpage()
-        grid::grid.draw(gt)
-        grDevices::dev.off()
-    }
-
     by_comp <- diffexp_out$by_comparison
     if (is.null(by_comp) || !length(by_comp)) {
         stop("`diffexp_out$by_comparison` is empty; cannot run contrast-level ULM.",
              call. = FALSE)
+    }
+
+    if (!is.null(dds)) {
+        org <- detect_organism(rownames(dds))
+    } else {
+        sample_genes <- unlist(lapply(by_comp, function(df) {
+            as.character(df[[gene_col]])
+        }), use.names = FALSE)
+        org <- detect_organism(sample_genes)
+    }
+    message("Fetching CollecTRI network for organism=\"", org, "\" ...")
+    net <- .get_collectri_network(org, file = collectri_file)
+    write_output(net, file.path(save_dir, "collectri_network.csv"))
+
+    sample_acts <- NULL
+    sample_heatmap <- NULL
+    expr_correction <- NA_character_
+    if (!is.null(dds)) {
+        if (!is.null(batch) && is.null(var)) {
+            stop("`var` must be supplied when `batch` is set so ComBat-seq can protect the biological group.",
+                 call. = FALSE)
+        }
+        message("Running sample-level ULM on sample expression ...")
+        mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
+                                        platform = platform)
+        expr_correction <- attr(mat, "expr_correction")
+        storage.mode(mat) <- "double"
+        sample_acts <- as.data.frame(decoupleR::run_ulm(
+            mat = mat, net = net,
+            .source = "source", .target = "target", .mor = "mor",
+            minsize = minsize
+        ))
+        write_output(sample_acts, file.path(save_dir, "ulm_sample_activities.csv"))
+
+        sample_heatmap <- plot_tf_sample_heatmap(sample_acts, n_tfs = n_tfs_heatmap)
+        if (save_plot && !is.null(sample_heatmap)) {
+            gt <- sample_heatmap$gtable
+            w <- 0.5 * min(grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE), 10)
+            h <- 0.5 * min(grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE), 10)
+            grDevices::pdf(file.path(save_dir, "ulm_sample_tf_heatmap.pdf"), width = w, height = h)
+            grid::grid.newpage()
+            grid::grid.draw(gt)
+            grDevices::dev.off()
+        }
+    } else {
+        message("Skipping sample-level ULM (dds = NULL; contrast-level only).")
     }
 
     message("Running contrast-level ULM on DESeq2 Wald statistics (",
@@ -133,7 +165,8 @@ run_decoupler_pipeline <- function(
         sample_heatmap = sample_heatmap,
         contrast_barplots = contrast_barplots,
         n_tfs = n_tfs,
-        n_tfs_heatmap = n_tfs_heatmap
+        n_tfs_heatmap = n_tfs_heatmap,
+        expr_correction = expr_correction
     )
 }
 

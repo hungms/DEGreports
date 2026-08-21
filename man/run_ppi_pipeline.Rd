@@ -16,6 +16,8 @@ run_ppi_pipeline(
   alpha = 0.05,
   lfc_threshold = 0.5,
   save_dir = getwd(),
+  module_save_dir = NULL,
+  wgcna_module_save_dir = NULL,
   save_plot = TRUE
 )
 }
@@ -46,7 +48,16 @@ Default \code{50}.}
 \item{alpha, lfc_threshold}{Thresholds used only to annotate DE direction
 on node tables. Defaults \code{0.05}, \code{0.5}.}
 
-\item{save_dir}{Output directory. Default \code{getwd()}.}
+\item{save_dir}{Directory for \strong{contrast} PPI folders
+(\verb{<save_dir>/<comparison>/ppi/}). Pipeline uses \verb{deseq2/}. Default \code{getwd()}.}
+
+\item{module_save_dir}{Directory for \strong{LRT-cluster} (non-WGCNA) module PPI
+folders (\verb{<module_save_dir>/<module>/ppi/}). Default \code{NULL} uses \code{save_dir}
+(pipeline uses \verb{ppi/}).}
+
+\item{wgcna_module_save_dir}{Base directory for \strong{WGCNA} module PPI
+(\verb{<wgcna_module_save_dir>/<Module_N>/ppi/}). Default \code{NULL} writes WGCNA
+modules under \code{module_save_dir} (pipeline uses \verb{wgcna/}).}
 
 \item{save_plot}{Logical; write PDFs/PNGs alongside CSVs. Default \code{TRUE}.}
 }
@@ -59,6 +70,6 @@ For every differential-expression contrast and (optionally) every WGCNA
 module, maps seed genes to \link[STRINGdb:STRINGdb-class]{STRINGdb::STRINGdb}, retrieves interactions among them,
 and draws a BioNERO-style connectivity plot (Louvain communities, degree-
 sized nodes, top hubs labelled). Also writes STRINGdb's native network
-PNG alongside each ggplot PDF. Requires Suggests packages \code{STRINGdb} and
+PNG alongside each ggplot PDF. Imports packages \code{STRINGdb} and
 \code{igraph} (and network access on first run to download STRING files).
 }

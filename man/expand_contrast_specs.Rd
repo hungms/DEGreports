@@ -2,20 +2,29 @@
 % Please edit documentation in R/contrasts.R
 \name{expand_contrast_specs}
 \alias{expand_contrast_specs}
-\title{Expand the automatic contrast grid for one- or two-factor \code{var}}
+\title{Expand the automatic contrast grid for one-, two-, or three-factor \code{var}}
 \usage{
-expand_contrast_specs(dds, var, include_interactions = FALSE)
+expand_contrast_specs(
+  dds,
+  var,
+  include_interactions = FALSE,
+  stratified = FALSE
+)
 }
 \arguments{
 \item{dds}{A \code{DESeqDataSet}.}
 
-\item{var}{Character vector of length 1 or 2.}
+\item{var}{Character vector of length 1, 2, or 3.}
 
-\item{include_interactions}{Logical. When \code{var} has length 2, include
-interaction contrasts if \code{TRUE}. Default \code{FALSE}. Interaction rows
-cover (i) each non-reference level of \code{var[1]} × each non-reference
-level of \code{var[2]} vs the reference interaction, and (ii) all pairwise
-differences among those non-reference interactions (e.g. CK vs C × CC).}
+\item{include_interactions}{Logical. When \code{var} has length ≥ 2, add the
+difference-of-differences interaction contrasts to the main effects.
+Default \code{FALSE}, i.e. main effects only. Ignored for single-factor \code{var}.}
+
+\item{stratified}{Logical. Add the within-stratum contrasts — each factor
+compared inside one fixed level combination of the others, fitted on
+that subset alone. Default \code{FALSE}; not exposed by the pipeline entry
+points, since an interaction contrast answers the same question with all
+samples behind it.}
 }
 \value{
 A data frame of contrast specs (0 rows only if somehow no levels).
@@ -25,14 +34,61 @@ Returns a data frame of contrast specifications consumed by
 \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} and the HTML report. Columns:
 \describe{
 \item{label}{Disk / tab name for the contrast}
-\item{class}{\code{"single"}, \code{"within_A"}, \code{"within_B"}, or \code{"interaction"}}
+\item{class}{\code{"single"} (one-factor \code{var}), \code{"main"} (a factor's main
+effect across every level of the others), \code{"interaction"} (a
+difference of differences), or \code{"within_A"} / \code{"within_B"} /
+\code{"within_C"} (a factor inside one fixed level combination of the
+others, \code{stratified = TRUE} only)}
 \item{type}{\code{"pairwise"}, \code{"one_vs_all"}, or \code{"interaction"}}
-\item{stratum_var}{Factor held fixed (two-factor within-* only), else \code{NA}}
-\item{stratum_level}{Level of \code{stratum_var}, else \code{NA}}
-\item{test_var}{Column used for the contrast (or first of \code{var} for interaction)}
-\item{comparison}{\code{"A_vs_B"} / \code{"A_vs_B+C"} string for within / single;
-primary interaction coefficient name for interaction rows}
-\item{coef_subtract}{For pairwise interaction contrasts, the second
-coefficient subtracted from \code{comparison}; otherwise \code{NA}}
+\item{stratum_var}{Factor(s) held fixed, else \code{NA}}
+\item{stratum_level}{Level(s) of \code{stratum_var}, else \code{NA}}
+\item{test_var}{Column(s) contrasted; \code{+}-joined for interaction rows}
+\item{comparison}{\code{"A_vs_B"} / \code{"A_vs_B+C"} string for main / within /
+single; \code{+}-joined coefficient names summed in the numerator for
+interaction rows, or \code{NA} for an interaction that needs
+\code{coef_weights}}
+\item{coef_subtract}{\code{+}-joined coefficient names summed in the
+denominator of an interaction contrast; otherwise \code{NA}}
+\item{coef_weights}{\code{"name=weight;..."} map for an interaction contrast
+that averages rather than sums coefficients (a pooled one-vs-rest
+comparison); \code{NA} otherwise. Interaction rows only}
+\item{ix_terms}{\code{"factor:comparison|factor:comparison"} for an
+interaction row, which \code{\link[=interaction_question_table]{interaction_question_table()}} turns into the
+question the contrast answers; \code{NA} otherwise}
 }
 }
+\section{Which contrasts are generated}{
+
+A single-factor \code{var} gives every pairwise comparison plus, with three or
+more levels, every one-vs-rest comparison.
+
+For two or three factors, \strong{every factor's main effect is always
+expanded}: its pairwise (and one-vs-rest) comparisons taken across all
+levels of the other factors, e.g. \code{v1l1_vs_v1l2+v1l3} regardless of \code{v2}
+and \code{v3}, and \code{v2l1_vs_v2l2} regardless of \code{v1} and \code{v3}. These are the
+\code{"main"} rows, and \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} fits them on all samples with
+an additive design (\verb{~ [batch +] other factors + tested factor}), so the
+other factors are adjusted for rather than left in the residual. Labels
+are flat (\code{"v2l1_vs_v2l2"}), as for a single-factor \code{var}.
+
+\code{include_interactions = TRUE} adds \strong{difference-of-differences} rows,
+each asking whether one factor's effect differs between two levels of
+another: \code{C_vs_noC_x_K_vs_noK_in_CB} is "does the K effect differ between
+C and noC, within CB" — which is the same question as "does the C effect
+differ between K and noK, within CB", so a factor pair contributes one row
+per stratum, not two. With three factors each pair is asked inside every
+level of the third factor, plus one three-way row per level pairing
+(\code{CC_vs_CB_x_C_vs_noC_x_K_vs_noK}: does the C × K interaction itself
+differ between CC and CB). \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} fits all of them from
+a single fit of the full product design (\verb{~ [batch +] A * B * C}) on all
+samples, each contrast being a combination of that fit's coefficients.
+
+A factor with three or more levels is compared \strong{one-vs-rest} in these
+rows (\code{CA_vs_CB+CC_x_K_vs_noK_in_C}) and not pairwise, matching how its
+main effects read and keeping the grid linear in the number of levels. The
+pooled side is an \emph{average}, each of its levels weighted \code{1/(k - 1)}
+irrespective of how many samples it has, so the contrast is fitted from a
+numeric weight vector over \code{resultsNames()} rather than a summed list
+contrast.
+}
+

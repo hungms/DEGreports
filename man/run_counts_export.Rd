@@ -8,6 +8,7 @@ run_counts_export(
   dds,
   batch = NULL,
   var = NULL,
+  platform = "rnaseq",
   transform = "vst",
   save_dir = getwd()
 )
@@ -20,10 +21,13 @@ batch to correct for, or \code{NULL} (default) to skip the batch-corrected
 export entirely.}
 
 \item{var}{Column name in \code{colData(dds)} identifying the biological
-group of interest. Required if \code{batch} is supplied: it is passed to
-\code{sva::ComBat_seq()} as the \code{group} argument so the correction protects
-this signal rather than removing it along with the batch effect.
-Ignored if \code{batch} is \code{NULL}.}
+group of interest. Required if \code{batch} is supplied: the correction
+protects this signal rather than removing it along with the batch
+effect. Ignored if \code{batch} is \code{NULL}.}
+
+\item{platform}{Assay platform, \code{"rnaseq"} (default, \code{ComBat_seq()} on
+raw counts) or \code{"microarray"} (\code{ComBat()} on the VST matrix). Ignored
+if \code{batch} is \code{NULL}.}
 
 \item{transform}{One of \code{"vst"} (default) or \code{"rlog"} -- which
 variance-stabilizing transform to use for the VST/rlog export. Both
@@ -35,16 +39,18 @@ visualization, exporting), not the DE test itself.}
 }
 \value{
 Invisibly, a named list of the data frames written (\code{raw},
-\code{vst}, \code{rlog}, \code{cpm}, and \code{combat_seq} if \code{batch} was supplied), each
-with genes as rows (first column \code{gene}) and samples as columns.
+\code{vst}, \code{rlog}, \code{cpm}, and \code{batch_corrected} if \code{batch} was supplied),
+each with genes as rows (first column \code{gene}) and samples as columns.
 }
 \description{
 Writes raw counts, variance-stabilized (VST) counts, regularized-log
 (rlog) counts, and counts-per-million (CPM) as CSV files to \code{save_dir}.
-Optionally also writes a batch-corrected raw-count table
-(\code{sva::ComBat_seq()}). TPM is not produced -- it requires a gene-length
-table that a \code{DESeqDataSet} does not carry, and is out of scope for this
-function; compute it separately if you have gene lengths available.
+Optionally also writes a batch-corrected table: corrected raw counts from
+\code{sva::ComBat_seq()} for \code{platform = "rnaseq"}, or a corrected VST matrix
+from \code{sva::ComBat()} for \code{platform = "microarray"}. TPM is not produced --
+it requires a gene-length table that a \code{DESeqDataSet} does not carry, and
+is out of scope for this function; compute it separately if you have gene
+lengths available.
 }
 \details{
 All exports other than the batch-corrected table are derived directly

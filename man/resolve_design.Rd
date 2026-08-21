@@ -7,26 +7,26 @@
 resolve_design(var, batch = NULL, design = NULL, include_interactions = FALSE)
 }
 \arguments{
-\item{var}{Character vector of length 1 or 2 naming grouping columns in
-\code{colData(dds)}.}
+\item{var}{Character vector of length 1, 2, or 3 naming grouping columns
+in \code{colData(dds)}.}
 
 \item{batch}{Optional character vector of covariate column names, or \code{NULL}.}
 
 \item{design}{Optional design formula / character string override, or
 \code{NULL} (default) to auto-build from \code{var} / \code{batch}.}
 
-\item{include_interactions}{Logical. When \code{var} has length 2 and
-\code{design} is \code{NULL}, use \code{A * B} if \code{TRUE} and additive \code{A + B} if
-\code{FALSE} (default). Ignored for single-factor \code{var} or when \code{design}
-is supplied.}
+\item{include_interactions}{Logical. When \code{var} has length ≥ 2 and
+\code{design} is \code{NULL}, use \code{A * B} / \code{A * B * C} if \code{TRUE} and additive
+\code{A + B} / \code{A + B + C} if \code{FALSE} (default). Ignored for single-factor
+\code{var} or when \code{design} is supplied.}
 }
 \value{
 A \code{formula}.
 }
 \description{
-Everyday use passes only \code{var} (length 1 or 2) and optional \code{batch};
+Everyday use passes only \code{var} (length 1–3) and optional \code{batch};
 \code{design = NULL} then expands to \code{~ var}, \code{~ batch + var}, and for two
-factors either \code{~ A + B} / \code{~ batch + A + B} (additive; default) or
-\code{~ A * B} / \code{~ batch + A * B} when \code{include_interactions = TRUE}. An
+or three factors either an additive sum (default) or a full interaction
+product (\code{A * B} / \code{A * B * C}) when \code{include_interactions = TRUE}. An
 explicit \code{design} is validated and returned unchanged.
 }

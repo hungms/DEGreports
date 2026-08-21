@@ -4,16 +4,17 @@
 #   1. A *narrow, explicitly-scoped* set of ggplot figures render their
 #      data panel as an exact square via `ggplot2::theme(aspect.ratio = 1)`
 #      (`square_panel_theme()`): plot_pca, plot_pca_scree,
-#      plot_pca_top_loadings, plot_ma, plot_volcano, plot_library_size,
+#      plot_ma, plot_volcano, plot_library_size,
 #      plot_count_distribution, and the sample-similarity
 #      pheatmaps (test-report-helpers.R). Squaring these -- PCA/QC/DE
 #      overview plots users compare side-by-side, plus the two
 #      symmetric sample x sample matrices -- makes cross-plot comparison
 #      easier.
-#   2. GSEA (plot_gsea_barplot) and every WGCNA ggplot function
-#      (plot_soft_threshold, plot_module_sizes, plot_module_trait_heatmap,
+#   2. GSEA (plot_gsea_barplot), plot_pca_top_loadings, and every WGCNA ggplot
+#      function (plot_soft_threshold, plot_module_sizes,
+#      plot_module_trait_heatmap,
 #      plot_module_ora_dotplot) are explicitly EXEMPT from squaring: their
-#      natural aspect ratio (one bar per pathway/module, a lopsided
+#      natural aspect ratio (one bar per pathway/module/gene, a lopsided
 #      module x trait grid, ...) is more informative than a forced
 #      square, and forcing it produced distorted-looking panels for
 #      typical gene-set/module counts. plot_module_eigengene_heatmap
@@ -124,7 +125,7 @@ test_that("plot_pca_scree renders a square panel with zero y-axis expansion and 
     expect_equal(p$coordinates$clip, "off")
 })
 
-test_that("plot_pca_top_loadings renders square facet panels with zero y-axis expansion and default clip (bare geom_col() has no stroke beyond its data extent)", {
+test_that("plot_pca_top_loadings is exempt from square-panel theming (no aspect.ratio) but keeps zero y-axis expansion and default clip (bare geom_col() has no stroke beyond its data extent)", {
     top_genes_df <- data.frame(
         gene_order = factor(paste0("PC1___g", 1:6), levels = paste0("PC1___g", 1:6)),
         gene = paste0("g", 1:6),
@@ -134,10 +135,20 @@ test_that("plot_pca_top_loadings renders square facet panels with zero y-axis ex
     )
     p <- plot_pca_top_loadings(top_genes_df)
     expect_s3_class(p, "ggplot")
-    expect_equal(p$theme$aspect.ratio, 1)
+    # A square panel is capped at the available panel *height*, so the extra
+    # width pca_loadings_figure_size() asks for would become whitespace instead
+    # of spreading the rotated gene labels out.
+    expect_null(p$theme$aspect.ratio)
     y_scale <- p$scales$get_scales("y")
     expect_equal(y_scale$expand, c(0, 0, 0, 0))
     expect_equal(p$coordinates$clip, "on")
+})
+
+test_that("pca_loadings_figure_size() asks for a wide on-page box and a portrait PDF page", {
+    sz <- pca_loadings_figure_size()
+    expect_named(sz, c("width", "height", "pdf_width", "pdf_height"))
+    expect_gt(sz$width, sz$height)
+    expect_lt(sz$pdf_width, sz$pdf_height)
 })
 
 test_that("plot_count_distribution renders a square panel with zero expansion on both continuous axes and default clip (colour = NA fill has no stroke beyond its data extent)", {

@@ -148,18 +148,26 @@
 #' Mouse datasets are mapped to human symbols with `babelgene` before
 #' scoring against the human regulon.
 #'
-#' Requires Suggests packages `viper`, `bcellViper`, and (for mouse)
+#' Requires Imports packages `viper`, `bcellViper`, and (for mouse)
 #' `babelgene`.
 #'
-#' @param dds A QC-filtered `DESeqDataSet`.
-#' @param var Grouping column (unused for scoring; kept for API symmetry
-#'   with other modules).
-#' @param diffexp_out Output of [run_diffexp_pipeline()] (needs
-#'   `$by_comparison` with a `stat` column per gene).
+#' @param dds A QC-filtered `DESeqDataSet`, or `NULL` to skip sample-level
+#'   VIPER and run **contrast-level** `msviper()` only (needs
+#'   `diffexp_out$by_comparison` with a `stat` column).
+#' @param var Grouping column (used as ComBat-seq's protected group when
+#'   `batch` is set). Ignored when `dds = NULL`.
+#' @param batch Optional batch column. When set (and `dds` is supplied),
+#'   sample-level VIPER uses batch-corrected expression. Contrast msVIPER
+#'   still uses DESeq2 `stat`.
+#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
+#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
+#' @param diffexp_out Output of [run_diffexp_pipeline()] or
+#'   [prepare_diffexp_from_deg()] (needs `$by_comparison` with a `stat`
+#'   column per gene).
 #' @param n_tfs Number of top master regulators shown in each contrast
 #'   barcode plot (`plot.msviper`). Default `10`.
 #' @param n_tfs_heatmap Number of most variable TFs in the sample-level
-#'   activity heatmap. Default `50`.
+#'   activity heatmap. Default `50`. Ignored when `dds = NULL`.
 #' @param minsize Minimum regulon size passed to `viper` / `msviper`.
 #'   Default `25` (VIPER default); mouse ortholog mapping may leave fewer
 #'   targets -- lower if many regulons are filtered out.
@@ -167,17 +175,19 @@
 #' @param save_dir Output directory. Default `getwd()`.
 #' @param save_plot Logical; write PDFs alongside CSVs. Default `TRUE`.
 #' @return A list with `org`, `regulon_n`, `sample_acts` (TF × sample
-#'   matrix), `sample_heatmap`, `contrast_acts`, `contrast_msviper`,
-#'   `n_tfs`, and `n_tfs_heatmap`.
+#'   matrix, or `NULL` when `dds = NULL`), `sample_heatmap`,
+#'   `contrast_acts`, `contrast_msviper`, `n_tfs`, and `n_tfs_heatmap`.
 #' @export
 run_viper_pipeline <- function(
-    dds,
-    var,
+    dds = NULL,
+    var = NULL,
     diffexp_out,
     n_tfs = 10,
     n_tfs_heatmap = 50,
     minsize = 25,
     gene_col = "gene",
+    batch = NULL,
+    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -186,7 +196,7 @@ run_viper_pipeline <- function(
              "Install with BiocManager::install(\"viper\").", call. = FALSE)
     }
 
-    dds <- validate_dds(dds)
+    if (!is.null(dds)) dds <- validate_dds(dds)
     save_dir <- validate_save_dir(save_dir)
     minsize_missing <- missing(minsize)
     n_tfs <- as.integer(n_tfs)[1]
@@ -202,7 +212,20 @@ run_viper_pipeline <- function(
         stop("`minsize` must be a positive integer.", call. = FALSE)
     }
 
-    org <- detect_organism(rownames(dds))
+    by_comp <- diffexp_out$by_comparison
+    if (is.null(by_comp) || !length(by_comp)) {
+        stop("`diffexp_out$by_comparison` is empty; cannot run contrast-level msVIPER.",
+             call. = FALSE)
+    }
+
+    if (!is.null(dds)) {
+        org <- detect_organism(rownames(dds))
+    } else {
+        sample_genes <- unlist(lapply(by_comp, function(df) {
+            as.character(df[[gene_col]])
+        }), use.names = FALSE)
+        org <- detect_organism(sample_genes)
+    }
     # Ortholog mapping thins regulon target overlap; use a slightly lower
     # default minsize for mouse unless the caller overrode minsize.
     if (identical(org, "mouse") && minsize_missing) {
@@ -212,45 +235,53 @@ run_viper_pipeline <- function(
             "\", minsize=", minsize, ") ...")
     regulon <- .load_bcell_regulon()
 
-    message("Running sample-level VIPER on scaled VST expression ...")
-    vsd <- quiet(safe_vst(dds, blind = TRUE))
-    mat <- as.matrix(SummarizedExperiment::assay(vsd))
-    storage.mode(mat) <- "double"
-    mat_h <- .map_expression_to_human(mat, org)
-    # Scale genes across samples (VIPER vignette-style z-scores).
-    mat_z <- t(scale(t(mat_h)))
-    mat_z[!is.finite(mat_z)] <- 0
+    sample_acts <- NULL
+    sample_heatmap <- NULL
+    expr_correction <- NA_character_
+    if (!is.null(dds)) {
+        if (!is.null(batch) && is.null(var)) {
+            stop("`var` must be supplied when `batch` is set so ComBat-seq can protect the biological group.",
+                 call. = FALSE)
+        }
+        message("Running sample-level VIPER on scaled sample expression ...")
+        mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
+                                        platform = platform)
+        expr_correction <- attr(mat, "expr_correction")
+        storage.mode(mat) <- "double"
+        mat_h <- .map_expression_to_human(mat, org)
+        # Scale genes across samples (VIPER vignette-style z-scores).
+        mat_z <- t(scale(t(mat_h)))
+        mat_z[!is.finite(mat_z)] <- 0
 
-    sample_acts <- viper::viper(
-        eset = mat_z,
-        regulon = regulon,
-        method = "scale",
-        minsize = minsize,
-        eset.filter = TRUE,
-        verbose = FALSE
-    )
-    # viper returns TF × sample matrix of NES.
-    write_output(
-        data.frame(tf = rownames(sample_acts), sample_acts, check.names = FALSE),
-        file.path(save_dir, "viper_sample_activities.csv")
-    )
+        sample_acts <- viper::viper(
+            eset = mat_z,
+            regulon = regulon,
+            method = "scale",
+            minsize = minsize,
+            eset.filter = TRUE,
+            verbose = FALSE
+        )
+        # viper returns TF × sample matrix of NES.
+        write_output(
+            data.frame(tf = rownames(sample_acts), sample_acts,
+                       check.names = FALSE),
+            file.path(save_dir, "viper_sample_activities.csv")
+        )
 
-    sample_heatmap <- plot_viper_sample_heatmap(sample_acts, n_tfs = n_tfs_heatmap)
-    if (save_plot && !is.null(sample_heatmap)) {
-        gt <- sample_heatmap$gtable
-        w <- 0.5 * min(grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE), 10)
-        h <- 0.5 * min(grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE), 10)
-        grDevices::pdf(file.path(save_dir, "viper_sample_tf_heatmap.pdf"),
-                       width = max(4, w), height = max(3, h))
-        grid::grid.newpage()
-        grid::grid.draw(gt)
-        grDevices::dev.off()
-    }
-
-    by_comp <- diffexp_out$by_comparison
-    if (is.null(by_comp) || !length(by_comp)) {
-        stop("`diffexp_out$by_comparison` is empty; cannot run contrast-level msVIPER.",
-             call. = FALSE)
+        sample_heatmap <- plot_viper_sample_heatmap(sample_acts,
+                                                    n_tfs = n_tfs_heatmap)
+        if (save_plot && !is.null(sample_heatmap)) {
+            gt <- sample_heatmap$gtable
+            w <- 0.5 * min(grid::convertWidth(sum(gt$widths), "in", valueOnly = TRUE), 10)
+            h <- 0.5 * min(grid::convertHeight(sum(gt$heights), "in", valueOnly = TRUE), 10)
+            grDevices::pdf(file.path(save_dir, "viper_sample_tf_heatmap.pdf"),
+                           width = max(4, w), height = max(3, h))
+            grid::grid.newpage()
+            grid::grid.draw(gt)
+            grDevices::dev.off()
+        }
+    } else {
+        message("Skipping sample-level VIPER (dds = NULL; contrast-level only).")
     }
 
     message("Running contrast-level msVIPER on DESeq2 Wald statistics (",
@@ -297,10 +328,14 @@ run_viper_pipeline <- function(
         if (save_plot) {
             pdf_path <- file.path(comp_dir, "msviper_contrast_barcode.pdf")
             dir.create(comp_dir, recursive = TRUE, showWarnings = FALSE)
+            # Cap mrs to available regulators; plot.msviper indexes
+            # order(p.value)[1:mrs] and NA entries yield non-finite xlim.
+            mrs_plot <- min(as.integer(n_tfs), length(msv$es$nes))
             # Half the previous barcode footprint (was 8 x max(4, 0.35*n+1.5)).
-            grDevices::pdf(pdf_path, width = 4, height = max(2, 0.175 * n_tfs + 0.75))
+            grDevices::pdf(pdf_path, width = 4,
+                           height = max(2, 0.175 * mrs_plot + 0.75))
             tryCatch(
-                plot(msv, mrs = n_tfs, cex = 0.55),
+                plot(msv, mrs = mrs_plot, cex = 0.55),
                 error = function(e) {
                     warning("msVIPER plot failed for \"", comp, "\": ",
                             conditionMessage(e), call. = FALSE)
@@ -320,7 +355,8 @@ run_viper_pipeline <- function(
         n_tfs = n_tfs,
         n_tfs_heatmap = n_tfs_heatmap,
         minsize = minsize,
-        network = "bcellViper"
+        network = "bcellViper",
+        expr_correction = expr_correction
     )
 }
 
@@ -379,18 +415,35 @@ emit_msviper_plot <- function(msv, filename, mrs = 10,
         stop("Package \"downloadthis\" is required for download buttons.", call. = FALSE)
     }
 
+    n_reg <- tryCatch(length(msv$es$nes), error = function(e) 0L)
+    if (!is.finite(n_reg) || n_reg < 1L) {
+        cat("\n\n*Barcode plot unavailable (no master regulators in this ",
+            "msVIPER result).*\n\n", sep = "")
+        return(invisible(NULL))
+    }
+    # Cap mrs: plot.msviper uses order(p.value)[1:mrs]; requesting more
+    # regulators than exist inserts NAs and crashes with non-finite xlim.
+    mrs <- max(1L, min(as.integer(mrs)[1], as.integer(n_reg)))
+    height <- max(2, 0.175 * mrs + 0.75)
+
     draw <- function() {
         old_par <- graphics::par(no.readonly = TRUE)
         on.exit(graphics::par(old_par), add = TRUE)
-        plot(msv, mrs = mrs, cex = 0.55)
+        tryCatch(
+            plot(msv, mrs = mrs, cex = 0.55),
+            error = function(e) {
+                plot.new()
+                graphics::title(
+                    main = paste("VIPER plot unavailable:", conditionMessage(e))
+                )
+            }
+        )
     }
 
+    pdf_sz <- .html_display_to_pdf_in(width, height, dpi)
     tmp_pdf <- tempfile(fileext = ".pdf")
-    grDevices::pdf(tmp_pdf, width = width, height = height)
-    tryCatch(draw(), error = function(e) {
-        plot.new()
-        graphics::title(main = paste("VIPER plot failed:", conditionMessage(e)))
-    })
+    grDevices::pdf(tmp_pdf, width = pdf_sz$width, height = pdf_sz$height)
+    draw()
     grDevices::dev.off()
 
     button <- downloadthis::download_file(
@@ -399,26 +452,13 @@ emit_msviper_plot <- function(msv, filename, mrs = 10,
         button_label = "Download PDF",
         button_type = "default",
         has_icon = TRUE,
-        self_contained = TRUE
+        self_contained = TRUE,
+        class = "btn-sm"
     )
 
     px_width <- as.integer(round(width * dpi))
     px_height <- as.integer(round(height * dpi))
-    content <- htmltools::plotTag(
-        draw(),
-        alt = filename,
-        width = px_width,
-        height = px_height,
-        pixelratio = dpi / 72,
-        suppressSize = "xy",
-        attribs = list(
-            width = px_width,
-            height = px_height,
-            style = sprintf(
-                "max-width: none !important; width: %dpx; height: %dpx;",
-                px_width, px_height
-            )
-        )
-    )
+    content <- figure_img_tag(draw, px_width, px_height,
+                              pixelratio = dpi / 72, alt = filename)
     emit_widget(wrap_with_corner_button(content, button))
 }

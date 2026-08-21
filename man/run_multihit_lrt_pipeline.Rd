@@ -9,7 +9,8 @@ run_multihit_lrt_pipeline(
   diffexp_out,
   wgcna_out = NULL,
   viper_out = NULL,
-  decoupler_out = NULL,
+  decoupler_tf_out = NULL,
+  decoupler_ccc_out = NULL,
   alpha = 0.05,
   top_n = 10,
   org = NULL,
@@ -25,7 +26,9 @@ run_multihit_lrt_pipeline(
 
 \item{viper_out}{Output of \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL}.}
 
-\item{decoupler_out}{Output of \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, or \code{NULL}.}
+\item{decoupler_tf_out}{Output of \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}, or \code{NULL}.}
+
+\item{decoupler_ccc_out}{Output of \code{\link[=run_decoupler_ccc_pipeline]{run_decoupler_ccc_pipeline()}}, or \code{NULL}.}
 
 \item{alpha}{Significance threshold for TF layers. Default \code{0.05}.}
 
@@ -41,5 +44,6 @@ A list with \code{by_module}, \code{layers_used}, \code{mode = "lrt_module"},
 }
 \description{
 For each degPatterns cluster, ranks the top \code{top_n} genes by co-occurrence
-across LRT DEG membership, WGCNA modules, decoupleR TFs, and VIPER TFs.
+across LRT DEG membership, WGCNA modules, decoupleR-TF, decoupleR-CCC,
+and VIPER TFs.
 }

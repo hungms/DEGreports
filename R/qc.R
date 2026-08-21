@@ -36,16 +36,18 @@
 #' summary CSV. Returns the filtered `dds` object so it can be fed into
 #' [run_distance_pca()] and [run_diffexp_pipeline()].
 #'
-#' Low-expression filtering is off by default (`filter_method = NULL`, no
-#' genes removed for expression). Two filtering strategies are available
-#' via `filter_method`:
+#' Low-expression filtering is on by default (`filter_method = "cpm"`); pass
+#' `filter_method = NULL` to remove no genes for expression. Two filtering
+#' strategies are available via `filter_method`:
 #' \describe{
-#'   \item{`"cpm"`}{a percentile filter: rank genes by mean
-#'     counts-per-million (CPM) across all samples, and remove the bottom
-#'     `cpm_percentile` fraction (default `0.05`, i.e. the 5% most lowly
-#'     expressed genes). This adapts automatically to sequencing depth (via
-#'     CPM) without requiring an absolute count threshold to be chosen up
-#'     front.}
+#'   \item{`"cpm"`}{drop genes with no reads in any sample, then rank what
+#'     remains by mean counts-per-million (CPM) across all samples and remove
+#'     the bottom `cpm_percentile` fraction of *those* (default `0.05`). This
+#'     adapts automatically to sequencing depth (via CPM) without requiring an
+#'     absolute count threshold to be chosen up front. The unexpressed genes
+#'     are taken out first because the percentile is otherwise meaningless: a
+#'     full annotation typically leaves half the genes zero everywhere, so the
+#'     quantile lands inside that tie and the filter removes nothing at all.}
 #'   \item{`"count"`}{a group-size-aware absolute threshold: keep a gene if,
 #'     in at least one level of `var`, at least `min_samples_per_group`
 #'     samples of that group have a raw count >= `min_count` (default `10`).
@@ -68,9 +70,10 @@
 #' @param filter_method Low-expression filtering strategy: `"cpm"` (default,
 #'   percentile-based), `"count"`, or `NULL` (no expression filtering).
 #'   See Details.
-#' @param cpm_percentile Fraction (0-1) of the most lowly-expressed genes
-#'   (by mean CPM across samples) to remove. Used only when
-#'   `filter_method = "cpm"`. Default `0.05` (bottom 5%).
+#' @param cpm_percentile Fraction (0-1) of the *expressed* genes (by mean CPM
+#'   across samples) to remove, on top of the genes with no reads at all. Used
+#'   only when `filter_method = "cpm"`. Default `0.05` (bottom 5%); `0` removes
+#'   only the unexpressed genes.
 #' @param min_count Minimum raw count for a sample to count as "expressing"
 #'   a gene. Used only when `filter_method = "count"`. Default `10`.
 #' @param min_samples_per_group Minimum number of samples *within a single
@@ -156,6 +159,16 @@ run_qc <- function(
     step_n_before <- n_genes_start
     step_n_after <- n_genes_start
 
+    # Per-sample detection / depth on the input count matrix (before gene
+    # filtering). Reported under Sample QC ahead of Library QC.
+    counts_input <- DESeq2::counts(dds)
+    sample_qc_table <- data.frame(
+        sample = colnames(counts_input),
+        n_detected_genes = as.integer(colSums(counts_input > 0)),
+        n_total_transcripts = as.numeric(colSums(counts_input)),
+        stringsAsFactors = FALSE
+    )
+
     if (remove_mt) {
         n_before <- nrow(dds)
         keep_mt <- !grepl(mt_pattern, rownames(dds))
@@ -216,12 +229,31 @@ run_qc <- function(
     if (is.null(filter_method)) {
         message("No low-expression filtering applied (filter_method = NULL).")
     } else if (filter_method == "cpm") {
-        cutoff_log2 <- stats::quantile(gene_stat_log2, probs = cpm_percentile, names = FALSE, type = 7)
-        keep_expr <- gene_stat_log2 >= cutoff_log2
-        message("Filtering the bottom ", round(cpm_percentile * 100, 2),
-                "% of genes by mean CPM (", sum(!keep_expr), " gene(s) below log2(CPM+1) = ",
-                round(cutoff_log2, 3), ")...")
-        filter_desc <- paste0("bottom ", round(cpm_percentile * 100, 2), "% by mean CPM removed")
+        # Genes with no reads at all go first, then the percentile applies to
+        # what is left. Taking the percentile over the whole distribution makes
+        # it meaningless on typical bulk RNA-seq, where a full annotation leaves
+        # half the genes zero in every sample: the quantile then lands inside
+        # that tie at zero, and since log2(0 + 1) == 0, a `>= cutoff` rule keeps
+        # every gene in the dataset -- the filter silently removed nothing.
+        expressed <- gene_stat > 0
+        n_zero <- sum(!expressed)
+        if (any(expressed) && cpm_percentile > 0) {
+            cutoff_log2 <- stats::quantile(gene_stat_log2[expressed],
+                                           probs = cpm_percentile,
+                                           names = FALSE, type = 7)
+            keep_expr <- expressed & gene_stat_log2 > cutoff_log2
+        } else {
+            cutoff_log2 <- 0
+            keep_expr <- expressed
+        }
+        message("Filtering low-expression genes: ", n_zero,
+                " gene(s) with no reads in any sample, plus the bottom ",
+                round(cpm_percentile * 100, 2), "% of the ", sum(expressed),
+                " expressed gene(s) (below log2(CPM+1) = ", round(cutoff_log2, 4),
+                ") -- ", sum(!keep_expr), " gene(s) removed in total...")
+        filter_desc <- paste0("unexpressed genes plus the bottom ",
+                              round(cpm_percentile * 100, 2),
+                              "% of expressed genes by mean CPM removed")
         filter_step_name <- "Low-expression gene removal (CPM percentile)"
     } else {
         groups <- SummarizedExperiment::colData(dds)[[var]]
@@ -269,6 +301,7 @@ run_qc <- function(
         n_after = step_n_after
     )
     write_output(steps_summary, file.path(save_dir, "qc_steps_summary.csv"), format = "csv")
+    write_output(sample_qc_table, file.path(save_dir, "qc_sample_summary.csv"), format = "csv")
 
     filter_summary <- data.frame(
         metric = c("genes_input", "genes_after_qc", "filter_method", "filter_criterion", "samples"),
@@ -292,6 +325,7 @@ run_qc <- function(
     # report doesn't need to recompute (or be separately passed) QC detail.
     qc_meta <- list(
         steps_summary = steps_summary,
+        sample_qc_table = sample_qc_table,
         filter_method = filter_method,
         cpm_percentile = if (!is.null(filter_method) && filter_method == "cpm") cpm_percentile else NA_real_,
         min_samples_per_group = if (!is.null(filter_method) && filter_method == "count") min_samples_per_group else NA_integer_,
@@ -313,8 +347,10 @@ run_qc <- function(
 #' filtering") and one for the subset retained after low-expression removal
 #' ("after filtering"), distinguished by colour on the same axes so the
 #' shift in the distribution is directly visible. The cutoff is overlaid as
-#' a vertical dashed line. For `filter_method = "cpm"` this line is the
-#' exact `cpm_percentile` cutoff on the mean-CPM axis. For
+#' a vertical dashed line. For `filter_method = "cpm"` this line is the exact
+#' boundary: it is the `cpm_percentile` cutoff taken over the expressed genes,
+#' and everything at or below it -- including the unexpressed genes piled up at
+#' zero -- is removed. For
 #' `filter_method = "count"` the underlying decision is per-group (whether
 #' *any* group has `min_samples_per_group` samples clearing `min_count`),
 #' which cannot be reduced to a single point on the total-count axis, so the

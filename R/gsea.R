@@ -21,11 +21,10 @@ org_to_species <- function(org) {
     GOBP         = list(cat = "C5", subcat = "GO:BP",          prefix = "GOBP_"),
     GOCC         = list(cat = "C5", subcat = "GO:CC",          prefix = "GOCC_"),
     GOMF         = list(cat = "C5", subcat = "GO:MF",          prefix = "GOMF_"),
-    KEGG_MEDICUS = list(cat = "C2", subcat = "CP:KEGG_MEDICUS", prefix = "KEGG_MEDICUS_"),
-    # NOTE: msigdbr's `CP:KEGG_LEGACY` subcollection still names its gene
-    # sets with the older bare "KEGG_" prefix (e.g. "KEGG_ABC_TRANSPORTERS"),
-    # not "KEGG_LEGACY_" -- verified against the installed msigdbr db.
-    KEGG_LEGACY  = list(cat = "C2", subcat = "CP:KEGG_LEGACY",  prefix = "KEGG_"),
+    # Package alias is "KEGG". msigdbr stores these as `CP:KEGG_LEGACY`
+    # and still names gene sets with the bare "KEGG_" prefix
+    # (e.g. "KEGG_ABC_TRANSPORTERS").
+    KEGG         = list(cat = "C2", subcat = "CP:KEGG_LEGACY",  prefix = "KEGG_"),
     REACTOME     = list(cat = "C2", subcat = "CP:REACTOME",    prefix = "REACTOME_"),
     PID          = list(cat = "C2", subcat = "CP:PID",         prefix = "PID_")
 )
@@ -35,6 +34,7 @@ org_to_species <- function(org) {
 #' @return A list with elements `cat` and `subcat` (`subcat` may be `NULL`).
 #' @noRd
 resolve_msigdb_alias <- function(collection) {
+    if (identical(collection, "KEGG_LEGACY")) collection <- "KEGG"
     spec <- .msigdb_collection_map[[collection]]
     if (is.null(spec)) {
         stop("Unsupported MSigDB collection alias: \"", collection, "\". Supported aliases are: ",
@@ -49,7 +49,7 @@ resolve_msigdb_alias <- function(collection) {
 #' `subcategory`) and current (`collection`/`subcollection`) argument names
 #' across `msigdbr` package versions. Collection identifiers are given as
 #' friendly aliases (`"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`,
-#' `"KEGG_MEDICUS"`, `"REACTOME"`), resolved via `resolve_msigdb_alias()`. Shared by
+#' `"REACTOME"`), resolved via `resolve_msigdb_alias()`. Shared by
 #' [import_msigdbr()] (fgsea-style named-list format) and
 #' [import_msigdbr_term2gene()] (clusterProfiler's `TERM2GENE` data-frame
 #' format) so the collection is only fetched once per representation.
@@ -225,8 +225,8 @@ run_gsea <- function(ranks, gene_sets, min_size = 15, max_size = 500, eps = 1e-1
 #'   [run_diffexp_pipeline()] (with a `comparison` column) or its
 #'   `by_comparison` list.
 #' @param collections Character vector of MSigDB collection aliases:
-#'   `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`, `"KEGG_MEDICUS"`,
-#'   `"KEGG_LEGACY"`, `"REACTOME"`. Default `"HALLMARK"` only when calling
+#'   `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`, `"KEGG"`,
+#'   `"REACTOME"`, `"PID"`. Default `"HALLMARK"` only when calling
 #'   this function directly ([run_deseq2_pipeline()] passes its own
 #'   6-collection default -- see its `collections` argument). Organism
 #'   (human/mouse) is auto-detected from the gene symbols in
@@ -735,6 +735,71 @@ gsea_top_bottom_table <- function(gsea_res, top_n = 10) {
     bottom_idx <- seq(to = n, length.out = min(top_n, n))
     idx <- union(top_idx, bottom_idx)
     df[idx, ]
+}
+
+#' Summarise significant up/down GSEA pathway counts per contrast
+#'
+#' Pools pathways across all MSigDB collections for each contrast. Up /
+#' down are defined by `NES` sign among pathways with `padj < alpha`.
+#' Percentages are relative to all tested pathways (non-`NA` `padj`) in
+#' that contrast.
+#'
+#' @param gsea_out Output of [run_gsea_pipeline()].
+#' @param alpha Significance threshold. Default `0.05`.
+#' @return A data frame with one row per contrast.
+#' @export
+summarize_gsea_contrasts <- function(gsea_out, alpha = 0.05) {
+    by_comp <- gsea_out$by_comparison
+    if (is.null(by_comp) || !length(by_comp)) {
+        return(data.frame(
+            contrast = character(0),
+            n_tested = integer(0),
+            n_sig = integer(0),
+            n_up = integer(0),
+            pct_up = numeric(0),
+            n_down = integer(0),
+            pct_down = numeric(0),
+            stringsAsFactors = FALSE
+        ))
+    }
+    rows <- lapply(names(by_comp), function(comp) {
+        by_coll <- by_comp[[comp]]
+        dfs <- lapply(by_coll, function(df) {
+            if (is.null(df) || !nrow(df)) return(NULL)
+            df
+        })
+        dfs <- dfs[!vapply(dfs, is.null, logical(1))]
+        if (!length(dfs)) {
+            return(data.frame(
+                contrast = comp,
+                n_tested = 0L, n_sig = 0L,
+                n_up = 0L, pct_up = NA_real_,
+                n_down = 0L, pct_down = NA_real_,
+                stringsAsFactors = FALSE
+            ))
+        }
+        all_df <- do.call(rbind, dfs)
+        tested <- !is.na(all_df$padj)
+        n_tested <- sum(tested)
+        sig <- tested & all_df$padj < alpha
+        n_up <- sum(sig & all_df$NES > 0, na.rm = TRUE)
+        n_down <- sum(sig & all_df$NES < 0, na.rm = TRUE)
+        n_sig <- n_up + n_down
+        pct <- function(n) {
+            if (n_tested == 0L) NA_real_ else round(100 * n / n_tested, 2)
+        }
+        data.frame(
+            contrast = comp,
+            n_tested = as.integer(n_tested),
+            n_sig = as.integer(n_sig),
+            n_up = as.integer(n_up),
+            pct_up = pct(n_up),
+            n_down = as.integer(n_down),
+            pct_down = pct(n_down),
+            stringsAsFactors = FALSE
+        )
+    })
+    do.call(rbind, rows)
 }
 
 #' Interactive, sortable/searchable GSEA results table

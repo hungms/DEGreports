@@ -20,5 +20,6 @@ out <- run_deseq2_pipeline(
 ```
 
 See `vignette("deseq2reports")` for the full argument reference.
-The pipeline writes per-module folders under `save_dir` (`qc/`, `distance/`,
-`deseq2/`, `clusterprofiler/`, optional `wgcna/` / `decoupler/`) plus `index.html`.
+The pipeline writes per-module folders under `save_dir` (`qc/` incl. `counts/` and
+`distance/`, `deseq2/`, `clusterprofiler/`; optional `gsva/` / `wgcna/` incl.
+per-module `ppi/` / `decoupler-tf/` / `decoupler-ccc/` / `viper/`) plus `index.html`.

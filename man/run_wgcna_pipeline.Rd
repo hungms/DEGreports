@@ -17,10 +17,11 @@ run_wgcna_pipeline(
   max_modules = 15L,
   cor_type = "pearson",
   top_n_hub_genes = 10,
-  ora_collection = c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME",
-    "PID"),
+  ora_collection = c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID"),
   top_n_ora = 10,
   gene_col = "gene",
+  batch = NULL,
+  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -70,9 +71,9 @@ module. Default \code{10}.}
 \item{ora_collection}{MSigDB collection alias(es) for the per-module
 over-representation analysis (see \code{validate_msigdb_collections()}):
 one or more of \code{"HALLMARK"}, \code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"},
-\code{"KEGG_MEDICUS"}, \code{"KEGG_LEGACY"}, \code{"REACTOME"}, \code{"PID"}. Default
+\code{"KEGG"}, \code{"REACTOME"}, \code{"PID"}. Default
 matches the GSEA default
-(\code{c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY", "REACTOME", "PID")}).
+(\code{c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID")}).
 \code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}} passes its \code{collections} argument through so
 WGCNA ORA and GSEA use the same set. The leftover/unassigned "grey"
 module (renamed "Unassigned") is always excluded (see \code{ora_by_module}
@@ -83,6 +84,12 @@ module shown in the ORA dot plot. Default \code{10}.}
 
 \item{gene_col}{Name of the gene-identifier column in output tables.
 Default \code{"gene"}.}
+
+\item{batch}{Optional batch column. When set, the network is built on
+batch-corrected expression (protecting \code{var}), not uncorrected VST.}
+
+\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
+\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
 
 \item{save_dir}{Directory to write outputs to. Default \code{getwd()}.}
 

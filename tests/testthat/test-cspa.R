@@ -45,10 +45,17 @@ test_that("run_cspa_marker_pipeline writes per-contrast and combined outputs", {
                                save_plot = FALSE)
     out <- run_cspa_marker_pipeline(
         dds, de, var = "condition", n_markers = 5,
-        save_dir = file.path(tmp, "cspa"), save_plot = TRUE
+        save_dir = file.path(tmp, "deseq2"), save_plot = TRUE
     )
     expect_true(out$cspa_n > 0)
-    expect_true(file.exists(file.path(tmp, "cspa", "cspa_markers_combined.csv")) ||
+    comps <- names(de$by_comparison)
+    expect_true(file.exists(file.path(tmp, "deseq2", "cspa_markers_combined.csv")) ||
                     length(out$combined_markers) == 0 || nrow(out$combined_markers) == 0)
+    if (length(comps) && nrow(out$markers_by_comparison[[comps[[1]]]])) {
+        expect_true(file.exists(file.path(
+            tmp, "deseq2", comps[[1]], "cspa", "cspa_markers.csv"
+        )))
+    }
     expect_true("combined" %in% names(out$heatmaps))
+    expect_equal(out$expr_correction, "vst")
 })

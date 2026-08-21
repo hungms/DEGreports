@@ -15,17 +15,27 @@ test_that("run_distance_pca returns the expected structure and writes outputs", 
     expect_null(out$loadings_uncorrected)
     expect_null(out$top_genes_uncorrected)
     expect_null(out$top_loadings_plot_uncorrected)
+    expect_null(out$pca_assoc_uncorrected)
+    expect_null(out$pca_assoc_plot_uncorrected)
     expect_s3_class(out$pca_plot_interactive, "plotly")
     expect_s3_class(out$scree_plot, "ggplot")
     expect_true(all(c("gene", "PC1", "PC2") %in% colnames(out$loadings)))
     expect_true(all(c("pc", "gene", "loading", "direction", "rank") %in% colnames(out$top_genes)))
     expect_s3_class(out$top_loadings_plot, "ggplot")
+    expect_true(is.data.frame(out$pca_assoc))
+    expect_true(all(c("pc", "covariate", "p_value", "neglog10_p") %in% colnames(out$pca_assoc)))
+    expect_false(is.null(out$pca_assoc_plot))
     expect_true(is.data.frame(out$similarity_matrix))
+    expect_null(out$similarity_plot_corrected)
+    expect_null(out$similarity_matrix_corrected)
+    expect_equal(out$batch_correction, "none")
     expect_true(is.numeric(out$percent_var))
 
     expect_true(file.exists(file.path(save_dir, "pca_plot.pdf")))
     expect_true(file.exists(file.path(save_dir, "pca_scree.pdf")))
     expect_true(file.exists(file.path(save_dir, "pca_top_loadings.pdf")))
+    expect_true(file.exists(file.path(save_dir, "pca_covariate_association.pdf")))
+    expect_true(file.exists(file.path(save_dir, "pca_covariate_association.csv")))
     expect_true(file.exists(file.path(save_dir, "sample_similarity_heatmap.pdf")))
     expect_true(file.exists(file.path(save_dir, "pca_coordinates.csv")))
     expect_true(file.exists(file.path(save_dir, "pca_loadings.csv")))
@@ -40,7 +50,7 @@ test_that("run_distance_pca with batch correction also returns/saves the uncorre
     dds <- simulate_dds(n_genes = 60, n_per_group = 4, batch = TRUE)
     save_dir <- withr::local_tempdir()
 
-    out <- run_distance_pca(dds, var = "condition", batch = "batch", batch_method = "limma",
+    out <- run_distance_pca(dds, var = "condition", batch = "batch",
                              save_dir = save_dir)
 
     expect_s3_class(out$pca_plot_uncorrected, "ggplot")
@@ -54,8 +64,48 @@ test_that("run_distance_pca with batch correction also returns/saves the uncorre
     expect_true(file.exists(file.path(save_dir, "pca_top_loadings_uncorrected.pdf")))
     expect_true(file.exists(file.path(save_dir, "pca_loadings_uncorrected.csv")))
     expect_true(file.exists(file.path(save_dir, "pca_top_genes_per_pc_uncorrected.csv")))
+    expect_true(is.data.frame(out$pca_assoc_uncorrected))
+    expect_false(is.null(out$pca_assoc_plot_uncorrected))
+    expect_true(file.exists(file.path(save_dir, "pca_covariate_association_uncorrected.pdf")))
+    expect_true(file.exists(file.path(save_dir, "pca_covariate_association_uncorrected.csv")))
     # design is untouched by visualization-only batch correction
     expect_identical(as.character(DESeq2::design(out$dds))[2], "condition")
+    expect_false(is.null(out$similarity_plot_corrected))
+    expect_true(is.data.frame(out$similarity_matrix_corrected))
+    expect_equal(out$batch_correction, "ComBat-seq")
+    expect_true(file.exists(file.path(save_dir, "sample_similarity_heatmap_batch_corrected.pdf")))
+    expect_true(file.exists(file.path(save_dir, "sample_similarity_matrix_batch_corrected.csv")))
+    # VST (before) vs ComBat-seq (after) correlation matrices should differ
+    expect_false(isTRUE(all.equal(
+        as.matrix(out$similarity_matrix[, -1]),
+        as.matrix(out$similarity_matrix_corrected[, -1])
+    )))
+})
+
+test_that("platform = 'microarray' corrects with ComBat instead of ComBat-seq", {
+    dds <- simulate_dds(n_genes = 60, n_per_group = 4, batch = TRUE)
+    save_dir <- withr::local_tempdir()
+
+    out <- run_distance_pca(dds, var = "condition", batch = "batch",
+                            platform = "microarray", save_plot = FALSE,
+                            save_dir = save_dir)
+
+    expect_equal(out$batch_correction, "ComBat")
+    expect_true(is.data.frame(out$similarity_matrix_corrected))
+    expect_false(isTRUE(all.equal(
+        as.matrix(out$similarity_matrix[, -1]),
+        as.matrix(out$similarity_matrix_corrected[, -1])
+    )))
+})
+
+test_that("run_distance_pca rejects an unknown platform", {
+    dds <- simulate_dds(n_genes = 40, n_per_group = 3, batch = TRUE)
+    expect_error(
+        run_distance_pca(dds, var = "condition", batch = "batch",
+                         platform = "nanostring", save_plot = FALSE,
+                         save_dir = withr::local_tempdir()),
+        "platform"
+    )
 })
 
 test_that("plot_pca renders a square panel (aspect.ratio = 1)", {

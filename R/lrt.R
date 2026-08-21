@@ -315,7 +315,7 @@ run_diffexp_lrt_pipeline <- function(
         out$sig <- !is.na(out$padj) & out$padj < alpha
         rownames(out) <- NULL
 
-        write_output(out, file.path(save_dir, label, paste0(label, "_lrt.csv")))
+        write_output(out, file.path(save_dir, label, paste0(contrast_file_stem(label), "_lrt.csv")))
         message("    ", sum(out$sig), " significant gene(s) at padj < ", alpha, ".")
         by_comparison[[label]] <- out
         fitted[i] <- TRUE
@@ -343,7 +343,7 @@ run_diffexp_lrt_pipeline <- function(
 #' fewer than `minc` significant genes are skipped (a cluster cannot be
 #' smaller than `minc`, so there is nothing to find).
 #'
-#' Requires Suggests package `DEGreport`.
+#' Requires Imports package `DEGreport`.
 #'
 #' @param dds A QC-filtered `DESeqDataSet` (the same object passed to
 #'   [run_diffexp_lrt_pipeline()]).
@@ -525,7 +525,7 @@ run_degpatterns_pipeline <- function(
 run_cluster_ora_pipeline <- function(
     degpatterns_out,
     universe,
-    collections = c("GOBP", "GOCC", "GOMF", "KEGG_MEDICUS", "KEGG_LEGACY",
+    collections = c("GOBP", "GOCC", "GOMF", "KEGG",
                     "REACTOME", "PID"),
     top_n = 10,
     alpha = 0.05,
@@ -621,7 +621,7 @@ run_cluster_ora_pipeline <- function(
 
 #' Reshape LRT results into a Wald-style `diffexp_out` for TF-activity analysis
 #'
-#' [run_decoupler_pipeline()] and [run_viper_pipeline()] consume
+#' [run_decoupler_tf_pipeline()] and [run_viper_pipeline()] consume
 #' `diffexp_out$by_comparison` and rank genes by the `stat` column. LRT
 #' tables carry a chi-square `stat` for every gene, including the vast
 #' majority that show no temporal signal, so this helper subsets each table
@@ -637,7 +637,7 @@ run_cluster_ora_pipeline <- function(
 #' @examples
 #' \dontrun{
 #' tf_in <- lrt_sig_diffexp_for_tf(lrt_out)
-#' run_decoupler_pipeline(dds_qc, tf_in, save_dir = "results/lrt/tf")
+#' run_decoupler_tf_pipeline(dds_qc, tf_in, save_dir = "results/lrt/tf")
 #' }
 #' @export
 lrt_sig_diffexp_for_tf <- function(lrt_out, alpha = 0.05, gene_col = "gene") {
@@ -685,7 +685,7 @@ lrt_sig_diffexp_for_tf <- function(lrt_out, alpha = 0.05, gene_col = "gene") {
 #'
 #' Builds one "contrast" per temporal cluster (`"<lrt> cluster <n>"`) whose
 #' result table holds the LRT `stat` for genes in that cluster. Pass the
-#' result to [run_decoupler_pipeline()] / [run_viper_pipeline()] so ULM /
+#' result to [run_decoupler_tf_pipeline()] / [run_viper_pipeline()] so ULM /
 #' msVIPER score TFs associated with each cluster.
 #'
 #' @param degpatterns_out Output of [run_degpatterns_pipeline()].
@@ -844,10 +844,14 @@ lrt_clusters_as_wgcna_like <- function(degpatterns_out, gene_col = "gene") {
 #'   Default `10`.
 #' @param annotation_var Optional `colData(dds)` column name(s) used as
 #'   column annotation (e.g. the time variable). Default `NULL`.
+#' @param batch Optional batch column. When set, heatmaps use
+#'   batch-corrected expression (protecting `annotation_var`).
+#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
+#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param gene_col Name of the gene-identifier column in the cluster tables.
 #'   Default `"gene"`.
-#' @param save_dir Directory to write per-test subfolders to. Default
-#'   `getwd()`.
+#' @param save_dir Directory for per-LRT outputs. Files go in
+#'   `<save_dir>/<lrt>/cspa/` (pipeline uses `deseq2/`). Default `getwd()`.
 #' @param save_plot Logical; write the heatmap PDF. Default `TRUE`.
 #' @return A named list (one element per LRT with at least one CSPA gene) of
 #'   lists with `heatmap` (a `pheatmap` object or `NULL`), `genes` (the
@@ -865,6 +869,8 @@ run_lrt_cspa_heatmap <- function(
     n_per_cluster = 10,
     annotation_var = NULL,
     gene_col = "gene",
+    batch = NULL,
+    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -900,9 +906,19 @@ run_lrt_cspa_heatmap <- function(
         rownames(anno_col) <- colnames(dds)
     }
 
-    message("Computing blind VST for CSPA cluster heatmaps ...")
-    vsd <- quiet(safe_vst(dds, blind = TRUE))
-    mat <- as.matrix(SummarizedExperiment::assay(vsd))
+    if (!is.null(batch)) dds <- validate_batch(dds, batch)
+
+    message("Computing sample-level expression for CSPA cluster heatmaps ...")
+    protect <- if (!is.null(annotation_var) && length(annotation_var)) {
+        annotation_var
+    } else if (!is.null(batch)) {
+        stop("`annotation_var` must be supplied when `batch` is set.", call. = FALSE)
+    } else {
+        colnames(SummarizedExperiment::colData(dds))[[1L]]
+    }
+    mat <- sample_level_expr_matrix(dds, var = protect, batch = batch,
+                                    platform = platform)
+    expr_correction <- attr(mat, "expr_correction")
     storage.mode(mat) <- "double"
 
     palette_length <- 100L
@@ -967,7 +983,7 @@ run_lrt_cspa_heatmap <- function(
                          as.character(sub[[gene_col]])), , drop = FALSE]
         genes <- as.character(sub[[gene_col]])
 
-        lrt_dir <- file.path(save_dir, .lrt_safe_dir(lrt))
+        lrt_dir <- file.path(save_dir, lrt, "cspa")
         write_output(sub, file.path(lrt_dir, "cspa_cluster_genes.csv"))
 
         hm <- NULL
@@ -1008,5 +1024,6 @@ run_lrt_cspa_heatmap <- function(
         out[[lrt]] <- list(heatmap = hm, genes = sub, n = length(genes),
                            n_per_cluster = n_per_cluster)
     }
+    attr(out, "expr_correction") <- expr_correction
     out
 }

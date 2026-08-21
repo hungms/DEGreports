@@ -19,7 +19,7 @@ A list shaped like \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}'s
 \code{by_comparison} and \code{contrast_specs}.
 }
 \description{
-\code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}} and \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} consume
+\code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}} and \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} consume
 \code{diffexp_out$by_comparison} and rank genes by the \code{stat} column. LRT
 tables carry a chi-square \code{stat} for every gene, including the vast
 majority that show no temporal signal, so this helper subsets each table
@@ -29,6 +29,6 @@ over.
 \examples{
 \dontrun{
 tf_in <- lrt_sig_diffexp_for_tf(lrt_out)
-run_decoupler_pipeline(dds_qc, tf_in, save_dir = "results/lrt/tf")
+run_decoupler_tf_pipeline(dds_qc, tf_in, save_dir = "results/lrt/tf")
 }
 }

@@ -9,7 +9,10 @@ download_grid_plot_button(
   filename = "plot",
   button_label = "Download PDF",
   width = 7,
-  height = 7
+  height = 7,
+  dpi = 150,
+  pdf_width = NULL,
+  pdf_height = NULL
 )
 }
 \arguments{
@@ -21,8 +24,16 @@ device (e.g. a \code{pheatmap} grob, a base or \code{grid} plot object).}
 
 \item{button_label}{Button text. Default \code{"Download PDF"}.}
 
-\item{width, height}{Figure size in inches, passed to \code{grDevices::pdf()}.
-Defaults \code{7}, \code{7}.}
+\item{width, height}{On-page figure size in inches (same values used
+for the HTML display box). Defaults \code{7}, \code{7}.}
+
+\item{dpi}{Raster dpi used for the HTML \verb{<img>}. Default \code{150}. The
+PDF page matches that CSS box at 96 px/in; the grob is scaled to
+fill the page.}
+
+\item{pdf_width, pdf_height}{Optional explicit PDF page size in inches,
+overriding the size derived from the HTML box (see
+\code{\link[=download_plot_button]{download_plot_button()}}). Default \code{NULL} (match the HTML).}
 }
 \value{
 An \code{htmltools} tag (see \code{\link[=download_table_button]{download_table_button()}}).
@@ -31,9 +42,9 @@ An \code{htmltools} tag (see \code{\link[=download_table_button]{download_table_
 A more general counterpart to \code{\link[=download_plot_button]{download_plot_button()}} for figures
 that are not \code{ggplot} objects and so cannot go through
 \code{ggplot2::ggsave()} -- notably the \code{pheatmap} grob returned by
-\code{\link[=plot_sample_similarity]{plot_sample_similarity()}}. Draws the object to a temporary PDF via
-the standard \code{pdf()} graphics device and wraps that file with
-\code{downloadthis::download_file()}.
+\code{\link[=plot_sample_similarity]{plot_sample_similarity()}}. Draws the object to a PDF via the standard
+\code{pdf()} graphics device and offers that file the same way
+\code{\link[=download_plot_button]{download_plot_button()}} does.
 }
 \examples{
 \dontrun{

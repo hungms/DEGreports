@@ -10,7 +10,8 @@ load_cspa_genes(organism = c("human", "mouse"), file = NULL, categories = NULL)
 \item{organism}{\code{"human"} or \code{"mouse"}.}
 
 \item{file}{Path to the CSPA Excel workbook. Default \code{NULL} uses the
-file shipped under \verb{inst/extdata/}.}
+file shipped under \verb{inst/extdata/} (or downloads it from the GitHub
+repo into the user cache).}
 
 \item{categories}{Optional character vector of \verb{CSPA category} values to
 keep. Default \code{NULL} keeps every category.}

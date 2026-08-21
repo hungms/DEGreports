@@ -7,9 +7,10 @@
 contrast_class_title(class, var)
 }
 \arguments{
-\item{class}{One of \code{"single"}, \code{"within_A"}, \code{"within_B"}, \code{"interaction"}.}
+\item{class}{One of \code{"single"}, \code{"main"}, \code{"within_A"}, \code{"within_B"},
+\code{"within_C"}, \code{"interaction"}.}
 
-\item{var}{Character vector of length 1 or 2.}
+\item{var}{Character vector of length 1–3.}
 }
 \value{
 A character string.

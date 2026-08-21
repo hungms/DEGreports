@@ -17,3 +17,11 @@ direction (up/down).
 \description{
 Plot top up/down-loading genes per PC as a faceted bar chart
 }
+\details{
+Exempt from the package's \code{\link[=square_panel_theme]{square_panel_theme()}} convention: each facet
+carries \code{2 * n_top_genes} rotated gene labels, and a square panel caps its
+width at the (much smaller) available panel height, crushing those labels
+into an unreadable band no matter how wide the figure is drawn. Letting the
+panels fill the box means \code{\link[=pca_loadings_figure_size]{pca_loadings_figure_size()}}'s width sets the
+per-label spacing.
+}

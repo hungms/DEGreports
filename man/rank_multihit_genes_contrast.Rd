@@ -9,7 +9,8 @@ rank_multihit_genes_contrast(
   diffexp_out,
   gsea_out = NULL,
   viper_out = NULL,
-  decoupler_out = NULL,
+  decoupler_tf_out = NULL,
+  decoupler_ccc_out = NULL,
   cspa_out = NULL,
   alpha = 0.05,
   top_n = 10,
@@ -25,7 +26,9 @@ rank_multihit_genes_contrast(
 
 \item{viper_out}{Output of \code{\link[=run_viper_pipeline]{run_viper_pipeline()}}, or \code{NULL}.}
 
-\item{decoupler_out}{Output of \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}}, or \code{NULL}.}
+\item{decoupler_tf_out}{Output of \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}}, or \code{NULL}.}
+
+\item{decoupler_ccc_out}{Output of \code{\link[=run_decoupler_ccc_pipeline]{run_decoupler_ccc_pipeline()}}, or \code{NULL}.}
 
 \item{cspa_out}{Output of \code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}, or \code{NULL}.}
 
@@ -38,7 +41,7 @@ Default \code{10} (up to \code{2 * top_n} genes total).}
 }
 \value{
 A data frame with columns \code{gene}, \code{comparison}, \code{direction},
-\code{deg}, \code{gsea}, \code{viper}, \code{decoupler}, \code{cspa}, \code{score}, plus DEG
+\code{deg}, \code{gsea}, \code{viper}, \code{decoupler-tf}, \code{decoupler-ccc}, \code{cspa}, \code{score}, plus DEG
 tie-break columns when present. Rows are ordered up-then-down, each
 block ranked by score.
 }
@@ -50,7 +53,9 @@ Scores each gene as:
 leading edge (\code{padj < alpha}; all collections pooled)
 \item VIPER: +1 if the TF has \code{padj < alpha} (human TFs mapped to
 organism symbols when needed)
-\item decoupleR: +1 if \code{p_value < alpha}
+\item decoupleR-TF: +1 if \code{p_value < alpha}
+\item decoupleR-CCC: +1 if the gene is a ligand or receptor in any
+significant ligand–receptor pair (\code{padj} / \code{p_value < alpha})
 \item CSPA: +1 if the gene was selected as a CSPA surface marker for
 this contrast
 }

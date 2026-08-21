@@ -29,6 +29,6 @@ A list shaped like \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} o
 \description{
 Builds one "contrast" per temporal cluster (\code{"<lrt> cluster <n>"}) whose
 result table holds the LRT \code{stat} for genes in that cluster. Pass the
-result to \code{\link[=run_decoupler_pipeline]{run_decoupler_pipeline()}} / \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} so ULM /
+result to \code{\link[=run_decoupler_tf_pipeline]{run_decoupler_tf_pipeline()}} / \code{\link[=run_viper_pipeline]{run_viper_pipeline()}} so ULM /
 msVIPER score TFs associated with each cluster.
 }
