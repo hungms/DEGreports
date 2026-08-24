@@ -15,16 +15,22 @@ org_to_species <- function(org) {
 #' [plot_gsea_barplot()]). Keeping this as a single named table means the
 #' alias -> `msigdbr` mapping and the alias -> display-prefix mapping can
 #' never drift apart.
+#'
+#' `subcat` may list several subcollection names in preference order:
+#' MSigDB has renamed subcollections over time, so the name a given alias
+#' resolves to depends on the `msigdbr` version installed.
+#' [.match_msigdbr_subcollection()] picks the first name the installed
+#' version actually offers.
 #' @noRd
 .msigdb_collection_map <- list(
     HALLMARK     = list(cat = "H",  subcat = NULL,             prefix = "HALLMARK_"),
     GOBP         = list(cat = "C5", subcat = "GO:BP",          prefix = "GOBP_"),
     GOCC         = list(cat = "C5", subcat = "GO:CC",          prefix = "GOCC_"),
     GOMF         = list(cat = "C5", subcat = "GO:MF",          prefix = "GOMF_"),
-    # Package alias is "KEGG". msigdbr stores these as `CP:KEGG_LEGACY`
-    # and still names gene sets with the bare "KEGG_" prefix
-    # (e.g. "KEGG_ABC_TRANSPORTERS").
-    KEGG         = list(cat = "C2", subcat = "CP:KEGG_LEGACY",  prefix = "KEGG_"),
+    # Package alias is "KEGG". msigdbr >= 10 (MSigDB 2023.2+) stores these
+    # as `CP:KEGG_LEGACY`, earlier versions as `CP:KEGG`; both still name
+    # gene sets with the bare "KEGG_" prefix (e.g. "KEGG_ABC_TRANSPORTERS").
+    KEGG         = list(cat = "C2", subcat = c("CP:KEGG_LEGACY", "CP:KEGG"), prefix = "KEGG_"),
     REACTOME     = list(cat = "C2", subcat = "CP:REACTOME",    prefix = "REACTOME_"),
     PID          = list(cat = "C2", subcat = "CP:PID",         prefix = "PID_")
 )
@@ -43,13 +49,56 @@ resolve_msigdb_alias <- function(collection) {
     spec
 }
 
+#' Subcollection names offered by the installed `msigdbr` for one collection
+#'
+#' Reads `msigdbr::msigdbr_collections()`, whose columns are named
+#' `gs_cat`/`gs_subcat` on older `msigdbr` versions and
+#' `gs_collection`/`gs_subcollection` on current ones.
+#' @param cat An MSigDB collection id, e.g. `"C2"`.
+#' @return A character vector of subcollection names, or `NULL` if the
+#'   table could not be read in a shape this function understands.
+#' @noRd
+.msigdbr_subcollections <- function(cat) {
+    tbl <- tryCatch(msigdbr::msigdbr_collections(), error = function(e) NULL)
+    if (is.null(tbl) || !nrow(tbl)) return(NULL)
+    cat_col <- intersect(c("gs_collection", "gs_cat"), colnames(tbl))
+    sub_col <- intersect(c("gs_subcollection", "gs_subcat"), colnames(tbl))
+    if (!length(cat_col) || !length(sub_col)) return(NULL)
+    unique(as.character(tbl[[sub_col[[1L]]]])[as.character(tbl[[cat_col[[1L]]]]) == cat])
+}
+
+#' Pick the subcollection name the installed `msigdbr` recognizes
+#'
+#' @param cat An MSigDB collection id, e.g. `"C2"`.
+#' @param candidates Subcollection names in preference order, as stored in
+#'   `.msigdb_collection_map`; `NULL` for collections without one.
+#' @return A single subcollection name, or `NULL`.
+#' @noRd
+.match_msigdbr_subcollection <- function(cat, candidates) {
+    if (!length(candidates)) return(NULL)
+    available <- .msigdbr_subcollections(cat)
+    if (is.null(available)) return(candidates[[1L]])
+    hit <- candidates[candidates %in% available]
+    if (!length(hit)) {
+        ver <- tryCatch(as.character(utils::packageVersion("msigdbr")),
+                        error = function(e) "(version unknown)")
+        stop("msigdbr ", ver, " offers no subcollection ",
+             paste0("\"", candidates, "\"", collapse = " or "), " in collection \"", cat,
+             "\". Available: ", paste(available, collapse = ", "),
+             ". Try updating the msigdbr package.", call. = FALSE)
+    }
+    hit[[1L]]
+}
+
 #' Fetch an MSigDB gene set collection as a raw `msigdbr` data frame
 #'
 #' Wraps `msigdbr::msigdbr()`, handling both the legacy (`category`/
 #' `subcategory`) and current (`collection`/`subcollection`) argument names
-#' across `msigdbr` package versions. Collection identifiers are given as
-#' friendly aliases (`"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`,
-#' `"REACTOME"`), resolved via `resolve_msigdb_alias()`. Shared by
+#' across `msigdbr` package versions, as well as subcollections MSigDB has
+#' since renamed (see [.match_msigdbr_subcollection()]). Collection
+#' identifiers are given as friendly aliases (`"HALLMARK"`, `"GOBP"`,
+#' `"GOCC"`, `"GOMF"`, `"REACTOME"`), resolved via
+#' `resolve_msigdb_alias()`. Shared by
 #' [import_msigdbr()] (fgsea-style named-list format) and
 #' [import_msigdbr_term2gene()] (clusterProfiler's `TERM2GENE` data-frame
 #' format) so the collection is only fetched once per representation.
@@ -66,7 +115,7 @@ fetch_msigdbr_df <- function(org, collection) {
     species <- org_to_species(org)
     spec <- resolve_msigdb_alias(collection)
     cat <- spec$cat
-    subcat <- spec$subcat
+    subcat <- .match_msigdbr_subcollection(cat, spec$subcat)
 
     msigdbr_args <- formals(msigdbr::msigdbr)
     df <- if ("collection" %in% names(msigdbr_args)) {

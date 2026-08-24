@@ -49,6 +49,38 @@ test_that("validate_msigdb_collections accepts each supported collection and rej
     expect_equal(validate_msigdb_collections("KEGG_LEGACY"), "KEGG")
 })
 
+test_that(".match_msigdbr_subcollection resolves KEGG against the installed msigdbr's names", {
+    # msigdbr >= 10 (MSigDB 2023.2+) renamed `CP:KEGG` to `CP:KEGG_LEGACY`,
+    # so the alias must resolve differently depending on what is installed.
+    local_mocked_bindings(.msigdbr_subcollections = function(cat) c("CP:KEGG", "CP:REACTOME"))
+    expect_equal(.match_msigdbr_subcollection("C2", c("CP:KEGG_LEGACY", "CP:KEGG")), "CP:KEGG")
+})
+
+test_that(".match_msigdbr_subcollection prefers the earliest available candidate", {
+    local_mocked_bindings(
+        .msigdbr_subcollections = function(cat) c("CP:KEGG", "CP:KEGG_LEGACY")
+    )
+    expect_equal(.match_msigdbr_subcollection("C2", c("CP:KEGG_LEGACY", "CP:KEGG")), "CP:KEGG_LEGACY")
+})
+
+test_that(".match_msigdbr_subcollection passes through collections without a subcollection", {
+    expect_null(.match_msigdbr_subcollection("H", NULL))
+    expect_null(.match_msigdbr_subcollection("H", character(0)))
+})
+
+test_that(".match_msigdbr_subcollection falls back to the first candidate when the collection table is unreadable", {
+    local_mocked_bindings(.msigdbr_subcollections = function(cat) NULL)
+    expect_equal(.match_msigdbr_subcollection("C2", c("CP:KEGG_LEGACY", "CP:KEGG")), "CP:KEGG_LEGACY")
+})
+
+test_that(".match_msigdbr_subcollection errors informatively when no candidate exists", {
+    local_mocked_bindings(.msigdbr_subcollections = function(cat) c("CP:BIOCARTA"))
+    expect_error(
+        .match_msigdbr_subcollection("C2", c("CP:KEGG_LEGACY", "CP:KEGG")),
+        "Try updating the msigdbr package"
+    )
+})
+
 test_that("import_msigdbr and import_msigdbr_term2gene fetch a non-empty REACTOME gene set", {
     skip_if_not_installed("msigdbr")
     gene_sets <- import_msigdbr("human", "REACTOME")

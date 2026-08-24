@@ -1,5 +1,17 @@
 # deseq2reports 0.3.0
 
+* **Fix (an older msigdbr killed the run at cluster ORA):** MSigDB renamed the
+  C2 KEGG subcollection to `CP:KEGG_LEGACY` in 2023.2, and the package asked
+  for that name unconditionally, so on an environment carrying an older
+  `msigdbr` (which knows only `CP:KEGG`) `import_msigdbr()` died with
+  `unknown subcategory` -- taking down `run_deseq2_lrt()` at the cluster ORA
+  step, after QC, DESeq2 and degPatterns had already run. Collection aliases
+  can now list several subcollection names, and the fetch picks the first one
+  `msigdbr::msigdbr_collections()` reports as available (reading either the
+  `gs_cat`/`gs_subcat` or `gs_collection`/`gs_subcollection` column naming),
+  falling back to the preferred name if that table cannot be read. When no
+  candidate matches, the error names the installed `msigdbr` version, the
+  subcollections it does offer, and suggests updating.
 * **Fix (a stale plotly took down the whole run):** `plotly` reaches into
   ggplot2 internals whose signatures change between releases, and neither
   package constrains the other's version, so an environment carrying an old
