@@ -1,5 +1,28 @@
 # deseq2reports 0.3.0
 
+* **Fix (no pandoc, no results):** `rmarkdown` finds pandoc on `PATH`, in
+  `RSTUDIO_PANDOC`, and where RStudio and Quarto install it, so an HPC batch
+  job or `Rscript` invocation frequently has none even though the same package
+  library renders fine from the desktop. Rendering then failed on the first
+  page (`Failed to render report page "qc": pandoc version 1.12.3 or higher is
+  required`) and, because that error propagated, took down the whole call
+  *after* every analysis had run -- losing `dds.rds` and the pipeline's return
+  value along with the report. `render_report()` and `render_report_targets()`
+  now check for pandoc once at the top, warn with the ways to supply one
+  (`module load pandoc`, conda, or `rmarkdown::find_pandoc(dir = ...)`) and
+  return `NULL`, so the run finishes and the tables and figures already on disk
+  are kept. `run_deseq2_wald()`, `run_deseq2_lrt()` and `run_deseq2_deg()`
+  additionally warn in their first seconds when `render_html = TRUE` and no
+  pandoc is present, rather than at the end of a multi-hour run.
+* **pandoc is now a declared dependency.** `DESCRIPTION` gains
+  `SystemRequirements: pandoc (>= 1.12.3)`, so the requirement is visible to
+  installers and to anyone reading the package rather than being discovered at
+  render time, and the README's install section says how to satisfy it. The
+  **pandoc** package is a new Suggests: `pandoc::pandoc_install()` is the way to
+  get a binary on a cluster without root, and because its installs are
+  invisible to `rmarkdown` until activated, the package now activates one
+  itself when it cannot otherwise find pandoc -- so a single
+  `pandoc::pandoc_install()` holds for every later session.
 * **Fix (an older msigdbr killed the run at cluster ORA):** MSigDB renamed the
   C2 KEGG subcollection to `CP:KEGG_LEGACY` in 2023.2, and the package asked
   for that name unconditionally, so on an environment carrying an older

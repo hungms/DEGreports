@@ -75,9 +75,11 @@ Suggests:
     future.apply,
     knitr,
     liana,
+    pandoc,
     pkgload,
     targets,
     testthat (>= 3.0.0)
+SystemRequirements: pandoc (>= 1.12.3) - https://pandoc.org/installing.html
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0
 RoxygenNote: 7.3.3

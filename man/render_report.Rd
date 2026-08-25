@@ -109,7 +109,8 @@ the forked knits from exhausting RAM and stalling later hub pages.}
 Invisibly, a named character vector of rendered file paths, with
 names \code{"index"}, \code{"qc"} (when \code{dds} is supplied), \code{"deseq2"},
 \code{"clusterProfiler"}, and (when rendered) \code{"wgcna"} / \code{"decoupleR-TF"} /
-\code{"decoupleR-CCC"} / \code{"viper"} / \code{"multihit"}.
+\code{"decoupleR-CCC"} / \code{"viper"} / \code{"multihit"}; or \code{NULL} when pandoc is
+unavailable.
 }
 \description{
 Knits the package's bundled R Markdown templates against the outputs of
@@ -135,6 +136,16 @@ shared \verb{lib/} asset directory under \code{save_dir}; cross-links and CSV
 downloads use relative paths so the whole results tree can be copied
 and opened offline (do not share a lone HTML file without its siblings).
 }
+\section{When pandoc is missing}{
+
+Every page is knitted through pandoc, so a session without one (an HPC
+batch job or \code{Rscript} invocation, which do not see RStudio's bundled
+copy) cannot render any of them. That is reported once, as a warning
+naming the ways to supply a pandoc, and the function returns \code{NULL}
+rather than erroring -- a pipeline that has already written its tables
+and figures then still completes.
+}
+
 \section{When a contrast page fails}{
 
 A page that errors in a worker is retried once in the current session,

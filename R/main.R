@@ -255,6 +255,8 @@ run_deseq2_wald <- function(
 
         message("Running deseq2reports Wald pipeline v", utils::packageVersion("deseq2reports"), "...")
 
+        .warn_if_no_pandoc(render_html)
+
         dds <- validate_dds(dds)
         dds <- validate_var(dds, var)
         dds <- validate_design(dds, design_resolved)
@@ -684,6 +686,8 @@ run_deseq2_lrt <- function(
 
         message("Running deseq2reports LRT pipeline v",
                 utils::packageVersion("deseq2reports"), "...")
+
+        .warn_if_no_pandoc(render_html)
 
         dds <- validate_dds(dds)
         dds <- .lrt_factorize_cols(dds, time, "time")

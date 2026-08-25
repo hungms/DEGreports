@@ -54,6 +54,72 @@ test_that("report_nav_links() rejects an unrecognised current-page label", {
     expect_error(report_nav_links("Not A Page"), "must be one of")
 })
 
+test_that(".pandoc_ok() leaves an already-visible pandoc alone", {
+    local_mocked_bindings(
+        .rmarkdown_pandoc_ok = function() TRUE,
+        .activate_managed_pandoc = function() stop("should not look for a managed pandoc")
+    )
+    expect_true(.pandoc_ok())
+})
+
+test_that(".pandoc_ok() activates a pandoc installed by the pandoc package before giving up", {
+    # `pandoc::pandoc_install()` is the no-admin-rights way to satisfy the
+    # system dependency, but its binary stays invisible to rmarkdown until
+    # activated.
+    activated <- FALSE
+    local_mocked_bindings(
+        .rmarkdown_pandoc_ok = function() activated,
+        .activate_managed_pandoc = function() {
+            activated <<- TRUE
+            TRUE
+        }
+    )
+    expect_true(.pandoc_ok())
+    expect_true(activated)
+})
+
+test_that(".pandoc_ok() is FALSE when there is nothing to find or activate", {
+    local_mocked_bindings(
+        .rmarkdown_pandoc_ok = function() FALSE,
+        .activate_managed_pandoc = function() FALSE
+    )
+    expect_false(.pandoc_ok())
+})
+
+test_that(".activate_managed_pandoc() is FALSE when the pandoc package has no binaries", {
+    skip_if_not_installed("pandoc")
+    expect_type(.activate_managed_pandoc(), "logical")
+})
+
+test_that(".warn_if_no_pandoc() warns up front, and only when a report was asked for", {
+    local_mocked_bindings(.pandoc_ok = function() FALSE)
+    expect_warning(
+        expect_true(.warn_if_no_pandoc(TRUE)),
+        "only the report at the end is skipped"
+    )
+    expect_silent(expect_false(.warn_if_no_pandoc(FALSE)))
+
+    local_mocked_bindings(.pandoc_ok = function() TRUE)
+    expect_silent(expect_false(.warn_if_no_pandoc(TRUE)))
+})
+
+test_that("render_report() warns and returns NULL (rather than erroring) when pandoc is missing", {
+    skip_if_not_installed("htmltools")
+    # Otherwise every page fails identically, and a pipeline whose analyses
+    # are already on disk dies on the first one.
+    local_mocked_bindings(.pandoc_ok = function() FALSE)
+    out_dir <- withr::local_tempdir()
+    expect_warning(
+        paths <- render_report(
+            dds = NULL, var = "comparison", distance_out = NULL,
+            diffexp_out = NULL, gsea_out = NULL, save_dir = out_dir
+        ),
+        "pandoc \\(>= 1\\.12\\.3\\) was not found"
+    )
+    expect_null(paths)
+    expect_length(list.files(out_dir), 0)
+})
+
 test_that("render_report() writes cross-linked, self-contained HTML files in per-module folders when wgcna_out is supplied", {
     skip_if_not_installed("rmarkdown")
     skip_if_not_installed("htmltools")

@@ -32,6 +32,24 @@ Or from a local clone:
 devtools::install_local("path/to/deseq2reports", dependencies = TRUE)
 ```
 
+**System requirement:** the HTML report is knitted with pandoc
+(**>= 1.12.3**), which is not an R package and so is not installed by any of
+the commands above. RStudio bundles one, but an HPC batch job, an `Rscript`
+invocation, or a container does not see it — check with
+`rmarkdown::pandoc_available("1.12.3")`. Install it system-wide
+(`module load pandoc`, `conda install -c conda-forge pandoc`, or
+[pandoc.org](https://pandoc.org/installing.html)); with no admin rights,
+
+```r
+install.packages(c("pandoc", "gh"))
+pandoc::pandoc_install()
+```
+
+puts a binary in your user data directory, which this package then activates
+by itself in later sessions. Without pandoc every other stage still runs and
+writes its tables and figures; only the report is skipped, with a warning in
+the first seconds of the run.
+
 Pipeline stages (including optional-toggle modules GSVA, WGCNA, decoupler-tf,
 decoupler-ccc, and VIPER) declare their R packages as **Imports**, so they are
 installed with the package. Suggests holds only what an analysis can run

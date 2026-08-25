@@ -1,3 +1,75 @@
+#' Can `rmarkdown` see a pandoc new enough to knit the report?
+#'
+#' `rmarkdown` looks for pandoc on `PATH`, in `RSTUDIO_PANDOC`, and in the
+#' handful of locations RStudio and Quarto install it. A batch job, an
+#' `Rscript` invocation on a cluster node, or a container therefore often
+#' has no pandoc even though the same package library renders fine from the
+#' desktop.
+#' @noRd
+.rmarkdown_pandoc_ok <- function() {
+    isTRUE(tryCatch(rmarkdown::pandoc_available("1.12.3"), error = function(e) FALSE))
+}
+
+#' Hand `rmarkdown` a pandoc installed by the **pandoc** package, if any
+#'
+#' pandoc is a system dependency (declared in `SystemRequirements`), and on
+#' a cluster without root the practical way to satisfy it is the **pandoc**
+#' package's `pandoc_install()`, which drops a binary in the user data
+#' directory. That binary is invisible to `rmarkdown` until it is activated,
+#' which would otherwise have to be repeated by hand in every session.
+#' @return `TRUE` if a managed pandoc was activated.
+#' @noRd
+.activate_managed_pandoc <- function() {
+    if (!requireNamespace("pandoc", quietly = TRUE)) return(FALSE)
+    tryCatch({
+        if (!length(pandoc::pandoc_installed_versions())) return(FALSE)
+        pandoc::pandoc_activate(rmarkdown = TRUE, quiet = TRUE)
+        TRUE
+    }, error = function(e) FALSE)
+}
+
+#' Is a pandoc new enough to knit the report available to this session?
+#' @noRd
+.pandoc_ok <- function() {
+    if (.rmarkdown_pandoc_ok()) return(TRUE)
+    if (.activate_managed_pandoc()) return(.rmarkdown_pandoc_ok())
+    FALSE
+}
+
+#' Explain a missing pandoc and the ways to supply one
+#' @noRd
+.pandoc_missing_msg <- function() {
+    paste0(
+        "pandoc (>= 1.12.3) was not found, so the HTML report cannot be knitted. ",
+        "It is a system dependency (see SystemRequirements), and sessions outside ",
+        "RStudio -- an HPC batch job, Rscript, a container -- do not inherit RStudio's ",
+        "bundled copy. Install one system-wide (`module load pandoc`, ",
+        "`conda install -c conda-forge pandoc`, or https://pandoc.org/installing.html); ",
+        "without admin rights, ",
+        "`install.packages(c(\"pandoc\", \"gh\")); pandoc::pandoc_install()` ",
+        "puts a binary in your user directory that this package activates on its own ",
+        "from then on. An existing binary elsewhere can be pointed at with ",
+        "`rmarkdown::find_pandoc(dir = \"/path/to/pandoc/bin\")`, or by exporting ",
+        "RSTUDIO_PANDOC before starting R."
+    )
+}
+
+#' Warn up front when a run will not be able to render its report
+#'
+#' Called at the top of the pipeline entry points so the missing dependency
+#' is reported in the first seconds of a run rather than after every
+#' analysis step has finished.
+#' @param render_html The caller's `render_html` argument.
+#' @return Invisibly, `TRUE` when a warning was issued.
+#' @noRd
+.warn_if_no_pandoc <- function(render_html) {
+    if (!isTRUE(render_html) || .pandoc_ok()) return(invisible(FALSE))
+    warning(.pandoc_missing_msg(),
+            " The pipeline will still run to completion and write every table and ",
+            "figure; only the report at the end is skipped.", call. = FALSE)
+    invisible(TRUE)
+}
+
 #' Registry of report pages: label, template, relative directory, and HTML file
 #' @noRd
 .report_pages <- function() {
@@ -1285,10 +1357,18 @@ render_multihit_page <- function(
 #' @param render_workers Number of parallel workers for `parallel_render`.
 #'   Default `NULL` uses `min(4, parallel::detectCores() - 1)`; the cap keeps
 #'   the forked knits from exhausting RAM and stalling later hub pages.
+#' @section When pandoc is missing:
+#' Every page is knitted through pandoc, so a session without one (an HPC
+#' batch job or `Rscript` invocation, which do not see RStudio's bundled
+#' copy) cannot render any of them. That is reported once, as a warning
+#' naming the ways to supply a pandoc, and the function returns `NULL`
+#' rather than erroring -- a pipeline that has already written its tables
+#' and figures then still completes.
 #' @return Invisibly, a named character vector of rendered file paths, with
 #'   names `"index"`, `"qc"` (when `dds` is supplied), `"deseq2"`,
 #'   `"clusterProfiler"`, and (when rendered) `"wgcna"` / `"decoupleR-TF"` /
-#'   `"decoupleR-CCC"` / `"viper"` / `"multihit"`.
+#'   `"decoupleR-CCC"` / `"viper"` / `"multihit"`; or `NULL` when pandoc is
+#'   unavailable.
 #' @examples
 #' \dontrun{
 #' render_report(dds, var = "condition", distance_out = distance_out,
@@ -1326,6 +1406,15 @@ render_report <- function(
     # even though this R function itself never calls it directly.
     if (!requireNamespace("htmltools", quietly = TRUE)) {
         stop("Package 'htmltools' is required to render the HTML report.", call. = FALSE)
+    }
+
+    # Every page goes through pandoc, so a missing one fails all of them
+    # identically. Reported once here, rather than as a page-level error
+    # from whichever page happened to be knitted first.
+    if (!.pandoc_ok()) {
+        warning(.pandoc_missing_msg(), " Skipping the report; the analysis outputs ",
+                "already written to disk are unaffected.", call. = FALSE)
+        return(invisible(NULL))
     }
 
     save_dir <- validate_save_dir(save_dir)

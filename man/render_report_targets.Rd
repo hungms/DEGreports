@@ -109,7 +109,8 @@ the forked knits from exhausting RAM and stalling later hub pages.}
 \code{file.path(save_dir, "_targets.R")}.}
 }
 \value{
-Invisibly, the same named path vector as \code{\link[=render_report]{render_report()}}.
+Invisibly, the same named path vector as \code{\link[=render_report]{render_report()}}, or
+\code{NULL} when pandoc is unavailable.
 }
 \description{
 Drop-in alternative to \code{\link[=render_report]{render_report()}} that uses \strong{targets} to render

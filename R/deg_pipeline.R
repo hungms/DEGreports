@@ -386,6 +386,8 @@ run_deseq2_deg <- function(
     )
 
     log_output(call, save_dir, expr = {
+        .warn_if_no_pandoc(render_html)
+
         n_steps <- 2L + as.integer(run_gsea) * 2L + as.integer(run_cspa) +
             as.integer(run_decoupler_tf) + as.integer(run_decoupler_ccc) +
             as.integer(run_viper) +

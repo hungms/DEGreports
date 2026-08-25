@@ -10,7 +10,8 @@
 #' @inheritParams render_report
 #' @param script_path Path for the generated `_targets.R` script. Default
 #'   `file.path(save_dir, "_targets.R")`.
-#' @return Invisibly, the same named path vector as [render_report()].
+#' @return Invisibly, the same named path vector as [render_report()], or
+#'   `NULL` when pandoc is unavailable.
 #' @seealso [render_report()], [run_deseq2_wald()]
 #' @export
 render_report_targets <- function(
@@ -37,6 +38,12 @@ render_report_targets <- function(
     parallel_render = TRUE,
     render_workers = NULL,
     script_path = NULL) {
+
+    if (!.pandoc_ok()) {
+        warning(.pandoc_missing_msg(), " Skipping the report; the analysis outputs ",
+                "already written to disk are unaffected.", call. = FALSE)
+        return(invisible(NULL))
+    }
 
     if (!requireNamespace("targets", quietly = TRUE)) {
         stop("Package \"targets\" is required for render_report_targets(). ",
