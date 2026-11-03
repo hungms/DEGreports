@@ -167,21 +167,8 @@ run_diffexp <- function(
          call. = FALSE)
 }
 
-#' Coefficient names from a spec field, `+`-joined or already split
-#'
-#' A contrast spec stores summed coefficients as `"a+b"` in one string
-#' (`NA` when a side is empty); DESeq2 coefficient names never contain `+`,
-#' since they come from `make.names()`.
-#' @noRd
-.clean_coef_names <- function(x) {
-    if (is.null(x)) return(character(0))
-    x <- as.character(x)
-    x <- x[!is.na(x) & nzchar(x)]
-    if (!length(x)) return(character(0))
-    x <- unlist(strsplit(x, "+", fixed = TRUE), use.names = FALSE)
-    x <- trimws(x)
-    x[nzchar(x)]
-}
+# `.clean_coef_names()` used to live here; it is now in R/contrast_spec.R with
+# the other spec-field codecs.
 
 #' Run differential expression on a combination of named model coefficients
 #'
@@ -204,8 +191,25 @@ run_diffexp <- function(
 #'   `coef` / `coef_subtract`. Default `NULL`.
 #' @param prefit Optional already-`DESeq()`-ed object for `dds`, so a grid of
 #'   contrasts sharing one design is fitted once. Default `NULL` (fit here).
-#' @return A results data frame.
-#' @noRd
+#' @param comparison Name recorded in the `comparison` column of the result.
+#' @return A results data frame, with the same columns as [run_diffexp()].
+#' @examples
+#' \dontrun{
+#' dds <- DESeq2::DESeqDataSetFromMatrix(counts, coldata, ~ tissue * genotype)
+#' DESeq2::resultsNames(DESeq2::DESeq(dds))
+#' # Does the genotype effect differ between tissues?
+#' res <- run_diffexp_coef(dds, coef = "tissueSP.genotypeKO")
+#' # The average of two interaction terms against a third:
+#' res2 <- run_diffexp_coef(
+#'   dds,
+#'   coef_weights = c(tissueSP.genotypeKO = 1,
+#'                    tissueLN.genotypeKO = -0.5,
+#'                    tissueBM.genotypeKO = -0.5)
+#' )
+#' }
+#' @seealso [contrast_spec_from_coefs()] to put the same contrast into a grid
+#'   that [run_diffexp_pipeline()] runs.
+#' @export
 run_diffexp_coef <- function(
     dds,
     coef = NULL,
@@ -374,8 +378,10 @@ run_diffexp_coef <- function(
 #'   comparison. Default `TRUE`.
 #' @return A list with elements `results` (combined data frame across all
 #'   comparisons, with a `comparison` column), `by_comparison` (a named
-#'   list of per-comparison result data frames), and `contrast_specs` (the
-#'   specs data frame used).
+#'   list of per-comparison result data frames), `contrast_specs` (the
+#'   specs data frame used), and `manifest` ([contrast_manifest()]: what each
+#'   contrast asks, the design fitted, the samples behind it and the
+#'   coefficients combined, also written to `contrasts.csv`).
 #' @examples
 #' \dontrun{
 #' res <- run_diffexp_pipeline(dds, var = "condition")
@@ -420,29 +426,16 @@ run_diffexp_pipeline <- function(
         }
     }
 
-    if (is.character(comparisons)) {
-        specs <- data.frame(
-            label = comparisons,
-            class = "single",
-            type = classify_comparison_type(comparisons),
-            stratum_var = NA_character_,
-            stratum_level = NA_character_,
-            test_var = var[1],
-            comparison = comparisons,
-            coef_subtract = rep(NA_character_, length(comparisons)),
-            stringsAsFactors = FALSE
-        )
-    } else {
-        specs <- comparisons
-        if (!"coef_subtract" %in% names(specs)) {
-            specs$coef_subtract <- NA_character_
-        }
-    }
+    # One spec table, whatever the caller passed: a character vector of
+    # comparisons, an auto-generated grid, or a hand-built table.
+    specs <- as_contrast_specs(comparisons, var = var[1])
+    if (!"coef_subtract" %in% names(specs)) specs$coef_subtract <- NA_character_
+    specs <- validate_contrast_specs(specs, dds = dds, var = var)
 
     # Every interaction row is a different contrast of the *same* product
     # model, so fit it once rather than per row.
     ix_fit <- NULL
-    if (any(specs$class %in% "interaction")) {
+    if (any(specs$fit_method %in% "coefs")) {
         .assert_full_factorial(dds, var)
         dds_ix <- dds
         DESeq2::design(dds_ix) <- resolve_design(
@@ -455,34 +448,33 @@ run_diffexp_pipeline <- function(
         ix_fit <- DESeq2::DESeq(dds_ix, quiet = TRUE)
     }
 
+    # Say what is about to be compared, and leave the same statement on disk
+    # next to the results.
+    manifest <- contrast_manifest(specs, dds = dds, var = var, batch = batch)
+    .announce_contrasts(manifest)
+    write_output(manifest, file.path(save_dir, "contrasts.csv"), format = "csv")
+
     by_comparison <- list()
     for (i in seq_len(nrow(specs))) {
         spec <- specs[i, , drop = FALSE]
         label <- spec$label[[1]]
         message("Running differential expression: ", label, " ...")
 
-        if (identical(spec$class[[1]], "interaction")) {
+        if (identical(spec$fit_method[[1]], "coefs")) {
             # A pooled one-vs-rest comparison averages coefficients, which
             # only the weight vector can express; the rest sum them.
-            cw <- if ("coef_weights" %in% names(specs)) {
-                .parse_coef_weights(spec$coef_weights[[1]])
-            } else {
-                NULL
-            }
+            coefs <- contrast_coefs(spec)
+            weighted <- length(coefs$weights) > 0L
             res_df <- run_diffexp_coef(
                 dds = dds,
-                coef = if (is.null(cw)) .clean_coef_names(spec$comparison[[1]]) else NULL,
-                coef_subtract = if (is.null(cw)) {
-                    .clean_coef_names(spec$coef_subtract[[1]])
-                } else {
-                    NULL
-                },
-                coef_weights = cw,
+                coef = if (weighted) NULL else coefs$pos,
+                coef_subtract = if (weighted) NULL else coefs$neg,
+                coef_weights = if (weighted) coefs$weights else NULL,
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
                 ranking = ranking, gene_col = gene_col, comparison = label,
                 prefit = ix_fit
             )
-        } else if (identical(spec$class[[1]], "main")) {
+        } else if (identical(spec$fit_method[[1]], "levels_additive")) {
             # Main effect: every sample, additive design, so the factors not
             # under test are adjusted for instead of inflating the residual.
             tv <- spec$test_var[[1]]
@@ -497,18 +489,17 @@ run_diffexp_pipeline <- function(
                 ranking = ranking, gene_col = gene_col
             )
             res_df$comparison <- label
-        } else if (spec$class[[1]] %in% c("within_A", "within_B", "within_C")) {
-            sv <- strsplit(spec$stratum_var[[1]], "+", fixed = TRUE)[[1]]
-            sl <- strsplit(spec$stratum_level[[1]], "+", fixed = TRUE)[[1]]
-            if (length(sv) != length(sl)) {
-                stop("Contrast \"", label, "\": stratum_var/stratum_level length mismatch.",
-                     call. = FALSE)
+        } else if (identical(spec$fit_method[[1]], "levels_subset")) {
+            stratum <- contrast_stratum(spec)
+            if (!length(stratum)) {
+                stop("Contrast \"", label, "\": fit_method \"levels_subset\" needs ",
+                     "`stratum_var` / `stratum_level`.", call. = FALSE)
             }
-            tv <- spec$test_var[[1]]
+            tv <- contrast_test_vars(spec)[[1]]
             cd <- SummarizedExperiment::colData(dds)
             keep <- rep(TRUE, ncol(dds))
-            for (j in seq_along(sv)) {
-                keep <- keep & as.character(cd[[sv[j]]]) == sl[j]
+            for (sv in names(stratum)) {
+                keep <- keep & as.character(cd[[sv]]) == stratum[[sv]]
             }
             dds_sub <- dds[, keep]
             DESeq2::design(dds_sub) <- resolve_design(tv, batch = batch, design = NULL)
@@ -519,16 +510,21 @@ run_diffexp_pipeline <- function(
             )
             res_df$comparison <- label
         } else {
+            tv <- contrast_test_vars(spec)
+            tv <- if (length(tv)) tv[[1]] else var[1]
             res_df <- run_diffexp(
-                dds = dds, var = var[1], comparison = spec$comparison[[1]],
+                dds = dds, var = tv, comparison = spec$comparison[[1]],
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
                 ranking = ranking, gene_col = gene_col
             )
             res_df$comparison <- label
         }
 
-        comp_dir <- file.path(save_dir, label)
-        stem <- contrast_file_stem(label)
+        # `label` is the contrast's identity (report tab, by_comparison key);
+        # `path` is where it is written. They coincide unless a hand-written
+        # spec overrides `path`.
+        comp_dir <- file.path(save_dir, spec$path[[1]])
+        stem <- contrast_file_stem(spec$path[[1]])
         write_output(res_df, file.path(comp_dir, paste0(stem, "_diffexp.csv")), format = "csv")
 
         if (save_plot) {
@@ -545,7 +541,8 @@ run_diffexp_pipeline <- function(
 
     combined <- do.call(rbind, by_comparison)
     rownames(combined) <- NULL
-    list(results = combined, by_comparison = by_comparison, contrast_specs = specs)
+    list(results = combined, by_comparison = by_comparison, contrast_specs = specs,
+         manifest = manifest)
 }
 
 #' Classify genes as up/down/not-significant for direction-coloured plots

@@ -181,7 +181,7 @@ expand_lrt_specs <- function(var, time, batch = NULL, include_interactions = FAL
     specs <- do.call(rbind, rows)
     specs <- specs[!duplicated(specs$label), , drop = FALSE]
     rownames(specs) <- NULL
-    specs
+    new_contrast_specs(specs)
 }
 
 #' Validate that column names exist in `colData(dds)` and coerce them to factors

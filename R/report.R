@@ -485,10 +485,18 @@ emit_contrast_nav <- function(specs, var, heading_level = 4L) {
         heading(contrast_class_title("interaction", var))
         .emit_contrast_links(interaction)
     }
+    # Anything left is a within-stratum contrast with a flat label (the
+    # two-factor convention): title each group by its class rather than
+    # dropping them all under one "Other" heading.
     others <- setdiff(labels[!nested], c(main, interaction))
     if (length(others)) {
-        heading("Other")
-        .emit_contrast_links(others)
+        other_cls <- cls[match(others, labels)]
+        for (cl in unique(other_cls)) {
+            title <- contrast_class_title(cl, var)
+            if (is.na(title) || identical(title, cl)) title <- "Other"
+            heading(title)
+            .emit_contrast_links(others[other_cls %in% cl])
+        }
     }
     cat("\n")
     invisible(NULL)

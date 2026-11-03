@@ -109,8 +109,20 @@ knitr::kable(summary_df)
 ```
 
 ```{r contrast-inventory, results='asis'}
+manifest <- params$diffexp_out$manifest
 specs <- params$diffexp_out$contrast_specs
-if (!is.null(specs) && nrow(specs) > 0) {
+if (!is.null(manifest) && nrow(manifest) > 0) {
+  cat("\n\n## Contrasts\n\n")
+  cat(nrow(manifest), " contrast(s) in this run, with the question each asks ",
+      "and the number of samples its model was fitted on. Full detail ",
+      "(design formula, coefficients) is in `deseq2/contrasts.csv` and on the ",
+      "DESeq2 page.\n\n", sep = "")
+  inv <- manifest[, intersect(c("label", "question", "n_samples"),
+                              colnames(manifest)), drop = FALSE]
+  names(inv) <- c("Contrast", "Question", "n")[seq_len(ncol(inv))]
+  print(knitr::kable(inv, row.names = FALSE))
+  cat("\n\n")
+} else if (!is.null(specs) && nrow(specs) > 0) {
   cat("\n\n## Contrasts\n\n")
   cat(nrow(specs), " contrast(s) in this run:\n\n", sep = "")
   inv <- specs[, intersect(c("label", "class", "type", "stratum_level", "comparison"),

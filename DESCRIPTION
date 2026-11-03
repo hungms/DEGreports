@@ -1,6 +1,6 @@
 Package: deseq2reports
 Title: Modular DESeq2 Pipeline with Automated HTML Reports
-Version: 0.3.0
+Version: 0.4.0
 Authors@R: 
     person(given = "Miu Shing", family = "Hung", email = "matthewhungms@gmail.com", role = c("aut", "cre"), comment = c(ORCID = "0009-0004-0412-4374"))
 Description: A self-contained, modular pipeline for RNA-seq differential expression
@@ -69,13 +69,13 @@ Imports:
     viper,
     WGCNA,
     withr,
-    wordcloud
+    wordcloud,
+    pandoc
 Suggests:
     future,
     future.apply,
     knitr,
     liana,
-    pandoc,
     pkgload,
     targets,
     testthat (>= 3.0.0)

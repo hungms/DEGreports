@@ -72,8 +72,10 @@ comparison. Default \code{TRUE}.}
 \value{
 A list with elements \code{results} (combined data frame across all
 comparisons, with a \code{comparison} column), \code{by_comparison} (a named
-list of per-comparison result data frames), and \code{contrast_specs} (the
-specs data frame used).
+list of per-comparison result data frames), \code{contrast_specs} (the
+specs data frame used), and \code{manifest} (\code{\link[=contrast_manifest]{contrast_manifest()}}: what each
+contrast asks, the design fitted, the samples behind it and the
+coefficients combined, also written to \code{contrasts.csv}).
 }
 \description{
 Loops \code{\link[=run_diffexp]{run_diffexp()}} over every comparison in \code{comparisons} (or every

@@ -50,6 +50,13 @@
 #'   weight per level. Default `FALSE`: additive design, main effects only.
 #'   Ignored for single-factor `var`. When `design` is supplied explicitly,
 #'   only the contrast grid is affected.
+#' @param stratified Logical. Also expand the within-stratum contrasts --
+#'   each factor compared inside one fixed level combination of the others,
+#'   fitted on that subset alone (`CB__K_vs_noK` for two factors,
+#'   `K_vs_noK/CB__C` for three). Default `FALSE`: an interaction contrast
+#'   asks the same question with every sample behind it, so these are opt-in,
+#'   but they are the right tool when the strata are not expected to share a
+#'   dispersion. Ignored for single-factor `var`.
 #' @param batch Optional covariate column name(s) in `colData(dds)`. Added
 #'   to the auto design when `design = NULL`, passed through to main-effect
 #'   fits in multi-factor mode, and (when set) used to
@@ -145,6 +152,11 @@
 #' @param use_targets If `TRUE`, render HTML via [render_report_targets()]
 #'   (requires Suggested package `targets`) instead of [render_report()].
 #'   Default `FALSE`.
+#' @param opts Analysis settings from [deseq2reports_opts()] -- LFC
+#'   shrinkage, `alpha`, the LFC cutoff, and the per-module top-N budgets.
+#'   The defaults reproduce the values these entry points used to hard-code,
+#'   and only settings that differ from them are listed in the report's
+#'   "Pipeline arguments" table. Default `deseq2reports_opts()`.
 #' @param save_dir Directory where all outputs will be written. Default
 #'   `getwd()`.
 #' @return Invisibly, a list with elements `dds` (the QC-filtered object),
@@ -216,13 +228,16 @@ run_deseq2_wald <- function(
     parallel_render = FALSE,
     render_workers = NULL,
     use_targets = FALSE,
+    stratified = FALSE,
+    opts = deseq2reports_opts(),
     save_dir = getwd()) {
 
     call <- match.call()
     save_dir <- validate_save_dir(save_dir)
     platform <- validate_platform(platform)
-    alpha <- .pipeline_const$alpha
-    lfc_threshold <- .pipeline_const$lfc_threshold
+    opts <- .as_opts(opts)
+    alpha <- opts$alpha
+    lfc_threshold <- opts$lfc_threshold
 
     design_resolved <- resolve_design(
         var, batch = batch, design = design,
@@ -233,6 +248,7 @@ run_deseq2_wald <- function(
         design = paste(deparse(design_resolved), collapse = ""),
         comparisons = comparisons,
         include_interactions = include_interactions,
+        stratified = stratified,
         batch = batch, platform = platform,
         export_counts = export_counts, filter_method = filter_method,
         cpm_percentile = cpm_percentile, min_count = min_count,
@@ -250,6 +266,7 @@ run_deseq2_wald <- function(
         render_workers = render_workers,
         use_targets = use_targets
     )
+    params <- c(params, .opts_diff(opts))
 
     log_output(call, save_dir, params = params, expr = quote({
 
@@ -262,9 +279,10 @@ run_deseq2_wald <- function(
         dds <- validate_design(dds, design_resolved)
         contrast_specs <- validate_comparisons(
             dds, var, comparisons,
-            include_interactions = include_interactions
+            include_interactions = include_interactions,
+            stratified = stratified
         )
-        n_contrasts <- if (is.data.frame(contrast_specs)) nrow(contrast_specs) else length(contrast_specs)
+        n_contrasts <- nrow(contrast_specs)
 
         # QC / PCA / WGCNA colour by a single factor: the first `var`, or
         # an interaction paste when two+ factors are supplied.
@@ -281,225 +299,138 @@ run_deseq2_wald <- function(
             if (is.null(shape_var)) shape_var <- var[1]
         }
 
-        n_steps <- 7L + as.integer(isTRUE(export_counts)) +
-            as.integer(isTRUE(run_gsva)) +
-            as.integer(isTRUE(run_wgcna)) + as.integer(isTRUE(run_decoupler_tf)) +
-            as.integer(isTRUE(run_decoupler_ccc)) +
-            as.integer(isTRUE(run_viper)) +
-            as.integer(isTRUE(run_cspa))
-        step <- 0L
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Quality control...")
-        dds <- run_qc(
-            dds = dds, var = viz_var, filter_method = filter_method,
-            cpm_percentile = cpm_percentile, min_count = min_count,
-            min_samples_per_group = min_samples_per_group,
-            remove_mt = remove_mt, mt_pattern = mt_pattern,
-            remove_xy = remove_xy, gene_chr = gene_chr,
-            remove_vdj = remove_vdj,
-            save_dir = file.path(save_dir, "qc"))
-
-        if (export_counts) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] Exporting count tables (raw / VST / rlog / CPM",
-                    if (!is.null(batch)) {
-                        paste0(" / ", batch_correction_label(.expr_correction_label(platform)))
-                    } else "", ")...")
-            run_counts_export(
-                dds = dds, batch = batch, var = viz_var, platform = platform,
-                save_dir = file.path(save_dir, "qc", "counts"))
-        }
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Sample similarity / PCA...")
-        distance_out <- run_distance_pca(
-            dds = dds, var = viz_var, batch = batch, platform = platform,
-            pals = pals, shape_var = shape_var,
-            n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs, n_top_genes = n_top_genes,
-            assoc_vars = unique(c(var, batch)),
-            save_dir = file.path(save_dir, "qc", "distance"))
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] DESeq2 analysis (", n_contrasts, " contrast(s))...")
-        diffexp_out <- run_diffexp_pipeline(
-            dds = dds, var = var, comparisons = comparisons, batch = batch,
-            include_interactions = include_interactions,
-            shrinkage = .pipeline_const$shrinkage,
-            alpha = alpha, lfc_threshold = lfc_threshold,
-            ranking = ranking, top_label_n = top_label_n,
-            save_dir = file.path(save_dir, "deseq2"))
-
-        cspa_out <- NULL
-        if (run_cspa) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] CSPA surface-marker heatmaps...")
-            cspa_out <- tryCatch(
+        # The run as data: one descriptor per stage, in order. The driver
+        # owns the progress counter and the failure policy, so a module can be
+        # added, reordered or made optional without touching either.
+        stages <- list(
+            .stage("dds", "Quality control", optional = FALSE, run = function(st) {
+                run_qc(
+                    dds = st$dds, var = viz_var, filter_method = filter_method,
+                    cpm_percentile = cpm_percentile, min_count = min_count,
+                    min_samples_per_group = min_samples_per_group,
+                    remove_mt = remove_mt, mt_pattern = mt_pattern,
+                    remove_xy = remove_xy, gene_chr = gene_chr,
+                    remove_vdj = remove_vdj,
+                    save_dir = file.path(save_dir, "qc"))
+            }),
+            .stage(NULL, paste0(
+                "Exporting count tables (raw / VST / rlog / CPM",
+                if (!is.null(batch)) {
+                    paste0(" / ", batch_correction_label(.expr_correction_label(platform)))
+                } else "", ")"),
+                enabled = isTRUE(export_counts), run = function(st) {
+                run_counts_export(
+                    dds = st$dds, batch = batch, var = viz_var, platform = platform,
+                    save_dir = file.path(save_dir, "qc", "counts"))
+            }),
+            .stage("distance", "Sample similarity / PCA", optional = FALSE,
+                   run = function(st) {
+                run_distance_pca(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    pals = pals, shape_var = shape_var,
+                    n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs,
+                    n_top_genes = n_top_genes,
+                    assoc_vars = unique(c(var, batch)),
+                    save_dir = file.path(save_dir, "qc", "distance"))
+            }),
+            .stage("diffexp", paste0("DESeq2 analysis (", n_contrasts, " contrast(s))"),
+                   optional = FALSE, run = function(st) {
+                run_diffexp_pipeline(
+                    dds = st$dds, var = var, comparisons = contrast_specs, batch = batch,
+                    include_interactions = include_interactions, stratified = stratified,
+                    shrinkage = opts$shrinkage,
+                    alpha = alpha, lfc_threshold = lfc_threshold,
+                    ranking = ranking, top_label_n = top_label_n,
+                    save_dir = file.path(save_dir, "deseq2"))
+            }),
+            .stage("cspa", "CSPA surface-marker heatmaps", enabled = isTRUE(run_cspa),
+                   run = function(st) {
                 run_cspa_marker_pipeline(
-                    dds = dds,
-                    diffexp_out = diffexp_out,
-                    var = var,
-                    batch = batch,
-                    platform = platform,
-                    n_markers = .pipeline_const$cspa_n_markers,
-                    save_dir = file.path(save_dir, "deseq2")
-                ),
-                error = function(e) {
-                    warning("CSPA marker analysis failed (",
-                            conditionMessage(e), "); continuing without CSPA heatmaps.",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] clusterProfiler analysis...")
-        gsea_out <- run_gsea_pipeline(
-            diffexp_results = diffexp_out$results, collections = collections,
-            ranking = ranking, top_n_plot = top_n_plot,
-            run_clusterprofiler = run_clusterprofiler,
-            save_dir = file.path(save_dir, "clusterprofiler"))
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] GSEA leading-edge overlap...")
-        gsea_overlap_out <- tryCatch(
-            run_gsea_overlap_pipeline(
-                gsea_out = gsea_out,
-                alpha = alpha,
-                # Per comparison: clusterprofiler/<comp>/gsea_overlap/
-                save_dir = file.path(save_dir, "clusterprofiler")
-            ),
-            error = function(e) {
-                warning("GSEA overlap analysis failed (",
-                        conditionMessage(e),
-                        "); continuing without leading-edge overlap section.",
-                        call. = FALSE)
-                NULL
-            }
-        )
-
-        gsva_out <- NULL
-        if (run_gsva) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] GSVA (sample-level gene-set scores)...")
-            gsva_out <- tryCatch(
+                    dds = st$dds, diffexp_out = st$diffexp, var = var, batch = batch,
+                    platform = platform, n_markers = opts$cspa_n_markers,
+                    save_dir = file.path(save_dir, "deseq2"))
+            }),
+            .stage("gsea", "clusterProfiler analysis", run = function(st) {
+                run_gsea_pipeline(
+                    diffexp_results = st$diffexp$results, collections = collections,
+                    ranking = ranking, top_n_plot = top_n_plot,
+                    run_clusterprofiler = run_clusterprofiler,
+                    save_dir = file.path(save_dir, "clusterprofiler"))
+            }),
+            .stage("gsea_overlap", "GSEA leading-edge overlap", run = function(st) {
+                run_gsea_overlap_pipeline(
+                    gsea_out = st$gsea, alpha = alpha,
+                    save_dir = file.path(save_dir, "clusterprofiler"))
+            }),
+            .stage("gsva", "GSVA (sample-level gene-set scores)",
+                   enabled = isTRUE(run_gsva), run = function(st) {
                 run_gsva_pipeline(
-                    dds = dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
                     collections = unique(c("HALLMARK", collections)),
-                    n_heatmap = .pipeline_const$gsva_n_heatmap,
-                    save_dir = file.path(save_dir, "gsva")
-                ),
-                error = function(e) {
-                    warning("GSVA failed (", conditionMessage(e),
-                            "); continuing without GSVA page.", call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        wgcna_out <- NULL
-        if (run_wgcna) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] Weighted gene co-expression network analysis (WGCNA)...")
-            wgcna_out <- run_wgcna_pipeline(
-                dds = dds, var = viz_var, batch = batch, platform = platform,
-                min_module_size = .pipeline_const$wgcna_min_module_size,
-                ora_collection = collections,
-                save_dir = file.path(save_dir, "wgcna"))
-        }
-
-        decoupler_tf_out <- NULL
-        if (run_decoupler_tf) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] DecoupleR (CollecTRI + ULM)...")
-            decoupler_tf_out <- run_decoupler_tf_pipeline(
-                dds = dds, var = viz_var, batch = batch, platform = platform,
-                diffexp_out = diffexp_out,
-                n_tfs = .pipeline_const$decoupler_n_tfs,
-                save_dir = file.path(save_dir, "decoupler-tf"))
-        }
-
-        decoupler_ccc_out <- NULL
-        if (run_decoupler_ccc) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] DecoupleR-CCC (ligand–receptor ULM)...")
-            decoupler_ccc_out <- tryCatch(
+                    n_heatmap = opts$gsva_n_heatmap,
+                    save_dir = file.path(save_dir, "gsva"))
+            }),
+            .stage("wgcna", "Weighted gene co-expression network analysis (WGCNA)",
+                   enabled = isTRUE(run_wgcna), run = function(st) {
+                run_wgcna_pipeline(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    min_module_size = opts$wgcna_min_module_size,
+                    ora_collection = collections,
+                    save_dir = file.path(save_dir, "wgcna"))
+            }),
+            .stage("decoupler_tf", "DecoupleR (CollecTRI + ULM)",
+                   enabled = isTRUE(run_decoupler_tf), run = function(st) {
+                run_decoupler_tf_pipeline(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    diffexp_out = st$diffexp, n_tfs = opts$decoupler_n_tfs,
+                    save_dir = file.path(save_dir, "decoupler-tf"))
+            }),
+            .stage("decoupler_ccc", "DecoupleR-CCC (ligand\u2013receptor ULM)",
+                   enabled = isTRUE(run_decoupler_ccc), run = function(st) {
                 run_decoupler_ccc_pipeline(
-                    diffexp_out = diffexp_out,
-                    n_lr = .pipeline_const$decoupler_n_lr,
-                    save_dir = file.path(save_dir, "decoupler-ccc")
-                ),
-                error = function(e) {
-                    warning("decoupleR-CCC failed (", conditionMessage(e),
-                            "); continuing without ligand–receptor page.",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        viper_out <- NULL
-        if (run_viper) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] VIPER (bcellViper)...")
-            viper_out <- tryCatch(
+                    diffexp_out = st$diffexp, n_lr = opts$decoupler_n_lr,
+                    save_dir = file.path(save_dir, "decoupler-ccc"))
+            }),
+            .stage("viper", "VIPER (bcellViper)", enabled = isTRUE(run_viper),
+                   run = function(st) {
                 run_viper_pipeline(
-                    dds = dds, var = viz_var, batch = batch, platform = platform,
-                    diffexp_out = diffexp_out,
-                    n_tfs = .pipeline_const$viper_n_tfs,
-                    save_dir = file.path(save_dir, "viper")
-                ),
-                error = function(e) {
-                    warning("VIPER analysis failed (",
-                            conditionMessage(e), "); continuing without VIPER page.",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] PPI connectivity (STRINGdb)...")
-        ppi_out <- tryCatch(
-            run_ppi_pipeline(
-                diffexp_out = diffexp_out,
-                wgcna_out = wgcna_out,
-                top_n_hubs = .pipeline_const$ppi_top_n_hubs,
-                alpha = alpha,
-                lfc_threshold = lfc_threshold,
-                save_dir = file.path(save_dir, "deseq2"),
-                module_save_dir = file.path(save_dir, "ppi"),
-                wgcna_module_save_dir = file.path(save_dir, "wgcna")
-            ),
-            error = function(e) {
-                warning("PPI connectivity analysis failed (",
-                        conditionMessage(e), "); continuing without PPI plots.",
-                        call. = FALSE)
-                NULL
-            }
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    diffexp_out = st$diffexp, n_tfs = opts$viper_n_tfs,
+                    save_dir = file.path(save_dir, "viper"))
+            }),
+            .stage("ppi", "PPI connectivity (STRINGdb)", run = function(st) {
+                run_ppi_pipeline(
+                    diffexp_out = st$diffexp, wgcna_out = st$wgcna,
+                    top_n_hubs = opts$ppi_top_n_hubs,
+                    alpha = alpha, lfc_threshold = lfc_threshold,
+                    save_dir = file.path(save_dir, "deseq2"),
+                    module_save_dir = file.path(save_dir, "ppi"),
+                    wgcna_module_save_dir = file.path(save_dir, "wgcna"))
+            }),
+            .stage("multihit", "Cross-analysis gene hit ranking", run = function(st) {
+                run_multihit_pipeline(
+                    diffexp_out = st$diffexp, gsea_out = st$gsea,
+                    viper_out = st$viper, decoupler_tf_out = st$decoupler_tf,
+                    decoupler_ccc_out = st$decoupler_ccc, cspa_out = st$cspa,
+                    alpha = alpha, top_n = 10,
+                    save_dir = file.path(save_dir, "multihit"))
+            })
         )
 
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Cross-analysis gene hit ranking...")
-        multihit_out <- tryCatch(
-            run_multihit_pipeline(
-                diffexp_out = diffexp_out,
-                gsea_out = gsea_out,
-                viper_out = viper_out,
-                decoupler_tf_out = decoupler_tf_out,
-                decoupler_ccc_out = decoupler_ccc_out,
-                cspa_out = cspa_out,
-                alpha = alpha,
-                top_n = 10,
-                save_dir = file.path(save_dir, "multihit")
-            ),
-            error = function(e) {
-                warning("Multi-hit gene ranking failed (",
-                        conditionMessage(e), "); continuing without index barplots.",
-                        call. = FALSE)
-                NULL
-            }
-        )
+        st <- .run_stages(stages, list(dds = dds))
+        dds <- st$dds
+        distance_out <- st$distance
+        diffexp_out <- st$diffexp
+        cspa_out <- st$cspa
+        gsea_out <- st$gsea
+        gsea_overlap_out <- st$gsea_overlap
+        gsva_out <- st$gsva
+        wgcna_out <- st$wgcna
+        decoupler_tf_out <- st$decoupler_tf
+        decoupler_ccc_out <- st$decoupler_ccc
+        viper_out <- st$viper
+        ppi_out <- st$ppi
+        multihit_out <- st$multihit
 
         report_path <- NULL
         if (render_html) {
@@ -636,13 +567,15 @@ run_deseq2_lrt <- function(
     parallel_render = FALSE,
     render_workers = NULL,
     use_targets = FALSE,
+    opts = deseq2reports_opts(),
     save_dir = getwd()) {
 
     call <- match.call()
     save_dir <- validate_save_dir(save_dir)
     platform <- validate_platform(platform)
-    alpha <- .pipeline_const$alpha
-    lfc_threshold <- .pipeline_const$lfc_threshold
+    opts <- .as_opts(opts)
+    alpha <- opts$alpha
+    lfc_threshold <- opts$lfc_threshold
 
     if (!is.null(design)) {
         stop("`design` is unused in run_deseq2_lrt(); LRT models are built from ",
@@ -681,6 +614,7 @@ run_deseq2_lrt <- function(
         render_workers = render_workers,
         use_targets = use_targets
     )
+    params <- c(params, .opts_diff(opts))
 
     log_output(call, save_dir, params = params, expr = quote({
 
@@ -722,299 +656,207 @@ run_deseq2_lrt <- function(
             viz_var <- time
         }
 
-        n_steps <- 9L + as.integer(isTRUE(export_counts)) +
-            as.integer(isTRUE(run_gsva)) +
-            as.integer(isTRUE(run_wgcna)) + as.integer(isTRUE(run_decoupler_tf)) +
-            as.integer(isTRUE(run_decoupler_ccc)) +
-            as.integer(isTRUE(run_viper)) +
-            as.integer(isTRUE(run_cspa))
-        step <- 0L
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Quality control...")
-        dds <- run_qc(
-            dds = dds, var = viz_var, filter_method = filter_method,
-            cpm_percentile = cpm_percentile, min_count = min_count,
-            min_samples_per_group = min_samples_per_group,
-            remove_mt = remove_mt, mt_pattern = mt_pattern,
-            remove_xy = remove_xy, gene_chr = gene_chr,
-            remove_vdj = remove_vdj,
-            save_dir = file.path(save_dir, "qc"))
-
-        if (export_counts) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] Exporting count tables...")
-            run_counts_export(
-                dds = dds, batch = batch, var = viz_var, platform = platform,
-                save_dir = file.path(save_dir, "qc", "counts"))
-        }
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Sample similarity / PCA...")
-        distance_out <- run_distance_pca(
-            dds = dds, var = viz_var, batch = batch, platform = platform,
-            pals = pals, shape_var = shape_var,
-            n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs,
-            n_top_genes = n_top_genes,
-            assoc_vars = unique(c(var, time, batch)),
-            save_dir = file.path(save_dir, "qc", "distance"))
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] DESeq2 LRT (", n_tests, " test(s))...")
-        diffexp_out <- run_diffexp_lrt_pipeline(
-            dds = dds, var = var, time = time, batch = batch,
-            include_interactions = include_interactions,
-            alpha = alpha,
-            save_dir = file.path(save_dir, "deseq2"))
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] degPatterns temporal clustering...")
-        degpatterns_out <- run_degpatterns_pipeline(
-            dds = dds,
-            lrt_out = diffexp_out,
-            time = time,
-            var = var,
-            alpha = alpha,
-            minc = degpatterns_minc,
-            save_dir = file.path(save_dir, "deseq2")
+        # The LRT run as data; see .stage() / .run_stages(). Same driver,
+        # same failure policy and progress counter as the Wald pipeline --
+        # only the stages differ.
+        stages <- list(
+            .stage("dds", "Quality control", optional = FALSE, run = function(st) {
+                run_qc(
+                    dds = st$dds, var = viz_var, filter_method = filter_method,
+                    cpm_percentile = cpm_percentile, min_count = min_count,
+                    min_samples_per_group = min_samples_per_group,
+                    remove_mt = remove_mt, mt_pattern = mt_pattern,
+                    remove_xy = remove_xy, gene_chr = gene_chr,
+                    remove_vdj = remove_vdj,
+                    save_dir = file.path(save_dir, "qc"))
+            }),
+            .stage(NULL, "Exporting count tables", enabled = isTRUE(export_counts),
+                   run = function(st) {
+                run_counts_export(
+                    dds = st$dds, batch = batch, var = viz_var, platform = platform,
+                    save_dir = file.path(save_dir, "qc", "counts"))
+            }),
+            .stage("distance", "Sample similarity / PCA", optional = FALSE,
+                   run = function(st) {
+                run_distance_pca(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    pals = pals, shape_var = shape_var,
+                    n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs,
+                    n_top_genes = n_top_genes,
+                    assoc_vars = unique(c(var, time, batch)),
+                    save_dir = file.path(save_dir, "qc", "distance"))
+            }),
+            .stage("diffexp", paste0("DESeq2 LRT (", n_tests, " test(s))"),
+                   optional = FALSE, run = function(st) {
+                run_diffexp_lrt_pipeline(
+                    dds = st$dds, var = var, time = time, batch = batch,
+                    include_interactions = include_interactions,
+                    alpha = alpha,
+                    save_dir = file.path(save_dir, "deseq2"))
+            }),
+            .stage("degpatterns", "degPatterns temporal clustering", optional = FALSE,
+                   run = function(st) {
+                run_degpatterns_pipeline(
+                    dds = st$dds, lrt_out = st$diffexp, time = time, var = var,
+                    alpha = alpha, minc = degpatterns_minc,
+                    save_dir = file.path(save_dir, "deseq2"))
+            }),
+            .stage("cspa", "CSPA heatmaps by temporal cluster",
+                   enabled = isTRUE(run_cspa), run = function(st) {
+                hm <- run_lrt_cspa_heatmap(
+                    dds = st$dds, degpatterns_out = st$degpatterns,
+                    lrt_out = st$diffexp, n_per_cluster = opts$cspa_n_markers_lrt,
+                    annotation_var = unique(c(time, var)), batch = batch,
+                    platform = platform, save_dir = file.path(save_dir, "deseq2"))
+                list(
+                    source = "lrt_clusters",
+                    org = detect_organism(rownames(st$dds)),
+                    by_lrt = hm,
+                    heatmaps = lapply(hm, function(x) x$heatmap),
+                    n_markers = opts$cspa_n_markers_lrt,
+                    expr_correction = attr(hm, "expr_correction")
+                )
+            }),
+            .stage("cluster_ora", "Cluster ORA (clusterProfiler page)",
+                   run = function(st) {
+                run_cluster_ora_pipeline(
+                    degpatterns_out = st$degpatterns, universe = rownames(st$dds),
+                    collections = collections, top_n = top_n_plot, alpha = alpha,
+                    save_dir = file.path(save_dir, "clusterprofiler"))
+            }),
+            .stage("gsva", "GSVA (sample-level gene-set scores)",
+                   enabled = isTRUE(run_gsva), run = function(st) {
+                run_gsva_pipeline(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    collections = unique(c("HALLMARK", collections)),
+                    n_heatmap = opts$gsva_n_heatmap,
+                    save_dir = file.path(save_dir, "gsva"))
+            }),
+            .stage("wgcna", "WGCNA", enabled = isTRUE(run_wgcna), run = function(st) {
+                run_wgcna_pipeline(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    min_module_size = opts$wgcna_min_module_size,
+                    ora_collection = collections,
+                    save_dir = file.path(save_dir, "wgcna"))
+            }),
+            # One TF signature per degPatterns cluster, shared by the three
+            # regulator modules below, rather than the whole-LRT gene set.
+            .stage("tf_diffexp", "Per-cluster TF signatures", silent = TRUE,
+                   enabled = any(c(run_decoupler_tf, run_decoupler_ccc, run_viper)),
+                   run = function(st) {
+                lrt_clusters_diffexp_for_tf(
+                    degpatterns_out = st$degpatterns, lrt_out = st$diffexp)
+            }),
+            .stage("decoupler_tf", "DecoupleR (sample + per-cluster ULM)",
+                   enabled = isTRUE(run_decoupler_tf), run = function(st) {
+                if (is.null(st$tf_diffexp)) {
+                    warning("Skipping decoupleR: no temporal clusters for TF input.",
+                            call. = FALSE)
+                    return(NULL)
+                }
+                out <- run_decoupler_tf_pipeline(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    diffexp_out = st$tf_diffexp, n_tfs = opts$decoupler_n_tfs,
+                    save_dir = file.path(save_dir, "decoupler-tf"))
+                if (!is.null(out)) out$tf_level <- "lrt_cluster"
+                out
+            }),
+            .stage("decoupler_ccc", "DecoupleR-CCC (ligand\u2013receptor ULM)",
+                   enabled = isTRUE(run_decoupler_ccc), run = function(st) {
+                run_decoupler_ccc_pipeline(
+                    diffexp_out = st$diffexp, cluster_diffexp = st$tf_diffexp,
+                    n_lr = opts$decoupler_n_lr,
+                    save_dir = file.path(save_dir, "decoupler-ccc"))
+            }),
+            .stage("viper", "VIPER (sample + per-cluster msVIPER)",
+                   enabled = isTRUE(run_viper), run = function(st) {
+                if (is.null(st$tf_diffexp)) {
+                    warning("Skipping VIPER: no temporal clusters for TF input.",
+                            call. = FALSE)
+                    return(NULL)
+                }
+                out <- run_viper_pipeline(
+                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    diffexp_out = st$tf_diffexp, n_tfs = opts$viper_n_tfs,
+                    save_dir = file.path(save_dir, "viper"))
+                if (!is.null(out)) out$tf_level <- "lrt_cluster"
+                out
+            }),
+            .stage("ppi", "PPI connectivity (clusters + WGCNA)", run = function(st) {
+                clusters_wgcna <- tryCatch(
+                    lrt_clusters_as_wgcna_like(st$degpatterns),
+                    error = function(e) NULL
+                )
+                # degPatterns clusters and WGCNA modules are merged into one
+                # module_df so PPI covers both; the WGCNA page only displays
+                # real WGCNA keys. Keep the columns PPI seeds on.
+                .ppi_module_cols <- function(df) {
+                    gene_col <- if ("gene" %in% colnames(df)) {
+                        "gene"
+                    } else {
+                        setdiff(colnames(df), c("module", "module_label",
+                                                "module_color", "kME",
+                                                "cluster", "lrt"))[1]
+                    }
+                    keep <- c(gene_col, "module", intersect("kME", colnames(df)))
+                    out <- df[, keep, drop = FALSE]
+                    colnames(out)[1] <- "gene"
+                    if (!"kME" %in% colnames(out)) out$kME <- NA_real_
+                    out
+                }
+                mod_parts <- list()
+                if (!is.null(clusters_wgcna) && nrow(clusters_wgcna$module_df)) {
+                    mod_parts[[length(mod_parts) + 1L]] <-
+                        .ppi_module_cols(clusters_wgcna$module_df)
+                }
+                if (!is.null(st$wgcna) && !is.null(st$wgcna$module_df) &&
+                    nrow(st$wgcna$module_df)) {
+                    mod_parts[[length(mod_parts) + 1L]] <-
+                        .ppi_module_cols(st$wgcna$module_df)
+                }
+                ppi_modules <- NULL
+                if (length(mod_parts)) {
+                    merged <- do.call(rbind, mod_parts)
+                    rownames(merged) <- NULL
+                    ppi_modules <- list(module_df = merged)
+                }
+                run_ppi_pipeline(
+                    diffexp_out = st$diffexp, wgcna_out = ppi_modules,
+                    top_n_hubs = opts$ppi_top_n_hubs, max_plot_nodes = 50L,
+                    alpha = alpha, lfc_threshold = 0,
+                    save_dir = file.path(save_dir, "deseq2"),
+                    module_save_dir = file.path(save_dir, "ppi"),
+                    wgcna_module_save_dir = file.path(save_dir, "wgcna"))
+            }),
+            .stage("multihit", "Cross-analysis gene hit ranking (per cluster)",
+                   run = function(st) {
+                run_multihit_lrt_pipeline(
+                    degpatterns_out = st$degpatterns, diffexp_out = st$diffexp,
+                    wgcna_out = st$wgcna, viper_out = st$viper,
+                    decoupler_tf_out = st$decoupler_tf,
+                    decoupler_ccc_out = st$decoupler_ccc,
+                    alpha = alpha, top_n = 10,
+                    save_dir = file.path(save_dir, "multihit"))
+            })
         )
 
-        cspa_out <- NULL
-        if (run_cspa) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] CSPA heatmaps by temporal cluster...")
-            hm <- run_lrt_cspa_heatmap(
-                dds = dds,
-                degpatterns_out = degpatterns_out,
-                lrt_out = diffexp_out,
-                n_per_cluster = .pipeline_const$cspa_n_markers_lrt,
-                annotation_var = unique(c(time, var)),
-                batch = batch,
-                platform = platform,
-                save_dir = file.path(save_dir, "deseq2")
-            )
-            cspa_out <- list(
-                source = "lrt_clusters",
-                org = detect_organism(rownames(dds)),
-                by_lrt = hm,
-                heatmaps = lapply(hm, function(x) x$heatmap),
-                n_markers = .pipeline_const$cspa_n_markers_lrt,
-                expr_correction = attr(hm, "expr_correction")
-            )
-        }
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Cluster ORA (clusterProfiler page)...")
-        cluster_ora_out <- run_cluster_ora_pipeline(
-            degpatterns_out = degpatterns_out,
-            universe = rownames(dds),
-            collections = collections,
-            top_n = top_n_plot,
-            alpha = alpha,
-            save_dir = file.path(save_dir, "clusterprofiler")
-        )
+        st <- .run_stages(stages, list(dds = dds))
+        dds <- st$dds
+        distance_out <- st$distance
+        diffexp_out <- st$diffexp
+        degpatterns_out <- st$degpatterns
+        cspa_out <- st$cspa
+        cluster_ora_out <- st$cluster_ora
         # Ranked GSEA is not used in LRT mode (no signed LFC ranking).
         gsea_out <- NULL
         gsea_overlap_out <- NULL
-
-        gsva_out <- NULL
-        if (run_gsva) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] GSVA (sample-level gene-set scores)...")
-            gsva_out <- tryCatch(
-                run_gsva_pipeline(
-                    dds = dds, var = viz_var, batch = batch, platform = platform,
-                    collections = unique(c("HALLMARK", collections)),
-                    n_heatmap = .pipeline_const$gsva_n_heatmap,
-                    save_dir = file.path(save_dir, "gsva")
-                ),
-                error = function(e) {
-                    warning("GSVA failed (", conditionMessage(e),
-                            "); continuing without GSVA page.", call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        wgcna_out <- NULL
-        if (run_wgcna) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] WGCNA...")
-            wgcna_out <- run_wgcna_pipeline(
-                dds = dds, var = viz_var, batch = batch, platform = platform,
-                min_module_size = .pipeline_const$wgcna_min_module_size,
-                ora_collection = collections,
-                save_dir = file.path(save_dir, "wgcna"))
-        }
-
-        # One TF signature per degPatterns cluster (not whole-LRT sig set).
-        tf_diffexp <- tryCatch(
-            lrt_clusters_diffexp_for_tf(
-                degpatterns_out = degpatterns_out,
-                lrt_out = diffexp_out
-            ),
-            error = function(e) {
-                warning("No degPatterns clusters for TF activity (",
-                        conditionMessage(e), ").", call. = FALSE)
-                NULL
-            }
-        )
-
-        decoupler_tf_out <- NULL
-        if (run_decoupler_tf) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] DecoupleR (sample + per-cluster ULM)...")
-            if (is.null(tf_diffexp)) {
-                warning("Skipping decoupleR: no temporal clusters for TF input.",
-                        call. = FALSE)
-            } else {
-                decoupler_tf_out <- tryCatch(
-                    run_decoupler_tf_pipeline(
-                        dds = dds, var = viz_var, batch = batch, platform = platform,
-                        diffexp_out = tf_diffexp,
-                        n_tfs = .pipeline_const$decoupler_n_tfs,
-                        save_dir = file.path(save_dir, "decoupler-tf")
-                    ),
-                    error = function(e) {
-                        warning("decoupleR failed (", conditionMessage(e), ").",
-                                call. = FALSE)
-                        NULL
-                    }
-                )
-                if (!is.null(decoupler_tf_out)) {
-                    decoupler_tf_out$tf_level <- "lrt_cluster"
-                }
-            }
-        }
-
-        decoupler_ccc_out <- NULL
-        if (run_decoupler_ccc) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] DecoupleR-CCC (ligand–receptor ULM)...")
-            decoupler_ccc_out <- tryCatch(
-                run_decoupler_ccc_pipeline(
-                    diffexp_out = diffexp_out,
-                    cluster_diffexp = tf_diffexp,
-                    n_lr = .pipeline_const$decoupler_n_lr,
-                    save_dir = file.path(save_dir, "decoupler-ccc")
-                ),
-                error = function(e) {
-                    warning("decoupleR-CCC failed (", conditionMessage(e), ").",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        viper_out <- NULL
-        if (run_viper) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] VIPER (sample + per-cluster msVIPER)...")
-            if (is.null(tf_diffexp)) {
-                warning("Skipping VIPER: no temporal clusters for TF input.",
-                        call. = FALSE)
-            } else {
-                viper_out <- tryCatch(
-                    run_viper_pipeline(
-                        dds = dds, var = viz_var, batch = batch, platform = platform,
-                        diffexp_out = tf_diffexp,
-                        n_tfs = .pipeline_const$viper_n_tfs,
-                        save_dir = file.path(save_dir, "viper")
-                    ),
-                    error = function(e) {
-                        warning("VIPER failed (", conditionMessage(e), ").",
-                                call. = FALSE)
-                        NULL
-                    }
-                )
-                if (!is.null(viper_out)) {
-                    viper_out$tf_level <- "lrt_cluster"
-                }
-            }
-        }
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] PPI connectivity (clusters + WGCNA)...")
-        clusters_wgcna <- tryCatch(
-            lrt_clusters_as_wgcna_like(degpatterns_out),
-            error = function(e) NULL
-        )
-        # Merge degPatterns clusters and WGCNA modules into one module_df
-        # so PPI covers both; WGCNA HTML only displays real WGCNA keys.
-        # Keep only columns PPI seeds on (gene + module [+ optional kME]).
-        .ppi_module_cols <- function(df) {
-            gene_col <- if ("gene" %in% colnames(df)) {
-                "gene"
-            } else {
-                setdiff(colnames(df), c("module", "module_label",
-                                        "module_color", "kME",
-                                        "cluster", "lrt"))[1]
-            }
-            keep <- c(gene_col, "module",
-                      intersect("kME", colnames(df)))
-            out <- df[, keep, drop = FALSE]
-            colnames(out)[1] <- "gene"
-            if (!"kME" %in% colnames(out)) out$kME <- NA_real_
-            out
-        }
-        ppi_modules <- NULL
-        mod_parts <- list()
-        if (!is.null(clusters_wgcna) && nrow(clusters_wgcna$module_df)) {
-            mod_parts[[length(mod_parts) + 1L]] <-
-                .ppi_module_cols(clusters_wgcna$module_df)
-        }
-        if (!is.null(wgcna_out) && !is.null(wgcna_out$module_df) &&
-            nrow(wgcna_out$module_df)) {
-            mod_parts[[length(mod_parts) + 1L]] <-
-                .ppi_module_cols(wgcna_out$module_df)
-        }
-        if (length(mod_parts)) {
-            merged <- do.call(rbind, mod_parts)
-            rownames(merged) <- NULL
-            ppi_modules <- list(module_df = merged)
-        }
-        ppi_out <- tryCatch(
-            run_ppi_pipeline(
-                diffexp_out = diffexp_out,
-                wgcna_out = ppi_modules,
-                top_n_hubs = .pipeline_const$ppi_top_n_hubs,
-                max_plot_nodes = 50L,
-                alpha = alpha,
-                lfc_threshold = 0,
-                save_dir = file.path(save_dir, "deseq2"),
-                module_save_dir = file.path(save_dir, "ppi"),
-                wgcna_module_save_dir = file.path(save_dir, "wgcna")
-            ),
-            error = function(e) {
-                warning("PPI connectivity analysis failed (",
-                        conditionMessage(e), "); continuing without PPI plots.",
-                        call. = FALSE)
-                NULL
-            }
-        )
-
-        multihit_out <- NULL
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Cross-analysis gene hit ranking (per cluster)...")
-        multihit_out <- tryCatch(
-            run_multihit_lrt_pipeline(
-                degpatterns_out = degpatterns_out,
-                diffexp_out = diffexp_out,
-                wgcna_out = wgcna_out,
-                viper_out = viper_out,
-                decoupler_tf_out = decoupler_tf_out,
-                decoupler_ccc_out = decoupler_ccc_out,
-                alpha = alpha,
-                top_n = 10,
-                save_dir = file.path(save_dir, "multihit")
-            ),
-            error = function(e) {
-                warning("Multi-hit gene ranking failed (",
-                        conditionMessage(e), "); continuing without index tables.",
-                        call. = FALSE)
-                NULL
-            }
-        )
+        gsva_out <- st$gsva
+        wgcna_out <- st$wgcna
+        decoupler_tf_out <- st$decoupler_tf
+        decoupler_ccc_out <- st$decoupler_ccc
+        viper_out <- st$viper
+        ppi_out <- st$ppi
+        multihit_out <- st$multihit
 
         report_path <- NULL
         if (render_html) {

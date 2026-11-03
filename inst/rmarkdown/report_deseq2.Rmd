@@ -440,6 +440,33 @@ if (is.null(specs)) {
 }
 ```
 
+```{r de-manifest, results='asis', eval=is_hub}
+# What every contrast in this run asks, how it was fitted, and of how many
+# samples -- before any results, so the numbers below are read in context.
+manifest <- params$diffexp_out$manifest
+if (is.null(manifest) && !is.null(specs)) {
+  manifest <- try(deseq2reports::contrast_manifest(specs, var = params$var),
+                  silent = TRUE)
+  if (inherits(manifest, "try-error")) manifest <- NULL
+}
+if (!is.null(manifest) && nrow(manifest)) {
+  cat("\n\n### Contrasts in this run\n\n")
+  cat("Each row is one comparison: the question it asks, the design formula ",
+      "fitted for it, and the number of samples that model sees. ",
+      "The same table is written to `deseq2/contrasts.csv`.\n\n", sep = "")
+  show_mf <- manifest[, intersect(
+    c("label", "question", "design", "n_samples", "coefficients"),
+    colnames(manifest)), drop = FALSE]
+  names(show_mf)[names(show_mf) == "label"] <- "Contrast"
+  names(show_mf)[names(show_mf) == "question"] <- "Question"
+  names(show_mf)[names(show_mf) == "design"] <- "Design fitted"
+  names(show_mf)[names(show_mf) == "n_samples"] <- "n"
+  names(show_mf)[names(show_mf) == "coefficients"] <- "Coefficients"
+  print(knitr::kable(show_mf, row.names = FALSE))
+  cat("\n\n")
+}
+```
+
 ```{r de-hub, results='asis', eval=is_hub}
 cat("\n\n### Significant DEG summary\n\n")
 if (is_lrt) {

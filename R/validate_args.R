@@ -247,13 +247,16 @@ validate_pals <- function(dds, var, pals) {
 #'
 #' @param dds A `DESeqDataSet` object.
 #' @param var Grouping column name(s), length 1 or 2.
-#' @param comparisons Character vector of comparison / label strings, or `NULL`.
+#' @param comparisons Character vector of comparison / label strings, a
+#'   contrast-spec table (or list of [contrast_spec()] rows), or `NULL`.
 #' @param include_interactions Logical passed to [expand_contrast_specs()].
 #'   Default `FALSE`.
 #' @param stratified Logical passed to [expand_contrast_specs()]. Default
 #'   `FALSE`.
-#' @return For `length(var) == 1` and character `comparisons`/`NULL`: a
-#'   character vector. Otherwise a contrast-specs data frame.
+#' @return Always a validated `contrast_specs` table, whatever the arity of
+#'   `var` and whatever form `comparisons` took. (It used to return a bare
+#'   character vector for single-factor `var`, which every caller then had to
+#'   branch on.)
 #' @noRd
 validate_comparisons <- function(dds, var, comparisons = NULL,
                                  include_interactions = FALSE,
@@ -262,30 +265,45 @@ validate_comparisons <- function(dds, var, comparisons = NULL,
                                    include_interactions = include_interactions,
                                    stratified = stratified)
 
-    if (is.null(comparisons)) {
-        if (length(var) == 1) return(specs$comparison)
-        return(specs)
-    }
-    if (!is.character(comparisons) || length(comparisons) == 0) {
-        stop("`comparisons` must be `NULL` or a non-empty character vector.", call. = FALSE)
-    }
-    if (length(var) == 1) {
-        levels_var <- levels(SummarizedExperiment::colData(dds)[[var]])
-        for (comp in comparisons) {
-            validate_comparison(comp, levels_var)
+    if (is.null(comparisons)) return(specs)
+
+    # A table (or a list of rows) is the supported way to run contrasts the
+    # automatic grid does not generate: validate it against `dds` and use it.
+    if (!is.character(comparisons)) {
+        user <- as_contrast_specs(comparisons, var = var[[1L]])
+        if (is.null(user)) {
+            stop("`comparisons` is empty.", call. = FALSE)
         }
-        return(unique(comparisons))
+        return(validate_contrast_specs(user, dds = dds, var = var))
     }
-    unknown <- setdiff(comparisons, specs$label)
-    if (length(unknown) > 0) {
-        stop("`comparisons` not in the auto contrast grid for `var = c(",
-             paste(sprintf('\"%s\"', var), collapse = ", "), ")`: ",
-             paste(unknown, collapse = ", "),
-             ".\nValid labels include e.g.: ",
-             paste(utils::head(specs$label, 8), collapse = ", "), "...",
-             call. = FALSE)
+    if (length(comparisons) == 0) {
+        stop("`comparisons` must be `NULL`, a non-empty character vector, or a ",
+             "contrast-spec table.", call. = FALSE)
     }
-    specs[match(unique(comparisons), specs$label), , drop = FALSE]
+    comparisons <- unique(comparisons)
+
+    # Labels of the automatic grid can always be named.
+    known <- comparisons %in% specs$label
+    if (all(known)) {
+        return(specs[match(comparisons, specs$label), , drop = FALSE])
+    }
+    # For a single grouping factor, any well-formed comparison of its levels is
+    # accepted even when the grid does not list it -- that is how a
+    # pooled-vs-pooled comparison such as "d0+d1_vs_d7+d14" is requested.
+    if (length(var) == 1L) {
+        levels_var <- levels(factor(SummarizedExperiment::colData(dds)[[var]]))
+        for (comp in comparisons) validate_comparison(comp, levels_var)
+        out <- as_contrast_specs(comparisons, var = var)
+        return(validate_contrast_specs(out, dds = dds, var = var))
+    }
+    stop("`comparisons` not in the auto contrast grid for `var = c(",
+         paste(sprintf('"%s"', var), collapse = ", "), ")`: ",
+         paste(comparisons[!known], collapse = ", "),
+         ".\nValid labels include e.g.: ",
+         paste(utils::head(specs$label, 8), collapse = ", "),
+         "...\nTo run a contrast the grid does not generate, build it with ",
+         "contrast_spec() and pass the table (see `add_contrasts()`).",
+         call. = FALSE)
 }
 
 #' Validate a single comparison string against known levels

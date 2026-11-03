@@ -15,7 +15,7 @@ prepare_diffexp_from_deg(
 }
 \arguments{
 \item{deg_table}{Data frame (or path to CSV/TSV readable by
-\code{\link[utils:read.table]{utils::read.delim()}} / \code{\link[utils:read.table]{utils::read.csv()}}).}
+\code{\link[utils:read.delim]{utils::read.delim()}} / \code{\link[utils:read.csv]{utils::read.csv()}}).}
 
 \item{gene_col, comparison_col}{Optional overrides if names are non-standard
 after alias remapping. Default \code{NULL}.}

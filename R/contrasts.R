@@ -1,3 +1,23 @@
+#' Validate a grouping-factor vector
+#'
+#' The one place the `var` contract is enforced. There is no upper limit on
+#' the number of factors any more -- the grid builders are written for an
+#' arbitrary number -- but every extra factor multiplies the contrast grid and
+#' needs every level combination to be populated, so three is still as far as
+#' most designs usefully go.
+#' @noRd
+.validate_var_vector <- function(var) {
+    if (!is.character(var) || length(var) < 1L || anyNA(var) || !all(nzchar(var))) {
+        stop("`var` must be a non-empty character vector of colData column names.",
+             call. = FALSE)
+    }
+    if (anyDuplicated(var)) {
+        stop("`var` must not contain duplicated column names: ",
+             paste(unique(var[duplicated(var)]), collapse = ", "), ".", call. = FALSE)
+    }
+    var
+}
+
 #' Resolve the DESeq2 design formula from `var` / `batch` (or an override)
 #'
 #' Everyday use passes only `var` (length 1–3) and optional `batch`;
@@ -27,9 +47,7 @@ resolve_design <- function(var, batch = NULL, design = NULL,
         }
         return(design)
     }
-    if (!is.character(var) || length(var) < 1 || length(var) > 3 || anyNA(var)) {
-        stop("`var` must be a character vector of length 1, 2, or 3.", call. = FALSE)
-    }
+    var <- .validate_var_vector(var)
     if (!is.null(batch)) {
         if (!is.character(batch) || length(batch) < 1 || anyNA(batch)) {
             stop("`batch` must be `NULL` or a non-empty character vector of column names.",
@@ -132,20 +150,20 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
                                   stratified = FALSE) {
     dds <- validate_dds(dds)
     cd <- as.data.frame(SummarizedExperiment::colData(dds))
-    if (!is.character(var) || length(var) < 1 || length(var) > 3 || anyNA(var)) {
-        stop("`var` must be a character vector of length 1, 2, or 3.", call. = FALSE)
-    }
+    var <- .validate_var_vector(var)
     missing <- setdiff(var, colnames(cd))
     if (length(missing) > 0) {
         stop("`var` column(s) not in colData(dds): ", paste(missing, collapse = ", "),
              call. = FALSE)
     }
 
+    validate_level_names(dds, var)
+
     if (length(var) == 1) {
         levels_var <- levels(factor(cd[[var]]))
         comps <- generate_comparisons(levels_var)
         types <- classify_comparison_type(comps)
-        return(data.frame(
+        return(new_contrast_specs(data.frame(
             label = comps,
             class = "single",
             type = types,
@@ -155,21 +173,18 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
             comparison = comps,
             coef_subtract = rep(NA_character_, length(comps)),
             stringsAsFactors = FALSE
-        ))
+        )))
     }
 
-    three <- length(var) == 3L
+    # Two factors name their comparisons alphabetically, three or more follow
+    # factor level order. Kept as it was so existing labels do not move.
     main <- .main_effect_specs(
         cd, var,
-        comps_fun = if (three) .comps_factor_order else generate_comparisons
+        comps_fun = if (length(var) >= 3L) .comps_factor_order else generate_comparisons
     )
     parts <- list(main)
     if (isTRUE(stratified)) {
-        parts <- c(parts, list(if (three) {
-            .expand_contrast_specs_three(cd, var)
-        } else {
-            .expand_contrast_specs_two(cd, var)
-        }))
+        parts <- c(parts, list(.within_stratum_specs(cd, var)))
     }
     if (isTRUE(include_interactions)) {
         parts <- c(parts, list(.interaction_specs(cd, var)))
@@ -228,6 +243,25 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
     paste(paste0(names(at)[ord], at[ord]), collapse = ".")
 }
 
+#' Every subset of the held-fixed factors, the empty one first
+#'
+#' A contrast fitted inside one fixed level needs the coefficient for that
+#' level folded in as well; inside two, it needs both of them and their
+#' product. Enumerating the subsets is what makes [.ix_weighted_terms()]
+#' independent of how many factors are held fixed.
+#' @param stratum Named character vector (factor = level), or `NULL`.
+#' @return List of named character vectors, starting with `NULL`.
+#' @noRd
+.ix_stratum_subsets <- function(stratum) {
+    if (is.null(stratum) || !length(stratum)) return(list(NULL))
+    out <- list(NULL)
+    for (k in seq_along(stratum)) {
+        out <- c(out, utils::combn(seq_along(stratum), k,
+                                   function(s) stratum[s], simplify = FALSE))
+    }
+    out
+}
+
 #' Weighted coefficient terms of one interaction contrast
 #'
 #' A difference of differences expands into one term per corner of the tested
@@ -269,10 +303,16 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
             }, character(1)),
             vs
         )
-        coefs <- .ix_coef_name(var, corner, refs)
-        if (!is.null(stratum)) {
-            coefs <- c(coefs, .ix_coef_name(var, c(corner, stratum), refs))
-        }
+        # With factors held fixed, each corner contributes its own interaction
+        # term plus every higher-order term that adds some of the held-fixed
+        # levels -- all subsets of the stratum, the empty one included. Terms
+        # naming a reference level drop out inside .ix_coef_name().
+        coefs <- unlist(
+            lapply(.ix_stratum_subsets(stratum), function(s) {
+                .ix_coef_name(var, c(corner, s), refs)
+            }),
+            use.names = FALSE
+        )
         if (!length(coefs)) next
         nm <- c(nm, coefs)
         wt <- c(wt, rep(w, length(coefs)))
@@ -282,46 +322,8 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
     out[abs(out) > 1e-9]
 }
 
-#' Encode a coefficient-weight map into one spec-table cell
-#'
-#' Fractional weights cannot be expressed by the `+`-joined
-#' `comparison` / `coef_subtract` pair, which only ever sums coefficients, so
-#' a pooled comparison stores `"name=weight;name=weight"` instead. Neither
-#' `=` nor `;` can occur in a DESeq2 coefficient name, which comes from
-#' [make.names()].
-#' @noRd
-.format_coef_weights <- function(w) {
-    num <- vapply(unname(w), format, character(1), digits = 12, trim = TRUE)
-    paste0(names(w), "=", num, collapse = ";")
-}
-
-#' Decode [.format_coef_weights()] back into a named numeric vector
-#' @return Named numeric vector, or `NULL` when there is nothing to decode.
-#' @noRd
-.parse_coef_weights <- function(x) {
-    if (is.null(x)) return(NULL)
-    x <- as.character(x)
-    x <- x[!is.na(x) & nzchar(x)]
-    if (!length(x)) return(NULL)
-    parts <- unlist(strsplit(x, ";", fixed = TRUE), use.names = FALSE)
-    parts <- trimws(parts)
-    parts <- parts[nzchar(parts)]
-    if (!length(parts)) return(NULL)
-    kv <- strsplit(parts, "=", fixed = TRUE)
-    bad <- vapply(kv, function(p) length(p) != 2L, logical(1))
-    if (any(bad)) {
-        stop("Malformed coefficient weight(s): ",
-             paste(parts[bad], collapse = ", "),
-             ". Expected \"name=weight\" pairs separated by \";\".", call. = FALSE)
-    }
-    val <- suppressWarnings(as.numeric(trimws(vapply(kv, `[[`, character(1), 2L))))
-    nm <- trimws(vapply(kv, `[[`, character(1), 1L))
-    if (anyNA(val)) {
-        stop("Non-numeric coefficient weight(s) for: ",
-             paste(nm[is.na(val)], collapse = ", "), ".", call. = FALSE)
-    }
-    stats::setNames(val, nm)
-}
+# `.format_coef_weights()` / `.parse_coef_weights()` used to live here; they
+# are now in R/contrast_spec.R with the other spec-field codecs.
 
 #' Interaction ("difference of differences") contrast rows
 #'
@@ -366,8 +368,10 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
         label <- paste(comps, collapse = "_x_")
         label_qual <- paste(vapply(tested, comp_qual, character(1)), collapse = "_x_")
         if (!is.null(stratum)) {
-            label <- paste0(label, "_in_", unname(stratum))
-            label_qual <- paste0(label_qual, "_in_", names(stratum), unname(stratum))
+            label <- paste0(label, "_in_", paste(unname(stratum), collapse = "_"))
+            label_qual <- paste0(label_qual, "_in_",
+                                 paste0(names(stratum), unname(stratum),
+                                        collapse = "_"))
         }
         # Two factors sharing level names would make "no_vs_yes_x_no_vs_yes"
         # of it; spell the columns out instead.
@@ -378,9 +382,9 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
             label_qualified = label_qual,
             class = "interaction",
             type = "interaction",
-            stratum_var = if (is.null(stratum)) NA_character_ else names(stratum),
-            stratum_level = if (is.null(stratum)) NA_character_ else unname(stratum),
-            test_var = paste(tested_vars, collapse = "+"),
+            stratum_var = .pack_terms(names(stratum)),
+            stratum_level = .pack_terms(unname(stratum)),
+            test_var = .pack_terms(tested_vars),
             comparison = if (summable) {
                 paste(names(w)[w > 0], collapse = "+")
             } else {
@@ -400,34 +404,43 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
     # so both the coefficient names and the label follow `var` order.
     tested_of <- function(v, comp) c(list(v = v), comp)
 
-    # Two-way interactions, one row per level of the remaining factor.
-    combos <- utils::combn(seq_along(var), 2L)
-    for (j in seq_len(ncol(combos))) {
-        x <- var[combos[1L, j]]
-        y <- var[combos[2L, j]]
-        z <- var[setdiff(seq_along(var), combos[, j])]
-        z_levels <- if (length(z)) lv[[z]] else NA_character_
-        for (xc in comps_of[[x]]) {
-            for (yc in comps_of[[y]]) {
-                for (zl in z_levels) {
-                    add(
-                        tested = list(tested_of(x, xc), tested_of(y, yc)),
-                        stratum = if (is.na(zl)) NULL else stats::setNames(zl, z)
-                    )
-                }
+    # Every subset of two or more factors interacts, asked inside every level
+    # combination of the factors left over. For two factors that is the single
+    # pair; for three, each pair inside every level of the third plus the
+    # three-way term; and the same rule keeps going for more, which is why the
+    # grid no longer needs an arity-specific branch.
+    for (k in 2:length(var)) {
+        combos <- utils::combn(seq_along(var), k)
+        for (j in seq_len(ncol(combos))) {
+            idx <- combos[, j]
+            tested_vars <- var[idx]
+            rest <- var[setdiff(seq_along(var), idx)]
+            # Comparison combinations with the last tested factor varying
+            # fastest, matching the nested loops this replaces.
+            picks <- expand.grid(rev(lapply(comps_of[tested_vars], seq_along)),
+                                 KEEP.OUT.ATTRS = FALSE)
+            picks <- picks[, rev(seq_len(ncol(picks))), drop = FALSE]
+            strata <- if (length(rest)) {
+                expand.grid(lv[rest], stringsAsFactors = FALSE,
+                            KEEP.OUT.ATTRS = FALSE)
+            } else {
+                NULL
             }
-        }
-    }
-
-    # Three-way term: does the two-way interaction differ across the third factor?
-    if (length(var) == 3L) {
-        for (ac in comps_of[[var[1]]]) {
-            for (bc in comps_of[[var[2]]]) {
-                for (cc in comps_of[[var[3]]]) {
+            for (p in seq_len(nrow(picks))) {
+                tested <- lapply(seq_along(tested_vars), function(m) {
+                    v <- tested_vars[[m]]
+                    tested_of(v, comps_of[[v]][[picks[p, m]]])
+                })
+                if (is.null(strata)) {
+                    add(tested = tested, stratum = NULL)
+                    next
+                }
+                for (s in seq_len(nrow(strata))) {
                     add(
-                        tested = list(tested_of(var[1], ac), tested_of(var[2], bc),
-                                      tested_of(var[3], cc)),
-                        stratum = NULL
+                        tested = tested,
+                        stratum = stats::setNames(
+                            as.character(strata[s, , drop = TRUE]), rest
+                        )
                     )
                 }
             }
@@ -491,12 +504,13 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
     if (!length(parts)) return(NULL)
     cols <- unique(unlist(lapply(parts, names)))
     parts <- lapply(parts, function(df) {
+        df <- as.data.frame(df, stringsAsFactors = FALSE)
         for (col in setdiff(cols, names(df))) df[[col]] <- NA_character_
         df[, cols, drop = FALSE]
     })
     out <- do.call(rbind, parts)
     rownames(out) <- NULL
-    out
+    new_contrast_specs(out)
 }
 
 #' Pairwise / one-vs-rest comparisons in factor level order
@@ -523,129 +537,81 @@ expand_contrast_specs <- function(dds, var, include_interactions = FALSE,
     c(pairwise, onetoall)
 }
 
-#' Within-stratum contrast grid for two grouping factors
+#' Within-stratum contrast grid, for any number of grouping factors
 #'
-#' Each factor compared inside one fixed level of the other, fitted on that
-#' subset alone. Only generated when `expand_contrast_specs(stratified =
-#' TRUE)`; the interaction coefficients themselves come from
-#' [.interaction_specs()].
-#' @noRd
-.expand_contrast_specs_two <- function(cd, var) {
-    a <- var[1]
-    b <- var[2]
-    a_levels <- levels(factor(cd[[a]]))
-    b_levels <- levels(factor(cd[[b]]))
-    rows <- list()
-
-    # Within each A level: B pairwise (+ B one-vs-rest if |B| >= 3)
-    for (al in a_levels) {
-        b_comps <- generate_comparisons(b_levels)
-        b_types <- classify_comparison_type(b_comps)
-        for (i in seq_along(b_comps)) {
-            rows[[length(rows) + 1]] <- data.frame(
-                label = paste0(al, "__", b_comps[i]),
-                class = "within_A",
-                type = b_types[i],
-                stratum_var = a,
-                stratum_level = al,
-                test_var = b,
-                comparison = b_comps[i],
-                coef_subtract = NA_character_,
-                stringsAsFactors = FALSE
-            )
-        }
-    }
-
-    # Within each B level: A pairwise (+ A one-vs-rest if |A| >= 3)
-    for (bl in b_levels) {
-        a_comps <- generate_comparisons(a_levels)
-        a_types <- classify_comparison_type(a_comps)
-        for (i in seq_along(a_comps)) {
-            rows[[length(rows) + 1]] <- data.frame(
-                label = paste0(bl, "__", a_comps[i]),
-                class = "within_B",
-                type = a_types[i],
-                stratum_var = b,
-                stratum_level = bl,
-                test_var = a,
-                comparison = a_comps[i],
-                coef_subtract = NA_character_,
-                stringsAsFactors = FALSE
-            )
-        }
-    }
-
-    do.call(rbind, rows)
-}
-
-#' Within-stratum contrast grid for three grouping factors
+#' Each factor compared inside one fixed level combination of the others,
+#' fitted on that subset alone. Only generated when
+#' `expand_contrast_specs(stratified = TRUE)`; the interaction coefficients
+#' themselves come from [.interaction_specs()].
 #'
-#' For each factor, holds the other two fixed and expands pairwise /
-#' one-vs-rest comparisons. Labels are nested paths
-#' `{comparison}/{stratum_tag}` (e.g. `C_vs_noC/CB__noK`): the parent is
-#' the short factor-order pairwise name (no `C_mutation_` prefix); the
-#' child joins **level values only** of the two held-fixed factors.
-#' Pairwise names follow **factor level order** (non-reference vs
-#' reference), not alphabetical sorting. Compound strata are encoded as
-#' `stratum_var = "B+C"` and `stratum_level = "b1+c1"`.
+#' The two arities this package shipped with name their rows differently, and
+#' both conventions are kept so existing output folders and report sections
+#' do not move:
+#' \describe{
+#'   \item{two factors}{`class` names the factor held **fixed**
+#'     (`"within_A"` = inside a level of `var[1]`, testing `var[2]`), the
+#'     label is `"<level>__<comparison>"`, and comparisons are named
+#'     alphabetically by [generate_comparisons()].}
+#'   \item{three or more}{`class` names the factor being **tested**
+#'     (`"within_A"` = testing `var[1]` inside the others), the label is the
+#'     nested path `"<comparison>/<stratum_tag>"` with `stratum_tag` joining
+#'     the held-fixed level values with `"__"`, and comparisons follow factor
+#'     level order via [.comps_factor_order()].}
+#' }
 #' @noRd
-.expand_contrast_specs_three <- function(cd, var) {
-    a <- var[1]
-    b <- var[2]
-    c <- var[3]
-    a_levels <- levels(factor(cd[[a]]))
-    b_levels <- levels(factor(cd[[b]]))
-    c_levels <- levels(factor(cd[[c]]))
-    rows <- list()
+.within_stratum_specs <- function(cd, var) {
+    n <- length(var)
+    if (n < 2L) return(NULL)
+    lv <- lapply(var, function(v) levels(factor(cd[[v]])))
+    names(lv) <- var
+    # Class letters follow `var` order: A, B, C, ... then within_<i> beyond Z.
+    letter <- function(i) if (i <= 26L) LETTERS[[i]] else as.character(i)
 
-    .add_within <- function(test_var, test_levels, stratum_vars, stratum_level_grid,
-                            class) {
-        comps <- .comps_factor_order(test_levels)
+    rows <- list()
+    # Block order is historical: with two factors the grid starts with the
+    # comparisons of `var[2]` inside `var[1]`, with three or more it starts
+    # with `var[1]` tested inside the others.
+    for (i in if (n == 2L) rev(seq_along(var)) else seq_along(var)) {
+        tested <- var[[i]]
+        stratum_vars <- var[-i]
+        comps <- if (n == 2L) {
+            generate_comparisons(lv[[tested]])
+        } else {
+            .comps_factor_order(lv[[tested]])
+        }
         types <- classify_comparison_type(comps)
-        for (k in seq_len(nrow(stratum_level_grid))) {
-            sl <- as.character(stratum_level_grid[k, , drop = TRUE])
-            # Levels only, e.g. CB__noK (not celltype_CB__K_mutation_noK)
+        # Which factor the class names differs by arity (see above).
+        class <- paste0("within_", letter(if (n == 2L) (3L - i) else i))
+        grid <- expand.grid(lv[stratum_vars], stringsAsFactors = FALSE,
+                            KEEP.OUT.ATTRS = FALSE)
+        for (k in seq_len(nrow(grid))) {
+            sl <- as.character(grid[k, , drop = TRUE])
             stratum_tag <- paste(sl, collapse = "__")
-            for (i in seq_along(comps)) {
-                rows[[length(rows) + 1]] <<- data.frame(
-                    label = file.path(comps[i], stratum_tag),
+            for (j in seq_along(comps)) {
+                row <- data.frame(
+                    label = if (n == 2L) {
+                        paste0(stratum_tag, "__", comps[j])
+                    } else {
+                        file.path(comps[j], stratum_tag)
+                    },
                     class = class,
-                    type = types[i],
-                    stratum_var = paste(stratum_vars, collapse = "+"),
-                    stratum_level = paste(sl, collapse = "+"),
-                    stratum_tag = stratum_tag,
-                    test_var = test_var,
-                    comparison = comps[i],
+                    type = types[j],
+                    stratum_var = .pack_terms(stratum_vars),
+                    stratum_level = .pack_terms(sl),
+                    test_var = tested,
+                    comparison = comps[j],
                     coef_subtract = NA_character_,
                     stringsAsFactors = FALSE
                 )
+                if (n > 2L) row$stratum_tag <- stratum_tag
+                rows[[length(rows) + 1L]] <- row
             }
         }
     }
-
-    # Within each B × C: A effects
-    .add_within(
-        test_var = a, test_levels = a_levels,
-        stratum_vars = c(b, c),
-        stratum_level_grid = expand.grid(b_levels, c_levels, stringsAsFactors = FALSE),
-        class = "within_A"
-    )
-    # Within each A × C: B effects
-    .add_within(
-        test_var = b, test_levels = b_levels,
-        stratum_vars = c(a, c),
-        stratum_level_grid = expand.grid(a_levels, c_levels, stringsAsFactors = FALSE),
-        class = "within_B"
-    )
-    # Within each A × B: C effects
-    .add_within(
-        test_var = c, test_levels = c_levels,
-        stratum_vars = c(a, b),
-        stratum_level_grid = expand.grid(a_levels, b_levels, stringsAsFactors = FALSE),
-        class = "within_C"
-    )
-
-    do.call(rbind, rows)
+    if (!length(rows)) return(NULL)
+    out <- do.call(rbind, rows)
+    rownames(out) <- NULL
+    out
 }
 
 #' File-name stem for a contrast label
@@ -710,25 +676,18 @@ contrast_class_title <- function(class, var) {
         return("Interactions (difference of differences)")
     }
     if (length(var) < 2) return(as.character(class))
-    a <- var[1]
-    b <- var[2]
-    if (length(var) >= 3L) {
-        c <- var[3]
-        if (identical(class, "within_A")) {
-            return(paste0("Within ", b, " \u00d7 ", c, " \u2014 ", a, " effects"))
-        }
-        if (identical(class, "within_B")) {
-            return(paste0("Within ", a, " \u00d7 ", c, " \u2014 ", b, " effects"))
-        }
-        if (identical(class, "within_C")) {
-            return(paste0("Within ", a, " \u00d7 ", b, " \u2014 ", c, " effects"))
-        }
+    # "within_A" ... "within_Z", then "within_4" and up for wide designs.
+    tag <- sub("^within_", "", as.character(class))
+    i <- if (tag %in% LETTERS) match(tag, LETTERS) else suppressWarnings(as.integer(tag))
+    if (is.na(i) || i > length(var)) return(as.character(class))
+
+    if (length(var) == 2L) {
+        # Two factors: the class names the factor held fixed.
+        held <- var[[i]]
+        tested <- var[[3L - i]]
+        return(paste0("Within ", held, " \u2014 ", tested, " effects"))
     }
-    if (identical(class, "within_A")) {
-        paste0("Within ", a, " \u2014 ", b, " effects")
-    } else if (identical(class, "within_B")) {
-        paste0("Within ", b, " \u2014 ", a, " effects")
-    } else {
-        as.character(class)
-    }
+    # Three or more: the class names the factor being tested.
+    paste0("Within ", paste(var[-i], collapse = " \u00d7 "), " \u2014 ", var[[i]],
+           " effects")
 }

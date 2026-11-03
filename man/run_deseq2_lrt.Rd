@@ -44,6 +44,7 @@ run_deseq2_lrt(
   parallel_render = FALSE,
   render_workers = NULL,
   use_targets = FALSE,
+  opts = deseq2reports_opts(),
   save_dir = getwd()
 )
 }
@@ -179,6 +180,12 @@ Default \code{NULL} (auto).}
 \item{use_targets}{If \code{TRUE}, render HTML via \code{\link[=render_report_targets]{render_report_targets()}}
 (requires Suggested package \code{targets}) instead of \code{\link[=render_report]{render_report()}}.
 Default \code{FALSE}.}
+
+\item{opts}{Analysis settings from \code{\link[=deseq2reports_opts]{deseq2reports_opts()}} -- LFC
+shrinkage, \code{alpha}, the LFC cutoff, and the per-module top-N budgets.
+The defaults reproduce the values these entry points used to hard-code,
+and only settings that differ from them are listed in the report's
+"Pipeline arguments" table. Default \code{deseq2reports_opts()}.}
 
 \item{save_dir}{Directory where all outputs will be written. Default
 \code{getwd()}.}

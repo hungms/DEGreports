@@ -67,7 +67,7 @@ parameters. The full organism-wide edge list is not retained.
 }
 \description{
 For every differential-expression contrast and (optionally) every WGCNA
-module, maps seed genes to \link[STRINGdb:STRINGdb-class]{STRINGdb::STRINGdb}, retrieves interactions among them,
+module, maps seed genes to \link[STRINGdb:STRINGdb]{STRINGdb}, retrieves interactions among them,
 and draws a BioNERO-style connectivity plot (Louvain communities, degree-
 sized nodes, top hubs labelled). Also writes STRINGdb's native network
 PNG alongside each ggplot PDF. Imports packages \code{STRINGdb} and

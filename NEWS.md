@@ -1,3 +1,109 @@
+# deseq2reports 0.4.0
+
+Nothing about an existing call changes: every exported function keeps its
+signature (the new arguments are appended), the automatic contrast grids are
+byte-identical for one, two and three factors, and a Wald run writes the same
+files with the same numbers as 0.3.0 -- plus `deseq2/contrasts.csv`.
+
+* **Every run now states what it compared.** The contrast grid was legible
+  only by reading the labels: nothing said which design was fitted for a given
+  row, how many samples were behind it, or which coefficients it combined, and
+  the only prose explanation covered interaction rows alone. Every run now
+  writes `deseq2/contrasts.csv` and shows the same table at the top of the
+  DESeq2 page and on the index -- one row per contrast, with the question it
+  asks in words, the design formula actually fitted, the number of samples
+  that model sees, the coefficients combined, and the output folder. The
+  contrasts are also printed to the console before fitting starts, so a long
+  run says what it is about to do. New `contrast_manifest()` builds the table
+  from any spec table, and `run_diffexp_pipeline()` returns it as `manifest`.
+  The sample count is honest about the distinction that matters: an
+  interaction contrast "within celltype = CB" is reported with the *whole*
+  dataset behind it, because the stratum lives in the coefficients it combines
+  rather than in a subset -- which is the reason to prefer it to a
+  within-stratum fit.
+* **Contrasts the automatic grid does not generate can now be run.**
+  `comparisons =` could only ever *subset* the grid: for two or more factors a
+  label that was not in it was an error, and there was no way to ask for a
+  pooled-vs-pooled comparison, an interaction at a non-default reference, or a
+  hand-weighted contrast -- even though the machinery for all three already
+  existed internally. A contrast is now a documented object: build one with
+  `contrast_spec()` (over factor levels) or `contrast_spec_from_coefs()` (over
+  `resultsNames()` coefficients, summed or weighted), append it to the grid
+  with `add_contrasts()`, and pass the table to any entry point as
+  `comparisons`. `run_diffexp_coef()`, which fits an arbitrary combination of
+  model coefficients, is exported rather than internal. A single grouping
+  factor additionally accepts any well-formed comparison of its levels
+  directly, so `comparisons = "d0+d1_vs_d7+d14"` works without a spec table.
+  With several factors an unknown label is still an error -- naming the valid
+  labels and pointing at `contrast_spec()` -- so a typo cannot quietly become a
+  different contrast.
+* **Fix: passing a contrast-spec table to `run_diffexp_pipeline()` could not
+  work.** Its `comparisons` argument was documented to accept the table from
+  `expand_contrast_specs()`, and the function body had a branch for it, but
+  `validate_comparisons()` rejected anything that was not a character vector
+  before that branch could be reached. It now accepts a `contrast_specs`
+  table, a data frame, or a list of `contrast_spec()` rows, validates it
+  against `dds` (naming the offending row and field), and always returns a
+  spec table -- it used to return a bare character vector for single-factor
+  `var`, which every caller then had to branch on.
+* **One definition of what a contrast is.** The spec table carried four ad-hoc
+  string encodings (`"a+b"` summed coefficients, `"name=weight;..."` weights,
+  `"B+C"` compound strata, `"factor:comparison|..."` interaction terms) whose
+  codecs were spread across three files, with one more parsed inline in the
+  fitting loop. They now live together in `R/contrast_spec.R` behind a
+  constructor, a validator (`validate_contrast_specs()`) and accessors
+  (`contrast_coefs()`, `contrast_stratum()`, `contrast_test_vars()`), and the
+  fitting dispatch reads a `fit_method` field instead of re-deriving the
+  strategy from `class`. The table is a `data.frame` subclass, so everything
+  that worked on the plain data frame still does.
+* **Unsafe factor levels now fail at grid build, naming the level.** A level
+  containing `"_vs_"`, `"+"` or a path separator silently produced a
+  mislabelled contrast or a stray nested output folder, because labels are
+  built by joining level names and then used as directory names. The grid
+  builders reject those levels up front with a message naming the factor, the
+  offending levels and how to rename them. A contrast's identity (`label`) and
+  its output location (`path`) are now separate fields; for every label the
+  automatic grid produces they are identical, so no output moves.
+* **The contrast grid is no longer capped at three factors.** `var` of length
+  four or more builds the same way: every factor's main effect, every subset
+  of two or more factors interacting inside every level combination of the
+  rest, and -- with `stratified = TRUE` -- each factor inside the others. Two
+  near-duplicate within-stratum builders and the arity-specific interaction
+  loops are gone; the one-, two- and three-factor grids they produced are
+  unchanged, which the new regression snapshots pin down.
+* **`stratified = TRUE` is reachable from `run_deseq2_wald()`.** The
+  within-stratum contrasts existed end to end in `expand_contrast_specs()` and
+  `run_diffexp_pipeline()` but no entry point exposed them and no report
+  template mentioned them, so they could never appear in the HTML. They are
+  now an argument of `run_deseq2_wald()` and the hub page groups them under
+  their own heading instead of "Other".
+* **Fix: an optional module could still destroy a finished analysis.** CSPA,
+  GSVA, the GSEA overlap and the ligand-receptor module caught their own
+  errors and carried on, but WGCNA, decoupleR-TF and (in LRT mode) cluster ORA
+  did not -- so a WGCNA failure aborted a multi-hour run *after* QC, DESeq2 and
+  the report inputs had all been computed, which is the same class of loss
+  0.3.0 fixed for pandoc and plotly. The three entry points now run from one
+  stage driver that applies a single failure policy: every analysis module
+  warns and records `NULL`, and only the stages nothing downstream can do
+  without (QC, the DE test itself) stop the run.
+* **The three entry points no longer repeat the same orchestration.**
+  `run_deseq2_wald()`, `run_deseq2_lrt()` and `run_deseq2_deg()` each spelled
+  out the same ten-stage sequence, the same `[3/11]` progress arithmetic and
+  the same per-module error handling. A run is now a list of stage
+  descriptors (name, enabled, failure policy, the function to call) handed to
+  one driver, so a module can be added, reordered or skipped without editing a
+  step counter in three places. The progress totals are also correct now: the
+  LRT pipeline counted two stages it never ran, so its progress stopped at
+  `[7/9]`.
+* **The fixed analysis settings are settable again, without giving up the
+  entry point.** `.pipeline_const` froze the shrinkage estimator, `alpha`, the
+  LFC cutoff and every per-module top-N so that runs stay comparable -- but
+  changing one meant abandoning `run_deseq2_wald()` and wiring ten module
+  calls by hand. `deseq2reports_opts()` collects them with exactly those
+  values as defaults, and the entry points take it as `opts`. The report's
+  "Pipeline arguments" table lists only the settings a run actually changed,
+  so a standard run still reads as a statement of study design.
+
 # deseq2reports 0.3.0
 
 * **Fix (no pandoc, no results):** `rmarkdown` finds pandoc on `PATH`, in

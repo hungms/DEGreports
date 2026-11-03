@@ -136,6 +136,15 @@ shared \verb{lib/} asset directory under \code{save_dir}; cross-links and CSV
 downloads use relative paths so the whole results tree can be copied
 and opened offline (do not share a lone HTML file without its siblings).
 }
+\section{When a contrast page fails}{
+
+A page that errors in a worker is retried once in the current session,
+where pandoc's own output is visible and nothing else is competing for the
+filesystem. If the retry fails as well, the page is reported as a warning
+and the rest of the report (including the index) still renders, rather than
+one page taking down a run whose analyses are already finished.
+}
+
 \section{When pandoc is missing}{
 
 Every page is knitted through pandoc, so a session without one (an HPC
@@ -144,15 +153,6 @@ copy) cannot render any of them. That is reported once, as a warning
 naming the ways to supply a pandoc, and the function returns \code{NULL}
 rather than erroring -- a pipeline that has already written its tables
 and figures then still completes.
-}
-
-\section{When a contrast page fails}{
-
-A page that errors in a worker is retried once in the current session,
-where pandoc's own output is visible and nothing else is competing for the
-filesystem. If the retry fails as well, the page is reported as a warning
-and the rest of the report (including the index) still renders, rather than
-one page taking down a run whose analyses are already finished.
 }
 
 \examples{

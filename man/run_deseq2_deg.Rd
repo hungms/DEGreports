@@ -17,6 +17,7 @@ run_deseq2_deg(
   run_viper = FALSE,
   run_cspa = TRUE,
   render_html = TRUE,
+  opts = deseq2reports_opts(),
   save_dir = getwd()
 )
 }
@@ -49,6 +50,11 @@ HALLMARK, GO, KEGG, REACTOME, PID.}
 \item{run_cspa}{Logical; CSPA \strong{marker tables} only. Default \code{TRUE}.}
 
 \item{render_html}{Logical; knit the multi-page HTML report. Default \code{TRUE}.}
+
+\item{opts}{Analysis settings from \code{\link[=deseq2reports_opts]{deseq2reports_opts()}} -- \code{alpha}, the
+LFC cutoff, and the per-module top-N budgets. The defaults reproduce the
+values this entry point used to hard-code, and only settings that differ
+from them are listed in the report's "Pipeline arguments" table.}
 
 \item{save_dir}{Output root directory. Default \code{getwd()}.}
 }

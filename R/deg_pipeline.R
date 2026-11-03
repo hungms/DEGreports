@@ -341,6 +341,10 @@ prepare_diffexp_from_deg <- function(
 #'   (optional module).
 #' @param run_cspa Logical; CSPA **marker tables** only. Default `TRUE`.
 #' @param render_html Logical; knit the multi-page HTML report. Default `TRUE`.
+#' @param opts Analysis settings from [deseq2reports_opts()] -- `alpha`, the
+#'   LFC cutoff, and the per-module top-N budgets. The defaults reproduce the
+#'   values this entry point used to hard-code, and only settings that differ
+#'   from them are listed in the report's "Pipeline arguments" table.
 #' @param save_dir Output root directory. Default `getwd()`.
 #' @return Invisibly, a list with `diffexp`, `gsea`, `gsea_overlap`,
 #'   `cspa`, `decoupler`, `viper`, `ppi`, `multihit`, and `report_path`.
@@ -367,12 +371,14 @@ run_deseq2_deg <- function(
     run_viper = FALSE,
     run_cspa = TRUE,
     render_html = TRUE,
+    opts = deseq2reports_opts(),
     save_dir = getwd()) {
 
     call <- match.call()
     save_dir <- validate_save_dir(save_dir)
-    alpha <- .pipeline_const$alpha
-    lfc_threshold <- .pipeline_const$lfc_threshold
+    opts <- .as_opts(opts)
+    alpha <- opts$alpha
+    lfc_threshold <- opts$lfc_threshold
     params <- list(
         analysis_mode = "deg_table",
         ranking = ranking,
@@ -384,187 +390,104 @@ run_deseq2_deg <- function(
         render_html = render_html,
         save_dir = save_dir
     )
+    params <- c(params, .opts_diff(opts))
 
     log_output(call, save_dir, expr = {
         .warn_if_no_pandoc(render_html)
 
-        n_steps <- 2L + as.integer(run_gsea) * 2L + as.integer(run_cspa) +
-            as.integer(run_decoupler_tf) + as.integer(run_decoupler_ccc) +
-            as.integer(run_viper) +
-            1L + as.integer(render_html)
-        step <- 0L
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Preparing DEG table...")
-        diffexp_out <- prepare_diffexp_from_deg(
-            deg_table = deg_table,
-            gene_col = gene_col,
-            comparison_col = comparison_col,
-            alpha = alpha,
-            lfc_threshold = lfc_threshold,
-            ranking = ranking
-        )
-
-        # Write per-contrast CSVs under deseq2/ for the HTML download links.
-        deseq2_dir <- file.path(save_dir, "deseq2")
-        dir.create(deseq2_dir, recursive = TRUE, showWarnings = FALSE)
-        for (comp in names(diffexp_out$by_comparison)) {
-            write_output(
-                diffexp_out$by_comparison[[comp]],
-                file.path(deseq2_dir, comp, paste0(contrast_file_stem(comp), "_diffexp.csv"))
-            )
-        }
-        write_output(diffexp_out$results,
-                     file.path(deseq2_dir, "all_comparisons_diffexp.csv"))
-
-        gsea_out <- NULL
-        gsea_overlap_out <- NULL
-        if (run_gsea) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] GSEA...")
-            gsea_out <- run_gsea_pipeline(
-                diffexp_results = diffexp_out$results,
-                collections = collections,
-                ranking = ranking,
-                top_n_plot = top_n_plot,
-                save_dir = file.path(save_dir, "clusterprofiler")
-            )
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] GSEA leading-edge overlap...")
-            gsea_overlap_out <- tryCatch(
+        # The DEG-table run as data; see .stage() / .run_stages(). The same
+        # driver as the Wald and LRT entry points, minus every stage that
+        # needs counts.
+        stages <- list(
+            .stage("diffexp", "Preparing DEG table", optional = FALSE,
+                   run = function(st) {
+                out <- prepare_diffexp_from_deg(
+                    deg_table = deg_table, gene_col = gene_col,
+                    comparison_col = comparison_col, alpha = alpha,
+                    lfc_threshold = lfc_threshold, ranking = ranking)
+                # Per-contrast CSVs under deseq2/, for the report downloads.
+                deseq2_dir <- file.path(save_dir, "deseq2")
+                dir.create(deseq2_dir, recursive = TRUE, showWarnings = FALSE)
+                for (comp in names(out$by_comparison)) {
+                    write_output(
+                        out$by_comparison[[comp]],
+                        file.path(deseq2_dir, comp,
+                                  paste0(contrast_file_stem(comp), "_diffexp.csv")))
+                }
+                write_output(out$results,
+                             file.path(deseq2_dir, "all_comparisons_diffexp.csv"))
+                out
+            }),
+            .stage("gsea", "GSEA", enabled = isTRUE(run_gsea), run = function(st) {
+                run_gsea_pipeline(
+                    diffexp_results = st$diffexp$results, collections = collections,
+                    ranking = ranking, top_n_plot = top_n_plot,
+                    save_dir = file.path(save_dir, "clusterprofiler"))
+            }),
+            .stage("gsea_overlap", "GSEA leading-edge overlap",
+                   enabled = isTRUE(run_gsea), run = function(st) {
                 run_gsea_overlap_pipeline(
-                    gsea_out = gsea_out,
-                    alpha = alpha,
-                    save_dir = file.path(save_dir, "clusterprofiler")
-                ),
-                error = function(e) {
-                    warning("GSEA overlap failed (", conditionMessage(e), ").",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        cspa_out <- NULL
-        if (run_cspa) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] CSPA marker selection...")
-            cspa_out <- tryCatch(
+                    gsea_out = st$gsea, alpha = alpha,
+                    save_dir = file.path(save_dir, "clusterprofiler"))
+            }),
+            .stage("cspa", "CSPA marker selection", enabled = isTRUE(run_cspa),
+                   run = function(st) {
                 .run_cspa_markers_deg_only(
-                    diffexp_out = diffexp_out,
-                    n_markers = .pipeline_const$cspa_n_markers,
-                    save_dir = file.path(save_dir, "deseq2")
-                ),
-                error = function(e) {
-                    warning("CSPA marker selection failed (",
-                            conditionMessage(e), ").", call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        decoupler_tf_out <- NULL
-        if (run_decoupler_tf) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] DecoupleR (contrast-level ULM)...")
-            decoupler_tf_out <- tryCatch(
+                    diffexp_out = st$diffexp, n_markers = opts$cspa_n_markers,
+                    save_dir = file.path(save_dir, "deseq2"))
+            }),
+            .stage("decoupler_tf", "DecoupleR (contrast-level ULM)",
+                   enabled = isTRUE(run_decoupler_tf), run = function(st) {
                 run_decoupler_tf_pipeline(
-                    dds = NULL,
-                    var = NULL,
-                    diffexp_out = diffexp_out,
-                    n_tfs = .pipeline_const$decoupler_n_tfs,
-                    save_dir = file.path(save_dir, "decoupler-tf")
-                ),
-                error = function(e) {
-                    warning("decoupleR failed (", conditionMessage(e), ").",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        decoupler_ccc_out <- NULL
-        if (run_decoupler_ccc) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] DecoupleR-CCC (ligand–receptor ULM)...")
-            decoupler_ccc_out <- tryCatch(
+                    dds = NULL, var = NULL, diffexp_out = st$diffexp,
+                    n_tfs = opts$decoupler_n_tfs,
+                    save_dir = file.path(save_dir, "decoupler-tf"))
+            }),
+            .stage("decoupler_ccc", "DecoupleR-CCC (ligand\u2013receptor ULM)",
+                   enabled = isTRUE(run_decoupler_ccc), run = function(st) {
                 run_decoupler_ccc_pipeline(
-                    diffexp_out = diffexp_out,
-                    n_lr = .pipeline_const$decoupler_n_lr,
-                    save_dir = file.path(save_dir, "decoupler-ccc")
-                ),
-                error = function(e) {
-                    warning("decoupleR-CCC failed (", conditionMessage(e), ").",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        viper_out <- NULL
-        if (run_viper) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] VIPER (contrast-level msVIPER)...")
-            viper_out <- tryCatch(
+                    diffexp_out = st$diffexp, n_lr = opts$decoupler_n_lr,
+                    save_dir = file.path(save_dir, "decoupler-ccc"))
+            }),
+            .stage("viper", "VIPER (contrast-level msVIPER)",
+                   enabled = isTRUE(run_viper), run = function(st) {
                 run_viper_pipeline(
-                    dds = NULL,
-                    var = NULL,
-                    diffexp_out = diffexp_out,
-                    n_tfs = .pipeline_const$viper_n_tfs,
-                    save_dir = file.path(save_dir, "viper")
-                ),
-                error = function(e) {
-                    warning("VIPER failed (", conditionMessage(e), ").",
-                            call. = FALSE)
-                    NULL
-                }
-            )
-        }
-
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] PPI connectivity...")
-        ppi_out <- tryCatch(
-            run_ppi_pipeline(
-                diffexp_out = diffexp_out,
-                wgcna_out = NULL,
-                top_n_hubs = .pipeline_const$ppi_top_n_hubs,
-                alpha = alpha,
-                lfc_threshold = lfc_threshold,
-                save_dir = file.path(save_dir, "deseq2"),
-                module_save_dir = file.path(save_dir, "ppi")
-            ),
-            error = function(e) {
-                warning("PPI failed (", conditionMessage(e), ").",
-                        call. = FALSE)
-                NULL
-            }
+                    dds = NULL, var = NULL, diffexp_out = st$diffexp,
+                    n_tfs = opts$viper_n_tfs,
+                    save_dir = file.path(save_dir, "viper"))
+            }),
+            .stage("ppi", "PPI connectivity", run = function(st) {
+                run_ppi_pipeline(
+                    diffexp_out = st$diffexp, wgcna_out = NULL,
+                    top_n_hubs = opts$ppi_top_n_hubs, alpha = alpha,
+                    lfc_threshold = lfc_threshold,
+                    save_dir = file.path(save_dir, "deseq2"),
+                    module_save_dir = file.path(save_dir, "ppi"))
+            }),
+            .stage("multihit", "Cross-analysis gene hit ranking", run = function(st) {
+                run_multihit_pipeline(
+                    diffexp_out = st$diffexp, gsea_out = st$gsea,
+                    viper_out = st$viper, decoupler_tf_out = st$decoupler_tf,
+                    decoupler_ccc_out = st$decoupler_ccc, cspa_out = st$cspa,
+                    alpha = alpha, top_n = 10,
+                    save_dir = file.path(save_dir, "multihit"))
+            })
         )
 
-        step <- step + 1L
-        message("[", step, "/", n_steps, "] Cross-analysis gene hit ranking...")
-        multihit_out <- tryCatch(
-            run_multihit_pipeline(
-                diffexp_out = diffexp_out,
-                gsea_out = gsea_out,
-                viper_out = viper_out,
-                decoupler_tf_out = decoupler_tf_out,
-                decoupler_ccc_out = decoupler_ccc_out,
-                cspa_out = cspa_out,
-                alpha = alpha,
-                top_n = 10,
-                save_dir = file.path(save_dir, "multihit")
-            ),
-            error = function(e) {
-                warning("Multi-hit ranking failed (", conditionMessage(e), ").",
-                        call. = FALSE)
-                NULL
-            }
-        )
+        st <- .run_stages(stages)
+        diffexp_out <- st$diffexp
+        gsea_out <- st$gsea
+        gsea_overlap_out <- st$gsea_overlap
+        cspa_out <- st$cspa
+        decoupler_tf_out <- st$decoupler_tf
+        decoupler_ccc_out <- st$decoupler_ccc
+        viper_out <- st$viper
+        ppi_out <- st$ppi
+        multihit_out <- st$multihit
 
         report_path <- NULL
         if (render_html) {
-            step <- step + 1L
-            message("[", step, "/", n_steps, "] Rendering HTML report...")
+            message("Rendering HTML report...")
             report_path <- render_report(
                 dds = NULL,
                 var = "comparison",

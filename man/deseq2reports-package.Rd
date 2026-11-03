@@ -24,5 +24,10 @@ Package vignettes (HTML):
 \author{
 \strong{Maintainer}: Miu Shing Hung \email{matthewhungms@gmail.com} (\href{https://orcid.org/0009-0004-0412-4374}{ORCID})
 
+Authors:
+\itemize{
+  \item Miu Shing Hung \email{matthewhungms@gmail.com} (\href{https://orcid.org/0009-0004-0412-4374}{ORCID})
+}
+
 }
 \keyword{internal}

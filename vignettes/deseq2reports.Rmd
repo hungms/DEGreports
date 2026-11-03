@@ -279,6 +279,90 @@ out <- run_deseq2_wald(
 )
 ```
 
+## Customising the comparisons
+
+Every run writes `deseq2/contrasts.csv` and shows the same table at the top of
+the DESeq2 page: one row per contrast, with the question it asks in prose, the
+design formula actually fitted for it, the number of samples that model sees,
+and the coefficients it combines. Read it first — it is the record of what was
+compared.
+
+Comparisons can be narrowed, extended, or written from scratch.
+
+1. **Inspect the grid before running it.** `expand_contrast_specs()` returns
+   the table the pipeline would use, and `contrast_manifest()` turns it into
+   the same manifest the run writes.
+2. **Run a subset.** Pass the labels you want as `comparisons`; anything in
+   the grid can be named.
+3. **Add a contrast the grid does not generate.** Build it with
+   `contrast_spec()` (levels) or `contrast_spec_from_coefs()` (model
+   coefficients), append it with `add_contrasts()`, and pass the table.
+4. **Fit a one-off contrast outside the pipeline.** `run_diffexp_coef()` takes
+   coefficient names or a weight vector directly.
+
+```{r}
+# 1. what would run?
+specs <- expand_contrast_specs(dds, var = c("Tissue", "Isotype"))
+contrast_manifest(specs, dds, var = c("Tissue", "Isotype"))
+
+# 2. a subset of the grid
+out <- run_deseq2_wald(dds, var = c("Tissue", "Isotype"),
+                       comparisons = c("SP_vs_BM", "IgG_vs_IgM"),
+                       save_dir = "results_subset")
+
+# 3. a pooled-vs-pooled comparison the grid never emits, plus a hand-written
+#    coefficient contrast, appended to the automatic grid
+grid <- add_contrasts(
+  specs,
+  contrast_spec(
+    label      = "earlyIso_vs_lateIso",
+    test_var   = "Isotype",
+    comparison = "IgM+IgD_vs_IgG+IgA",
+    question   = "Do the early isotypes differ from the class-switched ones?"
+  ),
+  contrast_spec_from_coefs(
+    label    = "SP_specific_IgG_effect",
+    weights  = c(TissueSP.IsotypeIgG = 1),
+    question = "Does the IgG effect differ between SP and BM?"
+  )
+)
+out <- run_deseq2_wald(dds, var = c("Tissue", "Isotype"), comparisons = grid,
+                       include_interactions = TRUE, save_dir = "results_custom")
+
+# 4. outside the pipeline entirely
+res <- run_diffexp_coef(dds, coef_weights = c(TissueSP.IsotypeIgG = 1,
+                                              TissueLN.IsotypeIgG = -0.5,
+                                              TissueBM.IsotypeIgG = -0.5))
+```
+
+A single grouping factor also accepts any well-formed comparison of its levels
+directly — `comparisons = "d0+d1_vs_d7+d14"` — without building a spec table.
+With two or more factors, a label that is not in the grid is an error naming
+the valid labels, so a typo cannot silently become a different contrast; use
+`contrast_spec()` when you mean it.
+
+`stratified = TRUE` adds the within-stratum contrasts: each factor compared
+inside one fixed level combination of the others, fitted on that subset alone.
+An interaction contrast asks the same question with every sample behind it, so
+these stay opt-in — reach for them when the strata are not expected to share a
+dispersion.
+
+### Settings
+
+`opts = deseq2reports_opts()` holds the statistical and per-module settings —
+shrinkage estimator, `alpha`, the LFC cutoff, the per-module top-N budgets.
+The defaults are the values the entry points apply by default, so runs stay
+comparable; only settings you change are listed in the report's "Pipeline
+arguments" table.
+
+```{r}
+out <- run_deseq2_wald(
+  dds, var = "condition",
+  opts = deseq2reports_opts(alpha = 0.01, lfc_threshold = 1),
+  save_dir = "results_strict"
+)
+```
+
 ## Example runners
 
 In the package source tree:

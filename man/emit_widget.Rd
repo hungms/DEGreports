@@ -13,7 +13,7 @@ emit_widget(widget)
 \value{
 Invisibly, \code{NULL}. Called for its side effect of \code{cat()}-ing the
 widget's tag HTML and registering its dependencies with
-\code{\link[knitr:knit_meta]{knitr::knit_meta_add()}}.
+\code{\link[knitr:knit_meta_add]{knitr::knit_meta_add()}}.
 }
 \description{
 \code{print()}-ing an htmlwidget (a \code{plotly} or \code{DT::datatable} object, even
@@ -32,7 +32,7 @@ its dependencies correctly via the normal knitr/rmarkdown print method).
 The fix is to bypass the automatic print-time dependency registration
 entirely: extract the widget's HTML dependencies explicitly via
 \code{\link[htmltools:findDependencies]{htmltools::findDependencies()}}, register them directly with
-\code{\link[knitr:knit_meta]{knitr::knit_meta_add()}}, and then emit only the tag HTML (as a plain
+\code{\link[knitr:knit_meta_add]{knitr::knit_meta_add()}}, and then emit only the tag HTML (as a plain
 character string via \code{cat()}) into the \code{asis} output stream. Use this
 in place of \code{print(htmltools::tagList(widget))} anywhere an htmlwidget
 (from \code{\link[=make_interactive]{make_interactive()}}, \code{\link[=make_deg_datatable]{make_deg_datatable()}}, or
@@ -41,7 +41,7 @@ the bundled report template does for the per-comparison MA/volcano
 plots and DEG/GSEA tables.
 
 The tag HTML is rendered with \code{indent = FALSE} (via
-\code{\link[htmltools:renderTags]{htmltools::doRenderTags()}}) rather than \code{as.character()}'s default
+\code{\link[htmltools:doRenderTags]{htmltools::doRenderTags()}}) rather than \code{as.character()}'s default
 pretty-printing, which indents each nested tag by two spaces per
 nesting level. Pandoc's Markdown parser treats any line indented by
 four or more spaces as a fenced/indented code block, so content nested

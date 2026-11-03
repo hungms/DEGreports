@@ -106,6 +106,38 @@ one stacked table with a `comparison` column distinguishing contrasts
 recommended: `stat` (for TF / optional GSEA ranking). Common aliases
 (`log2FC`, `FDR`, `contrast`, …) are remapped automatically.
 
+### Choosing the comparisons
+
+Every run writes `deseq2/contrasts.csv` (and shows it at the top of the DESeq2
+page): one row per contrast, with the question it asks, the design formula
+fitted for it, the samples behind it, and the coefficients it combines.
+
+```r
+# what would run, before running it
+specs <- expand_contrast_specs(dds, var = c("Tissue", "Isotype"))
+contrast_manifest(specs, dds, var = c("Tissue", "Isotype"))
+
+# a subset of the automatic grid
+run_deseq2_wald(dds, var = c("Tissue", "Isotype"),
+                comparisons = c("SP_vs_BM", "IgG_vs_IgM"), save_dir = "results")
+
+# a contrast the grid does not generate
+grid <- add_contrasts(
+  specs,
+  contrast_spec("earlyIso_vs_lateIso", test_var = "Isotype",
+                comparison = "IgM+IgD_vs_IgG+IgA"),
+  contrast_spec_from_coefs("SP_specific_IgG", weights = c(TissueSP.IsotypeIgG = 1))
+)
+run_deseq2_wald(dds, var = c("Tissue", "Isotype"), comparisons = grid,
+                include_interactions = TRUE, save_dir = "results_custom")
+```
+
+`stratified = TRUE` adds within-stratum contrasts (each factor compared inside
+one fixed level combination of the others, fitted on that subset alone), and
+`opts = deseq2reports_opts(alpha = 0.01, ...)` changes the statistical and
+per-module settings without dropping to module-by-module calls. See
+`vignette("deseq2reports")`, section *Customising the comparisons*.
+
 Organism (human/mouse) is auto-detected from gene symbols -- there is no
 `org` argument. By default this writes per-module folders under `results/`
 (`qc/` incl. `counts/` and `distance/`, `deseq2/`, `clusterprofiler/`) plus
