@@ -675,6 +675,21 @@ plot_pca <- function(pca_df, var, shape_var = NULL, pals = NULL, percent_var = N
     ceiling(text_w_px + swatch_and_padding_px + outer_margin_px)
 }
 
+#' `plotly::ggplotly()` that survives plotly < 4.10.4 with ggplot2 >= 3.5
+#'
+#' Those plotly releases call ggplot2's legend trainer with an argument
+#' ggplot2 3.5 removed, so any plot with a legend errors. Converting with the
+#' ggplot legend hidden sidesteps the call; the traces keep their group names,
+#' so plotly's own legend is switched back on instead. Only used as a retry,
+#' so plots without a legend (and newer plotly) take the normal path.
+#' @noRd
+.ggplotly_compat <- function(gg_plot, ...) {
+    tryCatch(plotly::ggplotly(gg_plot, ...), error = function(e) {
+        p <- plotly::ggplotly(gg_plot + ggplot2::theme(legend.position = "none"), ...)
+        plotly::layout(p, showlegend = TRUE)
+    })
+}
+
 #' Solve for a `ggplotly()` canvas size and margins such that the *data
 #' panel* is an exact square and the legend sits outside it on the right
 #'
@@ -730,7 +745,7 @@ plot_pca <- function(pca_df, var, shape_var = NULL, pals = NULL, percent_var = N
     t <- if (is.null(m$t)) 0 else m$t
     b <- if (is.null(m$b)) 0 else m$b
 
-    pass_full <- plotly::ggplotly(gg_plot, tooltip = tooltip, width = base_size, height = base_size)
+    pass_full <- .ggplotly_compat(gg_plot, tooltip = tooltip, width = base_size, height = base_size)
     built_full <- plotly::plotly_build(pass_full)
     legend_w <- .estimate_legend_width_px(built_full)
 
@@ -831,7 +846,7 @@ make_interactive <- function(gg_plot, tooltip = "text", square = TRUE, base_size
 .make_interactive_impl <- function(gg_plot, tooltip, square, base_size) {
     if (isTRUE(square)) {
         dims <- .square_plotly_canvas(gg_plot, tooltip = tooltip, base_size = base_size)
-        p <- plotly::ggplotly(gg_plot, tooltip = tooltip, width = dims$width, height = dims$height)
+        p <- .ggplotly_compat(gg_plot, tooltip = tooltip, width = dims$width, height = dims$height)
         layout_args <- list(
             p = p,
             margin = dims$margin,
@@ -853,7 +868,7 @@ make_interactive <- function(gg_plot, tooltip = "text", square = TRUE, base_size
         }
         p <- do.call(plotly::layout, layout_args)
     } else {
-        p <- plotly::ggplotly(gg_plot, tooltip = tooltip, width = base_size, height = base_size)
+        p <- .ggplotly_compat(gg_plot, tooltip = tooltip, width = base_size, height = base_size)
     }
     # ggplotly drops ggplot2::annotate(); re-apply via plotly::layout so
     # they survive plotly_build() (stored in layoutAttrs until build).

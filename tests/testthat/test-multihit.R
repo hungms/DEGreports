@@ -28,8 +28,9 @@ test_that("rank_multihit_genes_contrast scores DEG + GSEA + TF layers", {
     viper_out <- list(
         contrast_acts = list(
             A_vs_B = data.frame(
-                tf = c("GeneA", "GeneZ"),
-                padj = c(0.01, 0.9),
+                tf = c("GeneA", "GeneZ", "GeneB"),
+                padj = c(0.01, 0.9, 0.01),
+                nes = c(3, 3, 1.5), # GeneB: significant but |NES| <= 2 -> no hit
                 stringsAsFactors = FALSE
             )
         ),
@@ -39,8 +40,9 @@ test_that("rank_multihit_genes_contrast scores DEG + GSEA + TF layers", {
     decoupler_tf_out <- list(
         contrast_acts = list(
             A_vs_B = data.frame(
-                source = c("GeneB", "GeneY"),
-                p_value = c(0.01, 0.5),
+                source = c("GeneB", "GeneY", "GeneA"),
+                p_value = c(0.01, 0.5, 0.001),
+                score = c(2, 3, 0.5), # GeneA: significant but |score| <= 1 -> no hit
                 stringsAsFactors = FALSE
             )
         ),
@@ -59,12 +61,15 @@ test_that("rank_multihit_genes_contrast scores DEG + GSEA + TF layers", {
     expect_equal(row_a$deg[[1]], 1L)
     expect_equal(row_a$gsea[[1]], 1L)
     expect_equal(row_a$viper[[1]], 1L)
+    expect_equal(row_a[["decoupler-tf"]][[1]], 0L)
     expect_equal(row_a$cspa[[1]], 0L)
     expect_equal(row_a$score[[1]], 3L)
     expect_equal(as.character(row_a$direction[[1]]), "up")
     # GeneB: down by LFC
     row_b <- ranked[ranked$gene == "GeneB", , drop = FALSE]
     expect_equal(as.character(row_b$direction[[1]]), "down")
+    expect_equal(row_b[["decoupler-tf"]][[1]], 1L)
+    expect_equal(row_b$viper[[1]], 0L)
     expect_equal(ranked$gene[[1]], "GeneA")
 })
 
@@ -88,7 +93,7 @@ test_that("rank_multihit_genes_contrast returns top_n per DEG direction", {
     expect_equal(ranked$gene, c("G1", "G2", "G8", "G7"))
 })
 
-test_that("rank_multihit_genes_contrast counts CSPA markers", {
+test_that("rank_multihit_genes_contrast counts CSPA surface proteins among DEGs", {
     de <- data.frame(
         gene = c("Surf1", "Surf2", "Other"),
         comparison = "A_vs_B",
@@ -99,10 +104,10 @@ test_that("rank_multihit_genes_contrast counts CSPA markers", {
         stringsAsFactors = FALSE
     )
     diffexp_out <- list(by_comparison = list(A_vs_B = de), results = de)
+    # CSPA = every DEG that is a surface protein, not only the heatmap top-N
     cspa_out <- list(
-        markers_by_comparison = list(
-            A_vs_B = data.frame(gene = c("Surf1", "Surf2"), stringsAsFactors = FALSE)
-        )
+        cspa_symbols = c("Surf1", "Surf2"),
+        markers_by_comparison = list(A_vs_B = data.frame(gene = character(0)))
     )
     ranked <- rank_multihit_genes_contrast(
         "A_vs_B", diffexp_out, cspa_out = cspa_out,
@@ -113,10 +118,8 @@ test_that("rank_multihit_genes_contrast counts CSPA markers", {
     expect_equal(row1$deg[[1]], 1L)
     expect_equal(row1$score[[1]], 2L)
     expect_equal(as.character(row1$direction[[1]]), "up")
-    row2 <- ranked[ranked$gene == "Surf2", , drop = FALSE]
-    expect_equal(row2$cspa[[1]], 1L)
-    expect_equal(row2$deg[[1]], 0L)
-    expect_equal(as.character(row2$direction[[1]]), "up")
+    # Surf2 is a surface protein but not a DEG -> no CSPA hit, so not ranked
+    expect_false("Surf2" %in% ranked$gene)
 })
 
 test_that("run_multihit_pipeline writes outputs and plots", {
@@ -141,4 +144,32 @@ test_that("run_multihit_pipeline writes outputs and plots", {
     expect_true(all(c("up", "down") %in% as.character(out$by_comparison$A_vs_B$direction)))
     expect_s3_class(out$plots$A_vs_B, "ggplot")
     expect_true(file.exists(file.path(save_dir, "A_vs_B", "A_vs_B_top_genes.csv")))
+    expect_equal(out$hit_sets$A_vs_B$deg, c("G1", "G2", "G3"))
+    expect_s3_class(out$upsets$A_vs_B, "ggplot")
+    expect_true(file.exists(file.path(save_dir, "A_vs_B", "A_vs_B_upset.pdf")))
+    expect_true(file.exists(file.path(save_dir, "A_vs_B", "A_vs_B_hit_sets.csv")))
+})
+
+test_that("multihit_hit_sets applies the documented thresholds", {
+    de <- data.frame(
+        gene = c("A", "B", "C", "D"),
+        padj = c(0.01, 0.01, 0.2, 0.01),
+        log2FoldChange = c(1, 0.4, 2, -0.6), # B: |LFC| too small; C: padj too big
+        stringsAsFactors = FALSE
+    )
+    diffexp_out <- list(by_comparison = list(X = de), results = de)
+    ccc_out <- list(
+        net = data.frame(source = c("A&D", "A&D", "B&C", "B&C"),
+                         target = c("A", "D", "B", "C"), stringsAsFactors = FALSE),
+        contrast_acts = list(X = data.frame(source = c("A&D", "B&C"),
+                                            score = c(1.5, 0.8),
+                                            p_value = 0.001, padj = 0.001)))
+    sets <- multihit_hit_sets("X", diffexp_out, decoupler_ccc_out = ccc_out,
+                              cspa_out = list(cspa_symbols = c("A", "B")),
+                              org = "human")
+    expect_equal(sets$deg, c("A", "D"))
+    expect_equal(sets$cspa, "A")
+    expect_setequal(sets[["decoupler-ccc"]], c("A", "D"))
+    expect_s3_class(plot_multihit_upset(sets, title = "X"), "ggplot")
+    expect_null(plot_multihit_upset(lapply(sets, function(s) character(0))))
 })

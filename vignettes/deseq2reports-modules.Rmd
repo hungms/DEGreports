@@ -69,7 +69,7 @@ out <- run_deseq2_wald(
   # Default-on:
   run_cspa = TRUE,
   render_html = TRUE,
-  parallel_render = FALSE,    # knit contrast pages in parallel (future.apply)
+  parallel_render = FALSE,    # knit contrast pages in parallel (mclapply, Unix)
   render_workers = NULL,      # NULL → min(4, detectCores() - 1)
   use_targets = FALSE,        # TRUE → render_report_targets() (resumable)
   save_dir = getwd()
@@ -636,7 +636,7 @@ greyed out in the nav. Pass `dds = NULL` to skip / grey out QC (DEG-table
 pipeline).
 
 **Speed and resumability.** With `parallel_render = TRUE` the per-contrast
-pages are knitted concurrently through **future.apply**; each worker gets its
+pages are knitted concurrently through `parallel::mclapply()`; each worker gets its
 own `intermediates_dir`, and a page whose pandoc step dies in a worker is
 retried once alone in the main session before it is given up as a gap in the
 report. `render_report_targets()` is a drop-in alternative that makes each hub

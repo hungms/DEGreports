@@ -65,20 +65,118 @@
     org
 }
 
+#' Analysis layers scored by the Wald / DEG-table multi-hit ranking
+#' @noRd
+.multihit_layers <- c("deg", "gsea", "viper", "decoupler-tf", "decoupler-ccc", "cspa")
+
+#' Genes that are a hit in each analysis, for one contrast
+#'
+#' The single definition of a multi-hit "hit", shared by the ranking
+#' ([rank_multihit_genes_contrast()]) and the method-overlap UpSet plot
+#' ([plot_multihit_upset()]). Thresholds are documented in
+#' [rank_multihit_genes_contrast()].
+#'
+#' @inheritParams rank_multihit_genes_contrast
+#' @return Named list of character vectors (`deg`, `gsea`, `viper`,
+#'   `decoupler-tf`, `decoupler-ccc`, `cspa`); a method that was not run
+#'   gives `character(0)`.
+#' @export
+multihit_hit_sets <- function(contrast, diffexp_out, gsea_out = NULL,
+                              viper_out = NULL, decoupler_tf_out = NULL,
+                              decoupler_ccc_out = NULL, cspa_out = NULL,
+                              alpha = 0.05, lfc_threshold = 0.5,
+                              tf_min_score = 1, ccc_min_score = 1,
+                              viper_min_nes = 2, org = NULL) {
+    sets <- stats::setNames(rep(list(character(0)), length(.multihit_layers)),
+                            .multihit_layers)
+    de <- diffexp_out$by_comparison[[contrast]]
+    if (is.null(de) || !nrow(de)) return(sets)
+    if (is.null(org) || is.na(org)) {
+        org <- .multihit_org(gsea_out, viper_out, decoupler_tf_out, diffexp_out)
+    }
+    gene_col <- if ("gene" %in% colnames(de)) "gene" else colnames(de)[[1]]
+    genes <- as.character(de[[gene_col]])
+
+    is_deg <- !is.na(de$padj) & de$padj < alpha &
+        !is.na(de$log2FoldChange) & abs(de$log2FoldChange) > lfc_threshold
+    sets$deg <- unique(genes[is_deg])
+
+    if (!is.null(cspa_out) && length(cspa_out$cspa_symbols)) {
+        sets$cspa <- .match_cspa_genes(sets$deg, cspa_out$cspa_symbols)
+    }
+    if (!is.null(decoupler_tf_out)) {
+        sets[["decoupler-tf"]] <- .sig_tf_symbols(
+            decoupler_tf_out$contrast_acts[[contrast]], alpha, org, "decoupler",
+            min_score = tf_min_score)
+    }
+    if (!is.null(decoupler_ccc_out)) {
+        sets[["decoupler-ccc"]] <- .ccc_sig_genes(
+            decoupler_ccc_out, contrast, alpha = alpha, min_score = ccc_min_score)
+    }
+    if (!is.null(viper_out)) {
+        sets$viper <- .sig_tf_symbols(viper_out$contrast_acts[[contrast]], alpha,
+                                      org, "viper", min_score = viper_min_nes)
+    }
+    if (!is.null(gsea_out) && !is.null(gsea_out$by_comparison[[contrast]])) {
+        sig <- pool_sig_gsea_pathways(gsea_out$by_comparison[[contrast]], alpha = alpha)
+        if (nrow(sig) > 0L) {
+            sets$gsea <- unique(unlist(lapply(sig$leadingEdge, .parse_leading_edge),
+                                       use.names = FALSE))
+        }
+    }
+    sets
+}
+
+#' UpSet plot of how many genes each combination of methods shares
+#'
+#' @param sets Named list from [multihit_hit_sets()]. Empty methods are dropped.
+#' @param title Optional plot title (the contrast label).
+#' @return A `ggplot` wrapping the drawn ComplexHeatmap UpSet, with
+#'   `attr(, "plot_size")` (inches) -- or `NULL` when no method has hits.
+#' @export
+plot_multihit_upset <- function(sets, title = NULL) {
+    sets <- sets[lengths(sets) > 0L]
+    if (!length(sets)) return(NULL)
+    names(sets) <- unname(.multihit_layer_labels[names(sets)])
+    m <- ComplexHeatmap::make_comb_mat(sets)
+    n_comb <- length(ComplexHeatmap::comb_size(m))
+    width <- max(4.5, min(11, 2.5 + 0.35 * n_comb))
+    height <- 1.6 + 0.3 * length(sets) + 1.4
+    ht <- ComplexHeatmap::UpSet(
+        m,
+        set_order = names(sets),
+        comb_order = order(-ComplexHeatmap::comb_size(m)),
+        top_annotation = ComplexHeatmap::upset_top_annotation(m, add_numbers = TRUE),
+        right_annotation = ComplexHeatmap::upset_right_annotation(m, add_numbers = TRUE),
+        column_title = title
+    )
+    grob <- grid::grid.grabExpr(ComplexHeatmap::draw(ht), width = width, height = height)
+    p <- ggplot2::ggplot() + ggplot2::annotation_custom(grob) + ggplot2::theme_void()
+    attr(p, "plot_size") <- list(width = width, height = height)
+    p
+}
+
+#' Display names for the multi-hit layers
+#' @noRd
+.multihit_layer_labels <- c(
+    deg = "DEG", gsea = "GSEA LE", viper = "VIPER",
+    `decoupler-tf` = "decoupleR TF", `decoupler-ccc` = "decoupleR CCC",
+    cspa = "CSPA"
+)
+
 #' Rank genes by cross-analysis hit frequency for one contrast
 #'
-#' Scores each gene as:
+#' Scores each gene +1 per method it is a hit in (see [multihit_hit_sets()]):
 #' \itemize{
-#'   \item DEG: +1 if `sig`
-#'   \item GSEA: +1 if the gene appears in **any** significant pathway
-#'     leading edge (`padj < alpha`; all collections pooled)
-#'   \item VIPER: +1 if the TF has `padj < alpha` (human TFs mapped to
-#'     organism symbols when needed)
-#'   \item decoupleR-TF: +1 if `p_value < alpha`
-#'   \item decoupleR-CCC: +1 if the gene is a ligand or receptor in any
-#'     significant ligand–receptor pair (`padj` / `p_value < alpha`)
-#'   \item CSPA: +1 if the gene was selected as a CSPA surface marker for
-#'     this contrast
+#'   \item DEG: `padj < alpha` and `|log2FoldChange| > lfc_threshold`
+#'   \item CSPA: a DEG (as above) that is a CSPA surface protein
+#'   \item decoupleR-TF: `padj < alpha` and `|score| > tf_min_score`
+#'   \item decoupleR-CCC: ligand or receptor of a pair with `padj < alpha`
+#'     and `|score| > ccc_min_score`
+#'   \item VIPER: `padj < alpha` and `|NES| > viper_min_nes` (human TFs
+#'     mapped to organism symbols when needed)
+#'   \item GSEA: in **any** significant pathway leading edge (`padj < alpha`;
+#'     all collections pooled)
 #' }
 #' Genes are ranked by total score, then `|stat|`, then `|log2FoldChange|`.
 #' Direction (`up` / `down`) comes from the sign of DEG `log2FoldChange`
@@ -92,7 +190,11 @@
 #' @param decoupler_tf_out Output of [run_decoupler_tf_pipeline()], or `NULL`.
 #' @param decoupler_ccc_out Output of [run_decoupler_ccc_pipeline()], or `NULL`.
 #' @param cspa_out Output of [run_cspa_marker_pipeline()], or `NULL`.
-#' @param alpha Significance threshold. Default `0.05`.
+#' @param alpha Adjusted-p threshold for every method. Default `0.05`.
+#' @param lfc_threshold Absolute log2 fold change a DEG must exceed. Default `0.5`.
+#' @param tf_min_score Absolute decoupleR-TF ULM score cutoff. Default `1`.
+#' @param ccc_min_score Absolute decoupleR-CCC ULM score cutoff. Default `1`.
+#' @param viper_min_nes Absolute VIPER NES cutoff. Default `2`.
 #' @param top_n Number of genes to return **per direction** (up and down).
 #'   Default `10` (up to `2 * top_n` genes total).
 #' @param org Organism (`"human"` / `"mouse"`). Default `NULL` (auto-detect).
@@ -110,6 +212,10 @@ rank_multihit_genes_contrast <- function(
     decoupler_ccc_out = NULL,
     cspa_out = NULL,
     alpha = 0.05,
+    lfc_threshold = 0.5,
+    tf_min_score = 1,
+    ccc_min_score = 1,
+    viper_min_nes = 2,
     top_n = 10,
     org = NULL) {
 
@@ -118,6 +224,13 @@ rank_multihit_genes_contrast <- function(
     if (is.null(org) || is.na(org)) {
         org <- .multihit_org(gsea_out, viper_out, decoupler_tf_out, diffexp_out)
     }
+    sets <- multihit_hit_sets(
+        contrast, diffexp_out, gsea_out = gsea_out, viper_out = viper_out,
+        decoupler_tf_out = decoupler_tf_out, decoupler_ccc_out = decoupler_ccc_out,
+        cspa_out = cspa_out, alpha = alpha, lfc_threshold = lfc_threshold,
+        tf_min_score = tf_min_score, ccc_min_score = ccc_min_score,
+        viper_min_nes = viper_min_nes, org = org
+    )
 
     empty <- data.frame(
         gene = character(0), comparison = character(0),
@@ -135,78 +248,16 @@ rank_multihit_genes_contrast <- function(
     }
     gene_col <- if ("gene" %in% colnames(de)) "gene" else colnames(de)[[1]]
     genes <- as.character(de[[gene_col]])
-    score <- data.frame(
-        gene = genes,
-        comparison = contrast,
-        deg = as.integer(!is.na(de$sig) & de$sig),
-        gsea = 0L,
-        viper = 0L,
-        `decoupler-tf` = 0L,
-        `decoupler-ccc` = 0L,
-        cspa = 0L,
-        stringsAsFactors = FALSE,
-        check.names = FALSE
-    )
-    if ("stat" %in% colnames(de)) {
-        score$stat <- as.numeric(de$stat)
+    score <- data.frame(gene = genes, comparison = contrast,
+                        stringsAsFactors = FALSE, check.names = FALSE)
+    for (ly in .multihit_layers) {
+        score[[ly]] <- as.integer(genes %in% sets[[ly]])
+    }
+    score$stat <- if ("stat" %in% colnames(de)) as.numeric(de$stat) else NA_real_
+    score$log2FoldChange <- if ("log2FoldChange" %in% colnames(de)) {
+        as.numeric(de$log2FoldChange)
     } else {
-        score$stat <- NA_real_
-    }
-    if ("log2FoldChange" %in% colnames(de)) {
-        score$log2FoldChange <- as.numeric(de$log2FoldChange)
-    } else {
-        score$log2FoldChange <- NA_real_
-    }
-
-    # GSEA leading-edge membership (at most +1 total per gene)
-    if (!is.null(gsea_out) && !is.null(gsea_out$by_comparison[[contrast]])) {
-        sig <- pool_sig_gsea_pathways(gsea_out$by_comparison[[contrast]], alpha = alpha)
-        if (nrow(sig) > 0L) {
-            le_genes <- unique(unlist(
-                lapply(sig$leadingEdge, .parse_leading_edge),
-                use.names = FALSE
-            ))
-            score$gsea <- as.integer(score$gene %in% le_genes)
-        }
-    }
-
-    # VIPER TFs
-    if (!is.null(viper_out) && !is.null(viper_out$contrast_acts[[contrast]])) {
-        va <- viper_out$contrast_acts[[contrast]]
-        if (!is.null(va) && nrow(va) > 0L && all(c("tf", "padj") %in% colnames(va))) {
-            tf_sig <- as.character(va$tf[!is.na(va$padj) & va$padj < alpha])
-            tf_org <- .map_human_symbols_to_org(tf_sig, org)
-            score$viper <- as.integer(score$gene %in% tf_org)
-        }
-    }
-
-    # decoupleR-TF sources
-    if (!is.null(decoupler_tf_out) && !is.null(decoupler_tf_out$contrast_acts[[contrast]])) {
-        da <- decoupler_tf_out$contrast_acts[[contrast]]
-        if (!is.null(da) && nrow(da) > 0L &&
-                all(c("source", "p_value") %in% colnames(da))) {
-            src_sig <- as.character(
-                da$source[!is.na(da$p_value) & da$p_value < alpha]
-            )
-            score[["decoupler-tf"]] <- as.integer(score$gene %in% unique(src_sig))
-        }
-    }
-
-    # decoupleR-CCC ligand / receptor genes from significant pairs
-    if (!is.null(decoupler_ccc_out)) {
-        ccc_genes <- .ccc_sig_genes(decoupler_ccc_out, contrast, alpha = alpha)
-        if (length(ccc_genes)) {
-            score[["decoupler-ccc"]] <- as.integer(score$gene %in% ccc_genes)
-        }
-    }
-
-    # CSPA surface markers selected for this contrast
-    if (!is.null(cspa_out) && !is.null(cspa_out$markers_by_comparison[[contrast]])) {
-        mk <- cspa_out$markers_by_comparison[[contrast]]
-        if (!is.null(mk) && nrow(mk) > 0L) {
-            mk_col <- if ("gene" %in% colnames(mk)) "gene" else colnames(mk)[[1]]
-            score$cspa <- as.integer(score$gene %in% as.character(mk[[mk_col]]))
-        }
+        NA_real_
     }
 
     score$score <- score$deg + score$gsea + score$viper +
@@ -333,11 +384,7 @@ plot_multihit_genes <- function(ranked, title = NULL) {
         viper = "#C44E52", `decoupler-tf` = "#8172B2",
         `decoupler-ccc` = "#64B5CD", cspa = "#CCB974"
     )
-    lab <- c(
-        deg = "DEG", gsea = "GSEA LE", viper = "VIPER",
-        `decoupler-tf` = "decoupleR TF", `decoupler-ccc` = "decoupleR CCC",
-        cspa = "CSPA"
-    )
+    lab <- .multihit_layer_labels
 
     p <- ggplot2::ggplot(
         long,
@@ -410,7 +457,9 @@ plot_multihit_genes <- function(ranked, title = NULL) {
 #' @param save_dir Directory for CSVs/plots. Default `getwd()`.
 #' @param save_plot Logical. Default `TRUE`.
 #' @return A list with `by_comparison` (named list of data frames),
-#'   `plots` (named list of ggplots), `layers_used`, `org`, `alpha`.
+#'   `plots` (named list of barplot ggplots), `hit_sets` (per contrast, from
+#'   [multihit_hit_sets()]), `upsets` (named list of [plot_multihit_upset()]
+#'   plots), `layers_used`, `org`, `alpha`, `thresholds`.
 #' @export
 run_multihit_pipeline <- function(
     diffexp_out,
@@ -421,6 +470,10 @@ run_multihit_pipeline <- function(
     cspa_out = NULL,
     contrasts = NULL,
     alpha = 0.05,
+    lfc_threshold = 0.5,
+    tf_min_score = 1,
+    ccc_min_score = 1,
+    viper_min_nes = 2,
     top_n = 10,
     org = NULL,
     save_dir = getwd(),
@@ -447,31 +500,50 @@ run_multihit_pipeline <- function(
     if (!is.null(decoupler_ccc_out)) layers_used <- c(layers_used, "decoupler-ccc")
     if (!is.null(cspa_out)) layers_used <- c(layers_used, "CSPA")
 
+    thresholds <- list(alpha = alpha, lfc_threshold = lfc_threshold,
+                       tf_min_score = tf_min_score, ccc_min_score = ccc_min_score,
+                       viper_min_nes = viper_min_nes)
     by_comparison <- list()
     plots <- list()
+    hit_sets <- list()
+    upsets <- list()
     for (comp in contrasts) {
         message("Multi-hit gene ranking: ", comp, " ...")
-        ranked <- rank_multihit_genes_contrast(
-            contrast = comp,
-            diffexp_out = diffexp_out,
-            gsea_out = gsea_out,
-            viper_out = viper_out,
-            decoupler_tf_out = decoupler_tf_out,
-            decoupler_ccc_out = decoupler_ccc_out,
-            cspa_out = cspa_out,
-            alpha = alpha,
-            top_n = top_n,
-            org = org
-        )
+        args <- c(list(contrast = comp, diffexp_out = diffexp_out,
+                       gsea_out = gsea_out, viper_out = viper_out,
+                       decoupler_tf_out = decoupler_tf_out,
+                       decoupler_ccc_out = decoupler_ccc_out,
+                       cspa_out = cspa_out, org = org), thresholds)
+        ranked <- do.call(rank_multihit_genes_contrast, c(args, list(top_n = top_n)))
+        sets <- do.call(multihit_hit_sets, args)
         p <- plot_multihit_genes(ranked, title = comp)
+        up <- tryCatch(plot_multihit_upset(sets, title = comp), error = function(e) {
+            warning("UpSet plot failed for \"", comp, "\": ", conditionMessage(e),
+                    call. = FALSE)
+            NULL
+        })
         by_comparison[[comp]] <- ranked
         plots[[comp]] <- p
+        hit_sets[[comp]] <- sets
+        upsets[comp] <- list(up)
 
         comp_dir <- file.path(save_dir, comp)
         dir.create(comp_dir, recursive = TRUE, showWarnings = FALSE)
         stem <- contrast_file_stem(comp)
         write_output(ranked, file.path(comp_dir, paste0(stem, "_top_genes.csv")),
                      format = "csv")
+        long <- data.frame(
+            gene = unlist(sets, use.names = FALSE),
+            method = rep(unname(.multihit_layer_labels[names(sets)]), lengths(sets)),
+            stringsAsFactors = FALSE
+        )
+        write_output(long, file.path(comp_dir, paste0(stem, "_hit_sets.csv")),
+                     format = "csv")
+        if (save_plot && !is.null(up)) {
+            sz <- attr(up, "plot_size")
+            save_ggplot(up, file.path(comp_dir, paste0(stem, "_upset.pdf")),
+                        width = sz$width, height = sz$height)
+        }
         if (save_plot && !is.null(p)) {
             sz <- attr(p, "plot_size")
             w <- if (!is.null(sz)) sz$width else 4.9
@@ -484,9 +556,12 @@ run_multihit_pipeline <- function(
     list(
         by_comparison = by_comparison,
         plots = plots,
+        hit_sets = hit_sets,
+        upsets = upsets,
         layers_used = layers_used,
         org = org,
         alpha = alpha,
+        thresholds = thresholds,
         top_n = top_n,
         save_dir = save_dir
     )
@@ -494,16 +569,24 @@ run_multihit_pipeline <- function(
 
 #' Collect significant TF symbols from a contrast/cluster acts table
 #' @noRd
-.sig_tf_symbols <- function(acts, alpha, org, kind = c("viper", "decoupler")) {
+#'
+#' VIPER: `padj < alpha` and `|nes| > min_score`; decoupleR: `padj < alpha`
+#' and `|score| > min_score` (`padj` is BH over `p_value` when absent).
+#' @noRd
+.sig_tf_symbols <- function(acts, alpha, org, kind = c("viper", "decoupler"),
+                            min_score = if (identical(kind[1], "viper")) 2 else 1) {
     kind <- match.arg(kind)
     if (is.null(acts) || !nrow(acts)) return(character(0))
     if (identical(kind, "viper")) {
-        if (!all(c("tf", "padj") %in% colnames(acts))) return(character(0))
-        tf_sig <- as.character(acts$tf[!is.na(acts$padj) & acts$padj < alpha])
-        return(.map_human_symbols_to_org(tf_sig, org))
+        if (!all(c("tf", "padj", "nes") %in% colnames(acts))) return(character(0))
+        keep <- !is.na(acts$padj) & acts$padj < alpha & abs(acts$nes) > min_score
+        return(.map_human_symbols_to_org(as.character(acts$tf[keep]), org))
     }
-    if (!all(c("source", "p_value") %in% colnames(acts))) return(character(0))
-    unique(as.character(acts$source[!is.na(acts$p_value) & acts$p_value < alpha]))
+    if (!all(c("source", "p_value", "score") %in% colnames(acts))) return(character(0))
+    padj <- if ("padj" %in% colnames(acts)) acts$padj else
+        stats::p.adjust(acts$p_value, method = "BH")
+    keep <- !is.na(padj) & padj < alpha & abs(acts$score) > min_score
+    unique(as.character(acts$source[keep]))
 }
 
 #' Rank genes within one LRT temporal cluster by multi-analysis hits

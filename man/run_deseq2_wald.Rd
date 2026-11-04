@@ -11,6 +11,7 @@ run_deseq2_wald(
   design = NULL,
   comparisons = NULL,
   include_interactions = FALSE,
+  stratified = FALSE,
   batch = NULL,
   platform = "rnaseq",
   export_counts = TRUE,
@@ -43,7 +44,6 @@ run_deseq2_wald(
   parallel_render = FALSE,
   render_workers = NULL,
   use_targets = FALSE,
-  stratified = FALSE,
   opts = deseq2reports_opts(),
   save_dir = getwd()
 )
@@ -85,6 +85,14 @@ with three or more levels is compared one-vs-rest
 weight per level. Default \code{FALSE}: additive design, main effects only.
 Ignored for single-factor \code{var}. When \code{design} is supplied explicitly,
 only the contrast grid is affected.}
+
+\item{stratified}{Logical. Also expand the within-stratum contrasts --
+each factor compared inside one fixed level combination of the others,
+fitted on that subset alone (\code{CB__K_vs_noK} for two factors,
+\code{K_vs_noK/CB__C} for three). Default \code{FALSE}: an interaction contrast
+asks the same question with every sample behind it, so these are opt-in,
+but they are the right tool when the strata are not expected to share a
+dispersion. Ignored for single-factor \code{var}.}
 
 \item{batch}{Optional covariate column name(s) in \code{colData(dds)}. Added
 to the auto design when \code{design = NULL}, passed through to main-effect
@@ -203,14 +211,6 @@ Default \code{NULL} (auto).}
 \item{use_targets}{If \code{TRUE}, render HTML via \code{\link[=render_report_targets]{render_report_targets()}}
 (requires Suggested package \code{targets}) instead of \code{\link[=render_report]{render_report()}}.
 Default \code{FALSE}.}
-
-\item{stratified}{Logical. Also expand the within-stratum contrasts --
-each factor compared inside one fixed level combination of the others,
-fitted on that subset alone (\code{CB__K_vs_noK} for two factors,
-\code{K_vs_noK/CB__C} for three). Default \code{FALSE}: an interaction contrast
-asks the same question with every sample behind it, so these are opt-in,
-but they are the right tool when the strata are not expected to share a
-dispersion. Ignored for single-factor \code{var}.}
 
 \item{opts}{Analysis settings from \code{\link[=deseq2reports_opts]{deseq2reports_opts()}} -- LFC
 shrinkage, \code{alpha}, the LFC cutoff, and the per-module top-N budgets.

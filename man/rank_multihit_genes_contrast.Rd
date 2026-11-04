@@ -13,6 +13,10 @@ rank_multihit_genes_contrast(
   decoupler_ccc_out = NULL,
   cspa_out = NULL,
   alpha = 0.05,
+  lfc_threshold = 0.5,
+  tf_min_score = 1,
+  ccc_min_score = 1,
+  viper_min_nes = 2,
   top_n = 10,
   org = NULL
 )
@@ -32,7 +36,15 @@ rank_multihit_genes_contrast(
 
 \item{cspa_out}{Output of \code{\link[=run_cspa_marker_pipeline]{run_cspa_marker_pipeline()}}, or \code{NULL}.}
 
-\item{alpha}{Significance threshold. Default \code{0.05}.}
+\item{alpha}{Adjusted-p threshold for every method. Default \code{0.05}.}
+
+\item{lfc_threshold}{Absolute log2 fold change a DEG must exceed. Default \code{0.5}.}
+
+\item{tf_min_score}{Absolute decoupleR-TF ULM score cutoff. Default \code{1}.}
+
+\item{ccc_min_score}{Absolute decoupleR-CCC ULM score cutoff. Default \code{1}.}
+
+\item{viper_min_nes}{Absolute VIPER NES cutoff. Default \code{2}.}
 
 \item{top_n}{Number of genes to return \strong{per direction} (up and down).
 Default \code{10} (up to \code{2 * top_n} genes total).}
@@ -46,18 +58,17 @@ tie-break columns when present. Rows are ordered up-then-down, each
 block ranked by score.
 }
 \description{
-Scores each gene as:
+Scores each gene +1 per method it is a hit in (see \code{\link[=multihit_hit_sets]{multihit_hit_sets()}}):
 \itemize{
-\item DEG: +1 if \code{sig}
-\item GSEA: +1 if the gene appears in \strong{any} significant pathway
-leading edge (\code{padj < alpha}; all collections pooled)
-\item VIPER: +1 if the TF has \code{padj < alpha} (human TFs mapped to
-organism symbols when needed)
-\item decoupleR-TF: +1 if \code{p_value < alpha}
-\item decoupleR-CCC: +1 if the gene is a ligand or receptor in any
-significant ligand–receptor pair (\code{padj} / \code{p_value < alpha})
-\item CSPA: +1 if the gene was selected as a CSPA surface marker for
-this contrast
+\item DEG: \code{padj < alpha} and \verb{|log2FoldChange| > lfc_threshold}
+\item CSPA: a DEG (as above) that is a CSPA surface protein
+\item decoupleR-TF: \code{padj < alpha} and \verb{|score| > tf_min_score}
+\item decoupleR-CCC: ligand or receptor of a pair with \code{padj < alpha}
+and \verb{|score| > ccc_min_score}
+\item VIPER: \code{padj < alpha} and \verb{|NES| > viper_min_nes} (human TFs
+mapped to organism symbols when needed)
+\item GSEA: in \strong{any} significant pathway leading edge (\code{padj < alpha};
+all collections pooled)
 }
 Genes are ranked by total score, then \verb{|stat|}, then \verb{|log2FoldChange|}.
 Direction (\code{up} / \code{down}) comes from the sign of DEG \code{log2FoldChange}

@@ -196,6 +196,7 @@ run_deseq2_wald <- function(
     design = NULL,
     comparisons = NULL,
     include_interactions = FALSE,
+    stratified = FALSE,
     batch = NULL,
     platform = "rnaseq",
     export_counts = TRUE,
@@ -228,7 +229,6 @@ run_deseq2_wald <- function(
     parallel_render = FALSE,
     render_workers = NULL,
     use_targets = FALSE,
-    stratified = FALSE,
     opts = deseq2reports_opts(),
     save_dir = getwd()) {
 
@@ -412,7 +412,7 @@ run_deseq2_wald <- function(
                     diffexp_out = st$diffexp, gsea_out = st$gsea,
                     viper_out = st$viper, decoupler_tf_out = st$decoupler_tf,
                     decoupler_ccc_out = st$decoupler_ccc, cspa_out = st$cspa,
-                    alpha = alpha, top_n = 10,
+                    alpha = alpha, lfc_threshold = lfc_threshold, top_n = 10,
                     save_dir = file.path(save_dir, "multihit"))
             })
         )

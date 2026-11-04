@@ -51,6 +51,7 @@ test_that("rank_multihit_genes_contrast scores CCC separately from TF decoupleR"
             A_vs_B = data.frame(
                 source = c("MYC"),
                 p_value = c(0.01),
+                score = c(2),
                 stringsAsFactors = FALSE
             )
         )
@@ -65,6 +66,7 @@ test_that("rank_multihit_genes_contrast scores CCC separately from TF decoupleR"
         contrast_acts = list(
             A_vs_B = data.frame(
                 source = "TP53&MDM2",
+                score = 2,
                 p_value = 0.001,
                 padj = 0.001,
                 stringsAsFactors = FALSE

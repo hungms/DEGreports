@@ -65,7 +65,10 @@ simulate_dds_real_genes <- function(
         n_de = n_de, batch = batch, seed = seed
     )
     set.seed(seed)
-    hallmark_genes <- unique(msigdbr::msigdbr(species = "Homo sapiens", collection = "H")$gene_symbol)
+    # msigdbr >= 10 renamed `category` to `collection`; support both.
+    arg <- if ("collection" %in% names(formals(msigdbr::msigdbr))) "collection" else "category"
+    hallmark_genes <- unique(do.call(msigdbr::msigdbr,
+                                     stats::setNames(list("Homo sapiens", "H"), c("species", arg)))$gene_symbol)
     rownames(dds) <- sample(hallmark_genes, n_genes)
     dds
 }

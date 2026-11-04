@@ -4,12 +4,16 @@
 # (IgA/IgG/IgM from the same rep share one batch). For true genotype × time
 # designs, pass var = "genotype", time = "day", include_interactions = TRUE.
 #
-# Usage:
-#   mkdir -p example_run_GSE189410_lrt/logs
-#   Rscript --vanilla run_gse189410_lrt.R \
-#     > example_run_GSE189410_lrt/logs/console.log 2>&1
+# Usage (Slurm, all three examples): sbatch run_examples.sbatch
+# Single run:  <conda seurat5>/bin/Rscript run_gse189410_lrt.R
 
-.libPaths(c("/Users/hungm/Library/R/arm64/4.5/library", .libPaths()))
+# Project root on NEMO: outputs go to <root>/example_run_*/.
+root <- "/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DESeq2Reports"
+setwd(root)
+# Use the project renv (a snapshot of the seurat5 conda library).
+if (!nzchar(Sys.getenv("RENV_PROJECT"))) source(file.path(root, "renv", "activate.R"))
+# Render workers = Slurm tasks (falls back to 4 outside Slurm).
+n_workers <- as.integer(Sys.getenv("SLURM_NTASKS", "4"))
 
 # Surface failures immediately (no background; no silent continue).
 options(warn = 1)
@@ -23,9 +27,8 @@ suppressPackageStartupMessages({
   library(DESeq2)
 })
 try(unloadNamespace("deseq2reports"), silent = TRUE)
-pkgload::load_all(".", export_all = FALSE, quiet = TRUE)
+pkgload::load_all(root, export_all = FALSE, quiet = TRUE)
 
-root <- getwd()
 counts_path <- file.path(root, "example_data", "GSE189410_counts.txt")
 out_dir <- file.path(root, "example_run_GSE189410_lrt")
 dir.create(file.path(out_dir, "logs"), recursive = TRUE, showWarnings = FALSE)
@@ -113,6 +116,7 @@ out <- run_deseq2_lrt(
   degpatterns_minc = 15,
   render_html = TRUE,
   parallel_render = TRUE,
+  render_workers = n_workers,
   save_dir = out_dir
 )
 

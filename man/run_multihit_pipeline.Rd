@@ -13,6 +13,10 @@ run_multihit_pipeline(
   cspa_out = NULL,
   contrasts = NULL,
   alpha = 0.05,
+  lfc_threshold = 0.5,
+  tf_min_score = 1,
+  ccc_min_score = 1,
+  viper_min_nes = 2,
   top_n = 10,
   org = NULL,
   save_dir = getwd(),
@@ -35,7 +39,15 @@ run_multihit_pipeline(
 \item{contrasts}{Optional character vector of contrast labels. Default
 \code{NULL} uses \code{names(diffexp_out$by_comparison)}.}
 
-\item{alpha}{Significance threshold. Default \code{0.05}.}
+\item{alpha}{Adjusted-p threshold for every method. Default \code{0.05}.}
+
+\item{lfc_threshold}{Absolute log2 fold change a DEG must exceed. Default \code{0.5}.}
+
+\item{tf_min_score}{Absolute decoupleR-TF ULM score cutoff. Default \code{1}.}
+
+\item{ccc_min_score}{Absolute decoupleR-CCC ULM score cutoff. Default \code{1}.}
+
+\item{viper_min_nes}{Absolute VIPER NES cutoff. Default \code{2}.}
 
 \item{top_n}{Number of genes to return \strong{per direction} (up and down).
 Default \code{10} (up to \code{2 * top_n} genes total).}
@@ -48,7 +60,9 @@ Default \code{10} (up to \code{2 * top_n} genes total).}
 }
 \value{
 A list with \code{by_comparison} (named list of data frames),
-\code{plots} (named list of ggplots), \code{layers_used}, \code{org}, \code{alpha}.
+\code{plots} (named list of barplot ggplots), \code{hit_sets} (per contrast, from
+\code{\link[=multihit_hit_sets]{multihit_hit_sets()}}), \code{upsets} (named list of \code{\link[=plot_multihit_upset]{plot_multihit_upset()}}
+plots), \code{layers_used}, \code{org}, \code{alpha}, \code{thresholds}.
 }
 \description{
 Rank multi-hit genes for every contrast and write artifacts

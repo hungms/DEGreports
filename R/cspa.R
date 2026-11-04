@@ -354,6 +354,7 @@ run_cspa_marker_pipeline <- function(
     list(
         org = org,
         cspa_n = length(cspa_symbols),
+        cspa_symbols = cspa_symbols,
         n_markers = n_markers,
         markers_by_comparison = markers_by_comparison,
         combined_markers = combined_markers,

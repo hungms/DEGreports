@@ -12,12 +12,16 @@
 # The replicate number is used as batch: CB and CC of the same genotype and
 # replicate (e.g. WT.CB_R1 / WT.CC_R1) come from the same animal/sort.
 #
-# Usage:
-#   mkdir -p example_run_GSE224465_wald/logs
-#   Rscript --vanilla run_gse224465_wald.R \
-#     > example_run_GSE224465_wald/logs/console.log 2>&1
+# Usage (Slurm, all three examples): sbatch run_examples.sbatch
+# Single run:  <conda seurat5>/bin/Rscript run_gse224465_wald.R
 
-.libPaths(c("/Users/hungm/Library/R/arm64/4.5/library", .libPaths()))
+# Project root on NEMO: outputs go to <root>/example_run_*/.
+root <- "/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DESeq2Reports"
+setwd(root)
+# Use the project renv (a snapshot of the seurat5 conda library).
+if (!nzchar(Sys.getenv("RENV_PROJECT"))) source(file.path(root, "renv", "activate.R"))
+# Render workers = Slurm tasks (falls back to 4 outside Slurm).
+n_workers <- as.integer(Sys.getenv("SLURM_NTASKS", "4"))
 
 options(warn = 1)
 options(error = function() {
@@ -30,9 +34,8 @@ suppressPackageStartupMessages({
   library(DESeq2)
 })
 try(unloadNamespace("deseq2reports"), silent = TRUE)
-pkgload::load_all(".", export_all = FALSE, quiet = TRUE)
+pkgload::load_all(root, export_all = FALSE, quiet = TRUE)
 
-root <- getwd()
 counts_path <- file.path(root, "example_data", "GSE224465_counts.tsv")
 out_dir <- file.path(root, "example_run_GSE224465_wald")
 dir.create(file.path(out_dir, "logs"), recursive = TRUE, showWarnings = FALSE)
@@ -143,6 +146,7 @@ out <- run_deseq2_wald(
   run_viper = TRUE,
   render_html = TRUE,
   parallel_render = TRUE,
+  render_workers = n_workers,
   save_dir = out_dir
 )
 

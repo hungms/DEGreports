@@ -53,11 +53,10 @@ the first seconds of the run.
 Pipeline stages (including optional-toggle modules GSVA, WGCNA, decoupler-tf,
 decoupler-ccc, and VIPER) declare their R packages as **Imports**, so they are
 installed with the package. Suggests holds only what an analysis can run
-without: vignette/test helpers (`knitr`, `testthat`, `pkgload`), the optional
-rendering back-ends `future` / `future.apply` (`parallel_render = TRUE`) and
-`targets` (`use_targets = TRUE`), and `liana`, whose Consensus resource
-decoupler-ccc prefers for ligand–receptor pairs but falls back to OmniPath
-without.
+without: vignette/test helpers (`knitr`, `testthat`), the optional rendering
+back-end `targets` + `future` (`use_targets = TRUE`), and `liana`, whose
+Consensus resource decoupler-ccc prefers for ligand–receptor pairs but falls
+back to OmniPath without.
 **Reference data** (CSPA workbook + date-stamped CollecTRI networks) ships
 under [`inst/extdata/`](https://github.com/hungms/deseq2reports/tree/main/inst/extdata)
 and is loaded automatically after install. If a file is missing locally,
@@ -177,7 +176,7 @@ tabulates the question each one answers.
 
 Rendering a page per contrast is the slowest part of a large run, so
 `render_report()` takes `parallel_render = TRUE` to knit contrast pages
-concurrently across `render_workers` processes (**future.apply**). The Wald and
+concurrently across `render_workers` processes (`parallel::mclapply()`, Unix only). The Wald and
 LRT entry points also accept `use_targets = TRUE`, which renders through
 `render_report_targets()`: hub pages become **targets** so a re-render skips the
 ones whose inputs have not changed, with contrast pages following afterwards.

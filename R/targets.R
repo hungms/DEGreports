@@ -5,7 +5,7 @@
 #' pages are rendered afterward via [render_report()] with `contrasts_only =
 #' TRUE`.
 #'
-#' Requires Suggested packages **targets**, **future**, and **future.apply**.
+#' Requires Suggested packages **targets** and **future**.
 #'
 #' @inheritParams render_report
 #' @param script_path Path for the generated `_targets.R` script. Default

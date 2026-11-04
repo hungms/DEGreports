@@ -80,12 +80,21 @@ if (has_lrt_mh) {
   )
 } else if (has_wald_mh) {
   layers <- paste(mh$layers_used, collapse = ", ")
-  cat("\n\nTop ", mh$top_n, " **up** and top ", mh$top_n,
-      " **down** genes per contrast (direction from DEG log2FoldChange), ",
-      "ranked by hit count across ", layers,
-      " (GSEA contributes +1 if the gene is in **any** significant ",
-      "pathway leading edge; DEG / VIPER / decoupleR-TF / decoupleR-CCC / CSPA contribute +1 ",
-      "when selected or significant at alpha = ", mh$alpha, ").\n\n", sep = "")
+  th <- mh$thresholds
+  if (is.null(th)) th <- list(alpha = mh$alpha, lfc_threshold = params$lfc_threshold,
+                              tf_min_score = 1, ccc_min_score = 1, viper_min_nes = 2)
+  cat("\n\nEach gene scores +1 per method it is a hit in (", layers, "):\n\n",
+      "- **DEG**: padj < ", th$alpha, " and |log2FC| > ", th$lfc_threshold, "\n",
+      "- **CSPA**: a DEG (above) that is a CSPA surface protein\n",
+      "- **decoupleR TF**: padj < ", th$alpha, " and |score| > ", th$tf_min_score, "\n",
+      "- **decoupleR CCC**: ligand or receptor of a pair with padj < ", th$alpha,
+      " and |score| > ", th$ccc_min_score, "\n",
+      "- **VIPER**: padj < ", th$alpha, " and |NES| > ", th$viper_min_nes, "\n",
+      "- **GSEA LE**: in any significant pathway leading edge (padj < ", th$alpha, ")\n\n",
+      "**Method overlap** shows how many genes each combination of methods ",
+      "shares; **Top genes** shows the top ", mh$top_n, " up and ", mh$top_n,
+      " down genes per contrast (direction from DEG log2FoldChange), ranked by ",
+      "hit count.\n\n", sep = "")
   deseq2reports::emit_code_block(
     caption = "Reproduce multi-hit ranking with this package module:",
     "multihit_out <- run_multihit_pipeline(",
@@ -157,6 +166,27 @@ emit_multihit_contrast <- function(comp, ranked, plot) {
   cat("\n\n")
 }
 
+emit_multihit_upset <- function(comp, ...) {
+  up <- params$multihit_out$upsets[[comp]]
+  if (is.null(up)) {
+    cat("\n\nNo method hits for this contrast.\n\n")
+    return(invisible(NULL))
+  }
+  stem <- deseq2reports::contrast_file_stem(comp)
+  sz <- attr(up, "plot_size")
+  deseq2reports::emit_plot_with_download(
+    up, filename = paste0(stem, "_upset"),
+    width = sz$width, height = sz$height, dpi = 150
+  )
+  deseq2reports::emit_widget(
+    deseq2reports::link_output_file(
+      file.path(comp, paste0(stem, "_hit_sets.csv")),
+      label = "Download hit sets CSV"
+    )
+  )
+  cat("\n\n")
+}
+
 specs_mh <- params$diffexp_out$contrast_specs
 if (is.null(specs_mh) && has_wald_mh) {
   labs <- names(params$multihit_out$by_comparison)
@@ -173,77 +203,91 @@ by_mh <- if (has_wald_mh) params$multihit_out$by_comparison else list()
 plots_mh <- if (has_wald_mh) params$multihit_out$plots else list()
 ```
 
-```{r multihit-single, results='asis', eval=has_wald_mh && !two_factor_mh}
-de_pairwise <- specs_mh$label[specs_mh$type == "pairwise"]
-de_one_vs_all <- specs_mh$label[specs_mh$type == "one_vs_all"]
+```{r multihit-layout, include=FALSE}
+# The contrast tab layout, shared by the UpSet and barplot sections; `emit`
+# draws one contrast's content.
+emit_mh_sections <- function(emit) {
+  if (!two_factor_mh) {
+    de_pairwise <- specs_mh$label[specs_mh$type == "pairwise"]
+    de_one_vs_all <- specs_mh$label[specs_mh$type == "one_vs_all"]
 
-cat("\n\n### Pairwise {.tabset}\n\n")
-if (length(de_pairwise) > 0) {
-  for (comp in de_pairwise) {
-    cat("\n\n#### ", comp, "\n\n", sep = "")
-    emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-  }
-} else {
-  cat("\n\nNo pairwise comparisons.\n\n")
-}
+    cat("\n\n### Pairwise {.tabset}\n\n")
+    if (length(de_pairwise) > 0) {
+      for (comp in de_pairwise) {
+        cat("\n\n#### ", comp, "\n\n", sep = "")
+        emit(comp, by_mh[[comp]], plots_mh[[comp]])
+      }
+    } else {
+      cat("\n\nNo pairwise comparisons.\n\n")
+    }
 
-cat("\n\n### One vs. all {.tabset}\n\n")
-if (length(de_one_vs_all) > 0) {
-  for (comp in de_one_vs_all) {
-    cat("\n\n#### ", comp, "\n\n", sep = "")
-    emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
+    cat("\n\n### One vs. all {.tabset}\n\n")
+    if (length(de_one_vs_all) > 0) {
+      for (comp in de_one_vs_all) {
+        cat("\n\n#### ", comp, "\n\n", sep = "")
+        emit(comp, by_mh[[comp]], plots_mh[[comp]])
+      }
+    } else {
+      cat("\n\nNo one-vs-all comparisons.\n\n")
+    }
+    return(invisible(NULL))
   }
-} else {
-  cat("\n\nNo one-vs-all comparisons.\n\n")
+  var <- params$var
+  for (cls in c("main", "within_A", "within_B", "within_C", "interaction")) {
+    sub <- specs_mh[specs_mh$class == cls, , drop = FALSE]
+    if (nrow(sub) == 0) next
+    title <- deseq2reports::contrast_class_title(cls, var)
+    cat("\n\n### ", title, " {.tabset}\n\n", sep = "")
+
+    if (identical(cls, "main")) {
+      ordered <- c(sub$label[sub$type == "pairwise"],
+                   sub$label[sub$type == "one_vs_all"])
+      for (comp in ordered) {
+        cat("\n\n#### ", comp, "\n\n", sep = "")
+        emit(comp, by_mh[[comp]], plots_mh[[comp]])
+      }
+      next
+    }
+
+    if (identical(cls, "interaction")) {
+      # Interaction rows are grouped by the factor level they hold fixed;
+      # three-way rows hold nothing fixed and sit at the top level.
+      held <- deseq2reports::contrast_stratum_labels(sub)
+      for (comp in sub$label[is.na(held)]) {
+        cat("\n\n#### ", comp, "\n\n", sep = "")
+        emit(comp, by_mh[[comp]], plots_mh[[comp]])
+      }
+      for (st in unique(held[!is.na(held)])) {
+        cat("\n\n#### Within ", st, " {.tabset}\n\n", sep = "")
+        for (comp in sub$label[!is.na(held) & held == st]) {
+          cat("\n\n##### ", comp, "\n\n", sep = "")
+          emit(comp, by_mh[[comp]], plots_mh[[comp]])
+        }
+      }
+      next
+    }
+
+    strata <- unique(sub$stratum_level)
+    for (st in strata) {
+      cat("\n\n#### ", st, " {.tabset}\n\n", sep = "")
+      st_sub <- sub[sub$stratum_level == st, , drop = FALSE]
+      ordered <- c(st_sub$label[st_sub$type == "pairwise"],
+                   st_sub$label[st_sub$type == "one_vs_all"])
+      for (comp in ordered) {
+        cat("\n\n##### ", comp, "\n\n", sep = "")
+        emit(comp, by_mh[[comp]], plots_mh[[comp]])
+      }
+    }
+  }
 }
 ```
 
-```{r multihit-two-factor, results='asis', eval=has_wald_mh && two_factor_mh}
-var <- params$var
-for (cls in c("main", "within_A", "within_B", "within_C", "interaction")) {
-  sub <- specs_mh[specs_mh$class == cls, , drop = FALSE]
-  if (nrow(sub) == 0) next
-  title <- deseq2reports::contrast_class_title(cls, var)
-  cat("\n\n### ", title, " {.tabset}\n\n", sep = "")
+```{r multihit-upset, results='asis', eval=has_wald_mh}
+cat("\n\n## Method overlap (UpSet)\n\n")
+emit_mh_sections(emit_multihit_upset)
+```
 
-  if (identical(cls, "main")) {
-    ordered <- c(sub$label[sub$type == "pairwise"],
-                 sub$label[sub$type == "one_vs_all"])
-    for (comp in ordered) {
-      cat("\n\n#### ", comp, "\n\n", sep = "")
-      emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-    }
-    next
-  }
-
-  if (identical(cls, "interaction")) {
-    # Interaction rows are grouped by the factor level they hold fixed;
-    # three-way rows hold nothing fixed and sit at the top level.
-    held <- deseq2reports::contrast_stratum_labels(sub)
-    for (comp in sub$label[is.na(held)]) {
-      cat("\n\n#### ", comp, "\n\n", sep = "")
-      emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-    }
-    for (st in unique(held[!is.na(held)])) {
-      cat("\n\n#### Within ", st, " {.tabset}\n\n", sep = "")
-      for (comp in sub$label[!is.na(held) & held == st]) {
-        cat("\n\n##### ", comp, "\n\n", sep = "")
-        emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-      }
-    }
-    next
-  }
-
-  strata <- unique(sub$stratum_level)
-  for (st in strata) {
-    cat("\n\n#### ", st, " {.tabset}\n\n", sep = "")
-    st_sub <- sub[sub$stratum_level == st, , drop = FALSE]
-    ordered <- c(st_sub$label[st_sub$type == "pairwise"],
-                 st_sub$label[st_sub$type == "one_vs_all"])
-    for (comp in ordered) {
-      cat("\n\n##### ", comp, "\n\n", sep = "")
-      emit_multihit_contrast(comp, by_mh[[comp]], plots_mh[[comp]])
-    }
-  }
-}
+```{r multihit-bars, results='asis', eval=has_wald_mh}
+cat("\n\n## Top genes per contrast\n\n")
+emit_mh_sections(emit_multihit_contrast)
 ```

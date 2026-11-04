@@ -21,3 +21,4 @@ tests/testthat/pca_*
 tests/testthat/qc_*
 tests/testthat/sample_similarity_*
 tests/testthat/Treated_vs_Control/
+inst/doc/

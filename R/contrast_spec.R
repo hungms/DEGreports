@@ -12,36 +12,6 @@
 
 # ---- field registry --------------------------------------------------------
 
-#' Canonical contrast-spec fields
-#'
-#' Column order is the historical one (`label` ... `coef_subtract`,
-#' then the interaction and LRT extensions), with the fields added by the
-#' modular rewrite (`path`, `fit_method`, `question`) appended, so a spec
-#' table still reads the way the report templates expect.
-#'
-#' `role` records what consumes the field: `"identity"` keys the contrast,
-#' `"fit"` is read by the fitting dispatch, `"report"` only ever reaches the
-#' HTML, and `"packed"` means the value is a string encoding several values
-#' (see the codecs below).
-#' @noRd
-.contrast_spec_fields <- function() {
-    data.frame(
-        name = c("label", "class", "type", "stratum_var", "stratum_level",
-                 "stratum_tag", "test_var", "comparison", "coef_subtract",
-                 "coef_weights", "ix_terms", "full", "reduced", "test_terms",
-                 "path", "fit_method", "question"),
-        role = c("identity", "fit", "report", "fit", "fit",
-                 "report", "fit", "fit", "fit",
-                 "fit", "report", "fit", "fit", "report",
-                 "identity", "fit", "report"),
-        packed = c(FALSE, FALSE, FALSE, TRUE, TRUE,
-                   FALSE, TRUE, TRUE, TRUE,
-                   TRUE, TRUE, FALSE, FALSE, FALSE,
-                   FALSE, FALSE, FALSE),
-        stringsAsFactors = FALSE
-    )
-}
-
 #' Contrast classes and the fitting strategy each one implies
 #'
 #' `class` used to carry both "how is this fitted" and "which report section

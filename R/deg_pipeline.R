@@ -296,6 +296,7 @@ prepare_diffexp_from_deg <- function(
         source = "deg_table",
         org = org,
         cspa_n = length(cspa_symbols),
+        cspa_symbols = cspa_symbols,
         n_markers = as.integer(n_markers)[1],
         markers_by_comparison = markers_by_comparison,
         combined_markers = combined,
@@ -469,7 +470,7 @@ run_deseq2_deg <- function(
                     diffexp_out = st$diffexp, gsea_out = st$gsea,
                     viper_out = st$viper, decoupler_tf_out = st$decoupler_tf,
                     decoupler_ccc_out = st$decoupler_ccc, cspa_out = st$cspa,
-                    alpha = alpha, top_n = 10,
+                    alpha = alpha, lfc_threshold = lfc_threshold, top_n = 10,
                     save_dir = file.path(save_dir, "multihit"))
             })
         )

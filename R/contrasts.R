@@ -635,12 +635,6 @@ contrast_file_stem <- function(label) {
     max(1L, length(parts))
 }
 
-#' Relative `../` path from a contrast page up to its module folder
-#' @noRd
-.contrast_up_to_module <- function(label) {
-    paste(rep("..", .contrast_nest_depth(label)), collapse = "/")
-}
-
 #' `"factor = level"` label for each spec row's held-fixed factor
 #'
 #' Used by the report templates to group contrasts by the stratum they hold

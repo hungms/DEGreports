@@ -143,6 +143,7 @@ run_decoupler_tf_pipeline <- function(
             .source = "source", .target = "target", .mor = "mor",
             minsize = minsize
         ))
+        acts$padj <- stats::p.adjust(acts$p_value, method = "BH")
         acts$comparison <- comp
         contrast_acts[[comp]] <- acts
         # Per-comparison subfolder keyed by the raw contrast label (same

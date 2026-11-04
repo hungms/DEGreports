@@ -118,7 +118,7 @@ independent hub pages in parallel (resumable via \code{tar_make()}). Per-contras
 pages are rendered afterward via \code{\link[=render_report]{render_report()}} with \code{contrasts_only = TRUE}.
 }
 \details{
-Requires Suggested packages \strong{targets}, \strong{future}, and \strong{future.apply}.
+Requires Suggested packages \strong{targets} and \strong{future}.
 }
 \seealso{
 \code{\link[=render_report]{render_report()}}, \code{\link[=run_deseq2_wald]{run_deseq2_wald()}}

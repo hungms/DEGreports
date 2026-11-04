@@ -242,6 +242,25 @@
     normalizePath(file.path(output_dir, output_file), mustWork = TRUE)
 }
 
+#' Give this (forked) process its own rmarkdown temp-file prefix
+#'
+#' rmarkdown writes header/body includes to `tempdir()` as
+#' `rmarkdown-str<hex>.html` and, when a render finishes, deletes **every**
+#' file matching that pattern there. Forked render workers share one
+#' `tempdir()`, so a worker finishing deleted includes another worker's pandoc
+#' was about to read ("withBinaryFile: does not exist"). A per-process prefix
+#' makes each worker's cleanup match only its own files. Call only inside a
+#' forked worker: it changes rmarkdown's namespace for the rest of that process.
+#' @noRd
+.isolate_rmarkdown_tmpfiles <- function() {
+    ns <- asNamespace("rmarkdown")
+    if (!exists("tmpfile_pattern", envir = ns, inherits = FALSE)) return(invisible(FALSE))
+    utils::assignInNamespace("tmpfile_pattern",
+                             paste0("rmarkdown-str-p", Sys.getpid(), "-"),
+                             ns = "rmarkdown")
+    invisible(TRUE)
+}
+
 #' Did a per-contrast render return a written HTML file?
 #'
 #' A worker can come back with a condition object (its render errored), a
@@ -881,19 +900,6 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
     paste0(", ", format(round(bytes / 1024^2, 1), nsmall = 1), " MB")
 }
 
-#' Source directory when deseq2reports was loaded via pkgload::load_all()
-#' @noRd
-.deseq2reports_src_dir <- function() {
-    path <- tryCatch(
-        find.package("deseq2reports", quiet = TRUE),
-        error = function(e) ""
-    )
-    if (!nzchar(path) || !file.exists(file.path(path, "R", "report.R"))) {
-        return(NULL)
-    }
-    path
-}
-
 #' Render one hub HTML page from an in-memory shared-params bag
 #' @noRd
 .render_one_hub_page <- function(key, shared_bag, save_dir) {
@@ -915,106 +921,6 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
         path = path,
         shared = .release_heavy_report_cache(shared_bag, key)
     )
-}
-
-#' Copy a worker function into an empty enclosure so future does not
-#' serialize the package namespace or `render_report()`'s huge frames.
-#'
-#' Do **not** reparent onto `baseenv()` -- future then hits
-#' "cycles in parent chains are not allowed".
-#' @noRd
-.as_isolated_future_fun <- function(fn) {
-    out <- function() NULL
-    formals(out) <- formals(fn)
-    body(out) <- body(fn)
-    environment(out) <- new.env(parent = emptyenv())
-    out
-}
-
-#' Hub-page worker (self-contained: only `::` / `base::`, no free variables)
-#' @noRd
-.parallel_hub_worker <- function(key, shared_rds, save_dir, pkg_dir = NULL) {
-    if (!base::is.null(pkg_dir) && base::nzchar(pkg_dir) &&
-        base::dir.exists(pkg_dir)) {
-        pkgload::load_all(pkg_dir, export_all = FALSE, quiet = TRUE)
-    } else {
-        base::loadNamespace("deseq2reports")
-    }
-    ns <- base::asNamespace("deseq2reports")
-    base::get(".render_one_hub_page", envir = ns, inherits = FALSE)(
-        key, base::readRDS(shared_rds), save_dir
-    )
-}
-
-#' Contrast-page worker (self-contained)
-#' @noRd
-.parallel_contrast_worker <- function(comp, module_key, shared_rds,
-                                      save_dir, pkg_dir = NULL) {
-    if (!base::is.null(pkg_dir) && base::nzchar(pkg_dir) &&
-        base::dir.exists(pkg_dir)) {
-        pkgload::load_all(pkg_dir, export_all = FALSE, quiet = TRUE)
-    } else {
-        base::loadNamespace("deseq2reports")
-    }
-    ns <- base::asNamespace("deseq2reports")
-    base::message("  Rendering HTML page: ", module_key, " / ", comp, " ...")
-    shared_bag <- base::readRDS(shared_rds)
-    page_params <- base::get(".report_params_for_page", envir = ns,
-                             inherits = FALSE)(module_key, shared_bag)
-    base::tryCatch(
-        base::get(".render_contrast_report_page", envir = ns, inherits = FALSE)(
-            module_key, comp, page_params, save_dir
-        ),
-        error = function(e) {
-            base::stop("Failed to render ", module_key, " page \"", comp, "\": ",
-                       base::conditionMessage(e), call. = FALSE)
-        }
-    )
-}
-
-#' Packages to attach on future workers for HTML rendering
-#' @noRd
-.parallel_render_packages <- function(pkg_dir = NULL) {
-    if (!is.null(pkg_dir)) {
-        return("pkgload")
-    }
-    "deseq2reports"
-}
-
-#' Run parallel future.apply with a fixed worker plan
-#' @noRd
-.with_parallel_plan <- function(expr, workers = NULL) {
-    if (!requireNamespace("future.apply", quietly = TRUE) ||
-        !requireNamespace("future", quietly = TRUE)) {
-        return(expr())
-    }
-    if (is.null(workers)) {
-        workers <- max(1L, parallel::detectCores(logical = FALSE) - 1L)
-    }
-    old_plan <- future::plan()
-    on.exit(future::plan(old_plan), add = TRUE)
-    future::plan(future::multisession, workers = workers)
-    expr()
-}
-
-#' Run a vector of render jobs in parallel when future.apply is available
-#' @noRd
-.parallel_render_apply <- function(fn, x, workers = NULL, pkg_dir = NULL, ...) {
-    if (!length(x)) return(list())
-    if (!requireNamespace("future.apply", quietly = TRUE) ||
-        !requireNamespace("future", quietly = TRUE)) {
-        return(lapply(x, fn, ...))
-    }
-    .with_parallel_plan({
-        future.apply::future_lapply(
-            x, .as_isolated_future_fun(fn),
-            ...,
-            pkg_dir = pkg_dir,
-            future.packages = .parallel_render_packages(pkg_dir),
-            future.globals = FALSE,
-            future.seed = TRUE
-        )
-    }, workers = workers)
 }
 
 #' Render one report HTML page into its module folder
@@ -1524,7 +1430,10 @@ render_report <- function(
         if (used_parallel) {
             invisible(gc(full = TRUE))
             res <- parallel::mclapply(
-                comps, try_render,
+                comps, function(comp) {
+                    .isolate_rmarkdown_tmpfiles()
+                    try_render(comp)
+                },
                 mc.cores = min(n_workers, length(comps)),
                 mc.preschedule = FALSE
             )

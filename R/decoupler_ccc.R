@@ -429,7 +429,7 @@ plot_lr_contrast_barplot <- function(contrast_acts, n_lr = 10, title = NULL) {
 
 #' Genes belonging to significant ligand–receptor pairs
 #' @noRd
-.ccc_sig_genes <- function(ccc_out, contrast, alpha = 0.05) {
+.ccc_sig_genes <- function(ccc_out, contrast, alpha = 0.05, min_score = 1) {
     if (is.null(ccc_out) || is.null(ccc_out$contrast_acts)) {
         return(character(0))
     }
@@ -442,7 +442,9 @@ plot_lr_contrast_barplot <- function(contrast_acts, n_lr = 10, title = NULL) {
     pcol <- if ("padj" %in% colnames(acts)) "padj" else
         if ("p_value" %in% colnames(acts)) "p_value" else NULL
     if (is.null(pcol) || !"source" %in% colnames(acts)) return(character(0))
-    src <- as.character(acts$source[!is.na(acts[[pcol]]) & acts[[pcol]] < alpha])
+    keep <- !is.na(acts[[pcol]]) & acts[[pcol]] < alpha
+    if ("score" %in% colnames(acts)) keep <- keep & abs(acts$score) > min_score
+    src <- as.character(acts$source[keep])
     if (!length(src)) return(character(0))
     net <- ccc_out$net
     if (is.null(net) || !nrow(net)) return(character(0))
