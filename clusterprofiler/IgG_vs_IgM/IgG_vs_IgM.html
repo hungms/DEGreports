@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports – clusterProfiler</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="lib/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="lib/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+<link href="lib/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="lib/pagedtable-1.1/js/pagedtable.js"></script>
+<script src="lib/htmlwidgets-1.6.2/htmlwidgets.js"></script>
+<link href="lib/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet" />
+<script src="lib/datatables-binding-0.30/datatables.js"></script>
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="lib/dt-core-1.13.4/js/jquery.dataTables.min.js"></script>
+<link href="lib/dt-ext-buttons-1.13.4/css/buttons.dataTables.min.css" rel="stylesheet" />
+<script src="lib/dt-ext-buttons-1.13.4/js/dataTables.buttons.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.html5.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.colVis.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.print.min.js"></script>
+<link href="lib/nouislider-7.0.10/jquery.nouislider.min.css" rel="stylesheet" />
+<script src="lib/nouislider-7.0.10/jquery.nouislider.min.js"></script>
+<link href="lib/selectize-0.12.0/selectize.bootstrap3.css" rel="stylesheet" />
+<script src="lib/selectize-0.12.0/selectize.min.js"></script>
+<link href="lib/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet" />
+<script src="lib/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports – clusterProfiler</h1>
+<h4 class="date">2026-11-05 10:39</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<a href="../../index.html">Index</a>  | 
+<a href="../../qc/qc.html">QC</a>  | 
+<a href="../../deseq2/deseq2.html">DESeq2</a>  | 
+<strong>clusterProfiler</strong>  | 
+<a href="../../gsva/gsva.html">GSVA</a>  | 
+<a href="../../wgcna/wgcna.html">WGCNA</a>  | 
+<a href="../../decoupler-tf/decoupleR-TF.html">decoupleR-TF</a>  | 
+<a href="../../decoupler-ccc/decoupleR-CCC.html">decoupleR-CCC</a>  | 
+<a href="../../viper/viper.html">VIPER</a>  | 
+<a href="../../multihit/multihit.html">Multihit</a>
+</div>
+<div id="clusterprofiler" class="section level2">
+<h2>clusterProfiler</h2>
+<p>Gene-set enrichment on the DESeq2 ranked gene list for each contrast,
+run independently against every requested MSigDB collection.</p>
+<p>Reproduce pathway enrichment with this package module:</p>
+<pre class="r"><code>gsea_out &lt;- run_gsea_pipeline(
+  diffexp_out$results,
+  collections = c(&quot;HALLMARK&quot;, &quot;GOBP&quot;, &quot;REACTOME&quot;)
+)</code></pre>
+<div id="igg_vs_igm" class="section level3">
+<h3>IgG_vs_IgM</h3>
+<p>
+<a href="../clusterprofiler.html">← Back to clusterProfiler
+contrasts</a>
+</p>
+<div id="gsea-coll-igg-vs-igm" class="degreports-bs-tabset"
+style="margin: 0.8em 0 1.2em 0;">
+<ul class="nav nav-tabs" role="tablist">
+<li role="presentation" class="active">
+<a href="#gsea-coll-igg-vs-igm-hallmark" role="tab" data-toggle="tab">HALLMARK</a>
+</li>
+<li role="presentation">
+<a href="#gsea-coll-igg-vs-igm-gobp" role="tab" data-toggle="tab">GOBP</a>
+</li>
+<li role="presentation">
+<a href="#gsea-coll-igg-vs-igm-gocc" role="tab" data-toggle="tab">GOCC</a>
+</li>
+<li role="presentation">
+<a href="#gsea-coll-igg-vs-igm-gomf" role="tab" data-toggle="tab">GOMF</a>
+</li>
+<li role="presentation">
+<a href="#gsea-coll-igg-vs-igm-kegg" role="tab" data-toggle="tab">KEGG</a>
+</li>
+<li role="presentation">
+<a href="#gsea-coll-igg-vs-igm-reactome" role="tab" data-toggle="tab">REACTOME</a>
+</li>
+<li role="presentation">
+<a href="#gsea-coll-igg-vs-igm-pid" role="tab" data-toggle="tab">PID</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="gsea-coll-igg-vs-igm-hallmark" class="tab-pane fade in active"
+role="tabpanel" style="padding-top: 1em;">
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_HALLMARK_gsea_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_HALLMARK_gsea_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a1fd319e7.png" alt="IgG_vs_IgM_HALLMARK_gsea_barplot" width="432" height="282" style="max-width: none !important; width: 432px; height: 282px;"/></p>
+</div>
+</div>
+</div>
+<p>Gene enrichment barcode for the same top/bottom pathways (pathway
+names left; member genes marked along the ranked list; red = pathway NES
+&gt; 0, blue = NES &lt; 0; padj and NES on the right):</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_HALLMARK_gsea_barcode.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_HALLMARK_gsea_barcode.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a30220020.png" alt="IgG_vs_IgM_HALLMARK_gsea_barcode" width="510" height="441" style="max-width: none !important; width: 510px; height: 441px;"/></p>
+</div>
+</div>
+</div>
+<p>Top 10 up- and top 10 down-regulated pathways by normalized
+enrichment score (NES), shown regardless of significance; significance
+stars: <code>*</code> padj &lt; 0.05, <code>**</code> &lt; 0.01,
+<code>***</code> &lt; 0.001. <code>leadingEdge</code> lists the driving
+genes for each pathway. Sort by any column or search by pathway using
+the box below. The full GSEA CSV is linked beside the table.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsea/HALLMARK_gsea.csv" class="btn btn-default btn-sm" download="HALLMARK_gsea.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-43db7a52cb2c99dbdaa1"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-43db7a52cb2c99dbdaa1">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.1328\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.3018\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.1999\" data-max=\"0.6902\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.6439\" data-max=\"0.7225\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1.9041\" data-max=\"2.2951\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"57\" data-max=\"201\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["HALLMARK_E2F_TARGETS","HALLMARK_G2M_CHECKPOINT","HALLMARK_MYC_TARGETS_V1","HALLMARK_MYC_TARGETS_V2","HALLMARK_OXIDATIVE_PHOSPHORYLATION","HALLMARK_MTORC1_SIGNALING","HALLMARK_ESTROGEN_RESPONSE_LATE","HALLMARK_GLYCOLYSIS","HALLMARK_SPERMATOGENESIS","HALLMARK_MITOTIC_SPINDLE","HALLMARK_UV_RESPONSE_UP","HALLMARK_COMPLEMENT","HALLMARK_ALLOGRAFT_REJECTION","HALLMARK_IL2_STAT5_SIGNALING","HALLMARK_COAGULATION","HALLMARK_BILE_ACID_METABOLISM","HALLMARK_INFLAMMATORY_RESPONSE","HALLMARK_UV_RESPONSE_DN","HALLMARK_KRAS_SIGNALING_DN","HALLMARK_TNFA_SIGNALING_VIA_NFKB"],[0,0,0.0003,0.0277,0.0331,0.0542,0.0798,0.0968,0.1067,0.1328,0.0801,0.0752,0.0546,0.0506,0.0276,0.0423,0.0201,0.0169,0.0058,0.0001],[0,0,0.0038,0.1536,0.1656,0.1949,0.2357,0.2654,0.2654,0.3017,0.2357,0.2357,0.1949,0.1949,0.1536,0.1925,0.1434,0.1411,0.0584,0.002],[0.6901,0.6435999999999999,0.4985,0.3525,0.3218,0.3218,0.2617,0.2378,0.2165,0.2066,0.1999,0.2066,0.245,0.253,0.3525,0.3218,0.3525,0.3525,0.407,0.5384],[0.7225,0.7108,0.6133,0.6052999999999999,0.4926,0.4654,0.4752,0.4372,0.4644,0.393,-0.4542,-0.4593,-0.4716,-0.4685,-0.5451,-0.5396,-0.5361,-0.5437,-0.6069,-0.6439],[2.2951,2.2406,1.956,1.6373,1.5549,1.469,1.4227,1.3635,1.2918,1.2451,-1.3253,-1.3392,-1.385,-1.398,-1.4678,-1.4696,-1.5382,-1.5529,-1.6478,-1.9041],[199,193,201,57,195,195,124,156,67,190,131,127,141,157,64,70,109,103,71,148],["Spc24,Stmn1,Cdca8,E2f8,Ccnb2,Cenpe,Rad51ap1,Cdca3,Rrm2,Spc25,Melk,Tacc3,Aurkb,Dctpp1,Cdkn3,Aurka,Mcm5,Birc5,Kif18b,Asf1b,Dlgap5,Cdk1,Prdx4,Hmgb2,Cdc20,Top2a,Cdc25a,Hmmr,Tcf19,Plk1,Plk4,Kpna2,Mki67,Lyar,Nme1,Espl1,Shmt1,Dscc1,H2ax,Lbr,Kif2c,Timeless,Mcm3,Chek1,H2az1,Eif2s1,Mcm4,Kif4,Trip13,Kif22,Ncapd2,Orc6,Cks2,Depdc1a,Cks1b,Ddx39a,Ube2t,Hells,Mybl2,Smc4,Usp1,Mcm2,Nop56,Bard1,Ctps,Myc,Orc2,Pcna,Psip1,Tipin,Lig1,Racgap1,Atad2,Dck,Mxd3,Lmnb1,Jpt1,Cbx5,Snrpb,Dut,Mad2l1,Psmc3ip,Naa38,Phf5a,Ranbp1,Tmpo,Diaph3,Mcm6,Cenpm,Pold1,Srsf1,Tubg1,Mcm7","Pbk,Nek2,Sqle,Cenpf,Stmn1,Knl1,Gins2,Stil,Kif11,Cdc7,Ccnb2,Cenpe,Cdc6,Smc2,Tacc3,E2f2,Uck2,Aurkb,Cdkn3,Aurka,Ube2c,Mcm5,Birc5,Tfdp1,Cdk1,Cdc45,Tpx2,Chaf1a,Cdc20,Top2a,Cdc25a,Hmmr,Plk1,Plk4,Kpna2,Mki67,Ttk,Traip,Rad54l,Espl1,E2f1,H2ax,Lbr,Kif2c,Nusap1,Mcm3,Chek1,Bub1,Prc1,H2az1,Ccna2,Kif15,Exo1,Kif4,Kif22,Polq,Ccnf,Orc6,Incenp,Cks2,Kif20b,Ndc80,Cks1b,Ddx39a,Mybl2,Fbxo5,Smc4,Mcm2,Hmgn2,Bard1,Top1,Myc,Racgap1,Dkc1,Rbl1,Lmnb1,Jpt1,Snrpd1,Mad2l1,Cenpa","Tyms,Rfc4,Mcm5,Tfdp1,Cdc45,Prdx4,Cdc20,Kpna2,Srm,Tardbp,Gnl3,Nme1,H2az1,Ccna2,Ywhaq,Nhp2,Eif2s1,Mcm4,Hnrnpa1,Tcp1,Rrm1,Ldha,Cct5,Pcbp1,Psma7,Cox5a,Cyc1,Usp1,Mcm2,Snrpa1,Nop56,Psmd14,Ctps,Psma4,Abce1,Myc,Orc2,Pcna,Erh,Aimp2,Psmb3,Apex1,Hspe1,Snrpd1,Psma1,Dut,Eif3j2,Mad2l1,Etf1,Got2,Cct7,Cct3,Psmd1,Eif3j1,Psmc4,Psmb2,U2af1,Ranbp1,Ndufab1,Ssb,Mcm6,Pgk1,Srsf1,Mcm7,C1qbp,Psmd8,Psma2,Xrcc6,Cdk2,Lsm2,Snrpd2,Nolc1,Srsf3,Kars,Eif4e,Psmc6,Nop16,Ube2l3,Bub3,Cct2,Hnrnpa2b1,Psmd3,Dek,Eif3b,Snrpd3,Psmd7,Ran,Ruvbl2,Txnl4a,Syncrip,Rpl18,Hprt,Mrps18b,Rnps1,Smarcc1,Vbp1,Rpl34,Exosc7,Eif2s2,Prpf31,Fbl,Tufm,Rack1,Sf3a1,Eif4a1,Pa2g4","Tmem97,Dctpp1,Mcm5,Plk1,Plk4,Srm,Gnl3,Ndufaf4,Mcm4,Bysl,Nop56,Ipo4,Myc,Aimp2,Hspe1,Mrto4,Wdr43,Pus1,Grwd1,Pprc1,Farsa,Nolc1,Mybbp1a,Pes1,Sord,Nop16","Ndufa1,Cycs,Uqcrfs1,Ndufb6,Atp5j,Ndufa4,Ldha,Timm17a,Cox5a,Cyc1,Sdhb,Suclg1,Cox6c,Idh3a,Atp5k,Uqcrq,Cox7a2,Atp5j2,Ndufs8,Atp5l,Ndufc1,Atp5b,Ndufv1,Atp5g3,Mdh2,Atp6ap1,Timm50,Got2,Ndufb7,Aifm1,Etfb,Atp5c1,Uqcrb,Polr2f,Ndufb8,Atp5o,Atp5g1,Cs,Ndufs6,Pdhb,Atp5e,Ndufab1,Uqcrc1,Ndufs2,Atp5pb,Ndufa2,Uqcr10,Cyb5a,Rhot2,Nqo2,Uqcr11,Ndufs7,Ndufa8,Cox5b,Mrps12,Atp5a1,Iscu,Ndufv2,Ndufb1,Idh2,Cox17,Fh1,Ndufb2,Mrpl35,Dld,Ndufa3,Ndufs1,Sdhd,Ndufs3,Opa1,Atp6v0b,Mtx2,Cox6a1,Cox6b1,Pmpca,Atp6v1d,Ndufb5,Uqcrc2,Ndufb4,Slc25a5,Mpc1,Acadvl,Mrps22,Htra2,Tcirg1,Idh3g,Mrps11,Grpel1,Fxn,Ndufc2,Ndufa5,Cox7c","Fads2,Sqle,Ldlr,Fgl2,Rrm2,Edem1,Tmem97,Aurka,Ddit4,Ppa1,Acsl3,Cdc25a,Plk1,Gla,Coro1a,Glrx,Fads1,Itgb2,Xbp1,Idi1,Insig1,Bub1,Slc2a3,Hsp90b1,Mcm4,Ccnf,Psmd12,Ldha,Ifi30,Abcf2,Ddx39a,Psph,Mcm2,Bcat1,Dhfr,Got1,Psmd14,Psma4,Pno1,Prdx1,Hmgcr,Cacybp,Hspe1,Eno1,Tomm40,Etf1,Psmb5,Hmbs,Vldlr,Ssr1,Ufm1,Psmc4,Fkbp2,Atp5g1,Psmg1,Psma3,Btg2,Psmc2,Pgk1,Tubg1,Psme3","Perp,Ckb,Fabp5,Gins2,Stil,Cdc6,Snx10,Gale,Ptges,Gal,Slc16a1,Sfn,Cdc20,Top2a,Plaat3,Plk4,Gla,Flnb,Slc29a1,Xbp1,Scarb1,Isg20,Lsr,Tspan13,Id2,Cox6c,Tob1,Fkbp5,Kif20a","Stmn1,Angptl4,Gale,Aurka,Ddit4,Cdk1,Gpc1,Hmmr,Glrx,Ak3,Pgm2,Bpnt1,Sdc3,Isg20,Pkm,Mpi,Hs2st1,Ldha,Abcb6,Depdc1a,Gusb,Fut8,Kdelr3,Mif,Got1,Taldo1,Kif20a,Me2,Gmppa,Sod1,Txn1,Pgam2,Pcx,Eno1,Cenpa,Mdh2,Sap30,Got2,Vldlr,Psmc4,Nsdhl,Pfkfb1,Pgk1,Galk1,Rars,Cyb5a","Nek2,Ccnb2,Cdkn3,Rfc4,Aurka,Cdk1,Ttk,Ncaph,Kif2c,Bub1,Topbp1,Taldo1,Strbp,Ace,Psmg1","Fscn1,Nek2,Cenpf,Kif11,Ccnb2,Cenpe,Cep250,Aurka,Birc5,Dlgap5,Cdk1,Tpx2,Top2a,Plk1,Flnb,Ttk,Espl1,Kif1b,Kif2c,Nusap1,Bub1,Prc1,Kif15,Kif4,Kif22,Kntc1,Flna,Sass6,Incenp,Kif20b,Ndc80,Bcar1,Fbxo5,Shroom1,Smc4,Anln,Racgap1,Ckap5,Arf6,Lmnb1","Ephx1,Ggh,Plcl1,Btg1,Lyn,Chka,Icam1,Cdkn2b,Sqstm1,Nfkbia,Rasgrp1,Irf1,Dnajb1,Furin,Aldoa,Nr4a1,H2-Q2,Cebpg,Junb,Asns","Timp2,Cpq,Tnfaip3,Dusp5,Phex,Serpinc1,Plek,Lyn,Cd36,Fcer1g,Ctss,Dgkg,Dpp4,Dyrk2,Ctso,Rasgrp1,Dgkh,Irf1,Jak2,Dock9,Grb2,Plscr1,Casp4,Maff,Pik3ca,Ehd1","Hdac9,Ptpn6,Cd3g,Icosl,Il10,Cd8b1,Irf8,Cd40,Il27ra,Ly86,Lyn,Ltb,Ctss,Icam1,H2-Ob,Tgfb1,Tlr6,Socs1,Ache,H2-Q7,Bcl3,Bcl10,Hif1a,Socs5,Jak2,H2-Aa,Il2rg,Tlr2,H2-DMa,Tpd52,Ccr5","Sell,Cd83,Wls,Myo1e,Il10,Bcl2,Ahr,Serpinc1,Irf8,Bhlhe40,Sh3bgrl2,Twsg1,Itgav,Ctla4,Tnfrsf1b,Alcam,Ltb,Igf1r,Fah,Traf1,P2rx4,Nfkbiz,Il10ra,Eomes,Socs1,Gpx4,Rabgap1l,Galm,Furin,Swap70,S100a1,Icos,Rragd,Eno3,Plscr1,Phlda1,Spred2,Nfil3,Maff","Cpq,Serpinc1,Plek,Usp11,Dpp4,Cd9,Ctso,Furin,S100a1,Maff,Wdr1,Thbs1,Lamp2,C2","Abcg4,Nr3c2,Bmp6,Soat2,Rxra,Bcar3,Pex16,Abca1,Optn,Slc23a2","Sell,Axl,Icosl,Il10,Ahr,Cybb,Irak2,Cd40,Ccr7,Lyn,Pvr,Tnfrsf1b,Pde4b,Nfkb1,P2rx4,Icam1,Il10ra,Abca1,Nampt,C5ar1,Cd82,Hif1a,Nfkbia,Rasgrp1,Irf1,Osm,Slc28a2","Kit,Cdc42bpa,Nfib,Rbpms,Bhlhe40,Tgfbr2,Mgmt,Nfkb1,Igf1r,Phf3,Add3,Adgrl2,Rxra,Prdm2,Cacna1a,Nek7,Vav2","Abcg4,Slc16a7,Snn,Fggy,Nos1,Selenop,Pdk2,Dtnb,Ryr1,Ptprj,Pdcd1,Coq8a,Efhd1","Cd83,Egr2,Tsc22d1,Icosl,Clcf1,Tnfaip3,Dusp5,Snn,Plek,Bhlhe40,Btg1,Nfkbie,Egr1,Nfkb2,Litaf,Pde4b,Klf4,Relb,Nfkb1,Egr3,Traf1,Trib1,Cebpd,Icam1,Per1,Abca1,Nampt,Bcl3,Sqstm1,Zbtb10,Sat1,Nfkbia,Irf1,Pnrc1,Jun,Nfe2l2,Tank,Ier2,Birc3,Nfat5,Zc3h12a,Tlr2,Nr4a1,Phlda1,Tnip2,Nfil3,Maff,Atp2b1,Ackr3,Eif1,Ehd1,Junb,Ets2,Rel,Tnfrsf9"],["HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK","HALLMARK"],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"],["mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>pval<\/th>\n      <th>padj<\/th>\n      <th>log2err<\/th>\n      <th>ES<\/th>\n      <th>NES<\/th>\n      <th>size<\/th>\n      <th>leadingEdge<\/th>\n      <th>collection<\/th>\n      <th>comparison<\/th>\n      <th>org<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"lengthMenu":[10,25,50,100,20],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsea-coll-igg-vs-igm-gobp" class="tab-pane fade"
+role="tabpanel" style="padding-top: 1em;">
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_GOBP_gsea_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_GOBP_gsea_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a1c99f6c9.png" alt="IgG_vs_IgM_GOBP_gsea_barplot" width="432" height="282" style="max-width: none !important; width: 432px; height: 282px;"/></p>
+</div>
+</div>
+</div>
+<p>Gene enrichment barcode for the same top/bottom pathways (pathway
+names left; member genes marked along the ranked list; red = pathway NES
+&gt; 0, blue = NES &lt; 0; padj and NES on the right):</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_GOBP_gsea_barcode.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_GOBP_gsea_barcode.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a1256c2a0.png" alt="IgG_vs_IgM_GOBP_gsea_barcode" width="510" height="441" style="max-width: none !important; width: 510px; height: 441px;"/></p>
+</div>
+</div>
+</div>
+<p>Top 10 up- and top 10 down-regulated pathways by normalized
+enrichment score (NES), shown regardless of significance; significance
+stars: <code>*</code> padj &lt; 0.05, <code>**</code> &lt; 0.01,
+<code>***</code> &lt; 0.001. <code>leadingEdge</code> lists the driving
+genes for each pathway. Sort by any column or search by pathway using
+the box below. The full GSEA CSV is linked beside the table.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsea/GOBP_gsea.csv" class="btn btn-default btn-sm" download="GOBP_gsea.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-3d0d850f1ac2249542b8"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-3d0d850f1ac2249542b8">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1e-04\" data-max=\"0.0062\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0388\" data-max=\"0.1671\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.4069\" data-max=\"0.5573\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.8901\" data-max=\"0.8614\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1.9976\" data-max=\"2.1368\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"15\" data-max=\"236\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["GOBP_MITOTIC_SISTER_CHROMATID_SEGREGATION","GOBP_ATTACHMENT_OF_SPINDLE_MICROTUBULES_TO_KINETOCHORE","GOBP_METAPHASE_ANAPHASE_TRANSITION_OF_CELL_CYCLE","GOBP_SISTER_CHROMATID_SEGREGATION","GOBP_REGULATION_OF_CHROMOSOME_SEGREGATION","GOBP_KINETOCHORE_ORGANIZATION","GOBP_REGULATION_OF_CHROMOSOME_SEPARATION","GOBP_CENTROMERE_COMPLEX_ASSEMBLY","GOBP_DNA_DEPENDENT_DNA_REPLICATION","GOBP_NUCLEAR_CHROMOSOME_SEGREGATION","GOBP_B_CELL_ACTIVATION","GOBP_IMMUNE_RESPONSE_REGULATING_CELL_SURFACE_RECEPTOR_SIGNALING_PATHWAY","GOBP_POSITIVE_REGULATION_OF_STEROID_METABOLIC_PROCESS","GOBP_MAST_CELL_ACTIVATION_INVOLVED_IN_IMMUNE_RESPONSE","GOBP_PLATELET_ACTIVATION","GOBP_MAST_CELL_ACTIVATION","GOBP_REGULATION_OF_STEROID_BIOSYNTHETIC_PROCESS","GOBP_REGULATION_OF_MAST_CELL_ACTIVATION_INVOLVED_IN_IMMUNE_RESPONSE","GOBP_REGULATION_OF_ALCOHOL_BIOSYNTHETIC_PROCESS","GOBP_REGULATION_OF_MAST_CELL_ACTIVATION"],[0.0001,0.005,0.0016,0.0001,0.0014,0.003,0.0035,0.0061,0.001,0.0001,0.0002,0.0001,0.0001,0.0001,0.0026,0.0021,0.0001,0.0004,0.0001,0.0004],[0.0388,0.1625,0.1343,0.0388,0.1343,0.1404,0.1404,0.1671,0.1343,0.0388,0.0571,0.0388,0.0388,0.0388,0.1404,0.1343,0.0388,0.0959,0.0388,0.0959],[0.5573,0.407,0.4551,0.5384,0.4551,0.4317,0.4317,0.407,0.4551,0.5573,0.5188,0.5384,0.5188,0.5188,0.4317,0.4317,0.5384,0.4985,0.5384,0.4985],[0.6815,0.8127,0.765,0.6583,0.7241,0.8614000000000001,0.7375,0.8187,0.6439,0.6223,-0.6079,-0.6215000000000001,-0.8901,-0.7789,-0.7007,-0.7657,-0.7815,-0.8642,-0.8455,-0.845],[2.1368,2.1002,2.0988,2.0876,2.0694,2.0627,2.0576,2.0546,2.0167,2.0142,-1.8652,-1.8753,-1.881,-1.9031,-1.9288,-1.9449,-1.9469,-1.9537,-1.962,-1.9976],[161,36,60,185,79,23,65,31,151,236,198,164,15,38,78,47,41,24,27,30],["Cenpk,Nek2,Cenpf,Nuf2,Usp44,Cdca5,Cdca8,Gen1,Cenpe,Cdc6,Knstrn,Nek6,Smc2,Tacc3,Aurkb,Ube2c,Kif18b,Dlgap5,Ccnb1,Cdc20,Plk1,Ttk,Psrc1,Espl1,Dscc1,Ncaph,Kif2c,Nusap1,Bub1,Prc1,Cep55,Ncapg,Cenpc1,Kif4,Trip13,Kif22,Kntc1,Ncapd2,Wrap73,Sgo2a,Ncapg2,Ndc80,Anapc4,Fbxo5,Smc4,Naa10,Rrs1,Nup62,Haspin,Sgo1,Racgap1","Spc24,Nek2,Knl1,Nuf2,Cenpe,Knstrn,Spc25,Aurkb,Ccnb1,Kif2c,Cenpc1,Ndc80,Sgo1,Racgap1","Cenpf,Usp44,Gen1,Cenpe,Cdc6,Nek6,Tacc3,Aurkb,Ube2c,Dlgap5,Ccnb1,Plk1,Ttk,Espl1,Bub1,Trip13,Kntc1,Ndc80,Anapc4,Fbxo5","Cenpk,Nek2,Cenpf,Nuf2,Usp44,Cdca5,Cdca8,Gen1,Cenpe,Cdc6,Knstrn,Nek6,Smc2,Tacc3,Aurkb,Ube2c,Kif18b,Dlgap5,Ccnb1,Cdc20,Top2a,Plk1,Ttk,Psrc1,Espl1,Dscc1,Ncaph,Kif2c,Rmi2,Nusap1,Bub1,Prc1,Cep55,Ncapg,Cenpc1,Kif4,Trip13,Kif22,Fen1,Kntc1,Ncapd2,Wrap73,Sgo2a,Ncapg2,Ndc80,Anapc4,Fbxo5,Smc4,Naa10,Rrs1,Nup62,Haspin,Sgo1,Racgap1","Cenpf,Usp44,Gen1,Cenpe,Cdc6,Nek6,Tacc3,Aurkb,Ube2c,Dlgap5,Ccnb1,Plk1,Mki67,Ttk,Espl1,Kif2c,Rmi2,Bub1,Trip13,Kntc1,Ndc80,Anapc4,Fbxo5,Cdca2","Cenpk,Cenpf,Nuf2,Cenpe,Smc2,Cenph,Dlgap5,Cenpw,Cenps,Cenpc1,Kntc1,Ndc80,Smc4","Cenpf,Usp44,Gen1,Cenpe,Cdc6,Nek6,Tacc3,Aurkb,Ube2c,Dlgap5,Ccnb1,Plk1,Ttk,Espl1,Bub1,Trip13,Kntc1,Ndc80,Anapc4,Fbxo5","Cenpk,Cenpf,Oip5,Cenpe,Cenpi,Cenph,Dlgap5,Cenpw,Cenps,Cenpc1,Kntc1,Hells,Cenpp,Hjurp,Cenpa,Senp6","Chtf18,Ticrr,Gins2,Mcm10,Gen1,E2f8,Cdc7,Rad51,Cdc6,Rfc4,Mcm5,Atad5,Nuggc,Cdc45,Prim1,Traip,Dscc1,Pola1,Zgrf1,Timeless,Cenps,Mcm3,Mcm4,Eme1,Fen1,Polq,Gmnn,Orc6,Rrm1,Fbxo5,Orc4,Mcm2,Rtel1,Topbp1,Orc2,Pcna,Rfc5,Tipin,Orc1,Lig1,Cdc34,Wdhd1,Baz1a,Wdr18,Helb,E2f7,Alyref,Mcm6,Pold1,Mcm7,Recql4,Atrx,Cdk2","Cenpk,Spc24,Nek2,Cenpf,Knl1,Nuf2,Usp44,Cdca5,Cdca8,Gen1,Cenpe,Cdc6,Knstrn,Nek6,Spc25,Smc2,Tacc3,Aurkb,Ube2c,Spo11,Kif18b,Dlgap5,Ccnb1,Cdc20,Top2a,Plk1,Ttk,Psrc1,Brip1,Espl1,Dscc1,Ncaph,Kif2c,Rmi2,Nusap1,Cenps,Bub1,Prc1,Cep55,Ncapg,Eme1,Cenpc1,Kif4,Trip13,Kif22,Fen1,Kntc1,Ncapd2,Wrap73,Sgo2a,Incenp,Ncapg2,Ndc80,Syce2,Anapc4,Fbxo5,Smc4,Msh5,Naa10,Rrs1,Nup62,Haspin,Sgo1,Ndc1,Racgap1","Kit,Hdac9,Ptpn6,Nfam1,Blk,Icosl,Laptm5,Samsn1,Il10,Clcf1,Tnfaip3,Bcl2,Ahr,Irf2bp2,Irf8,Cd40,Cd180,Il27ra,Cd38,Lyn,Ctla4,Pou2af1,Zfp36l1,Tgfb1,Ptprj,Ikzf3,Bcl3,Cd22,Mndal,Rasgrp1,Vav3,Swap70,Jak3,Stat6,Mef2c,Card11,Rbpj,Tnip2,Tpd52,Tnfrsf13b,Slc15a4,Cebpg","Kit,Btla,Ptpn6,Nfam1,Blk,Icosl,Laptm5,Cd8b1,Bcl2,Cd40,Ccr7,Rabgef1,Fer,Plcg1,Cd38,Lyn,Ctla4,Pde4b,Foxp1,Fcer1g,Nfkbiz,Ptpn22,Ptprj,C5ar1,H2-Q7,Mapk8,Bcl10,Cd22,Mndal,Vav2,Cmtm3,Pak2,Phpt1,Vav3,Pld2,Appl2,Plekha1,Klhl6,Mef2c,Zc3h12a,Card11,Plscr1,Elf1,Sos1,Pik3ca","Abcg4,Bmp6,Apoe,Abcg1,Igf1r","Kit,Ptpn6,Blk,Rabgef1,Fer,Lyn,Adgre5,Rasgrp1,Lgals9","Ptpn6,Ubash3b,Axl,Blk,Fzd6,Hspb1,Plek,Apoe,Cd40,Lyn,Fcer1g,Dgkg,Tspan32,Actg1,Cd9,Myl12a,Vav2,Stxbp3,Actn1,Dgkh,Jak2,Vcl,Serpine2,Vav3","Kit,Ptpn6,Blk,Cd300lf,Cnr2,Rabgef1,Fer,Lyn,Adgre5","Abcg4,Bmp6,Apoe,Abcg1,Egr1,Gfi1,Nfkb1,Igf1r,H6pd","Ptpn6,Blk,Rabgef1,Fer,Lyn,Adgre5","Abcg4,Bmp6,Plek,Apoe,Abcg1,Gfi1,Nfkb1,H6pd","Ptpn6,Blk,Cd300lf,Cnr2,Rabgef1,Fer,Lyn,Adgre5"],["GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP","GOBP"],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"],["mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>pval<\/th>\n      <th>padj<\/th>\n      <th>log2err<\/th>\n      <th>ES<\/th>\n      <th>NES<\/th>\n      <th>size<\/th>\n      <th>leadingEdge<\/th>\n      <th>collection<\/th>\n      <th>comparison<\/th>\n      <th>org<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"lengthMenu":[10,25,50,100,20],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsea-coll-igg-vs-igm-gocc" class="tab-pane fade"
+role="tabpanel" style="padding-top: 1em;">
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_GOCC_gsea_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_GOCC_gsea_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a4040f806.png" alt="IgG_vs_IgM_GOCC_gsea_barplot" width="432" height="282" style="max-width: none !important; width: 432px; height: 282px;"/></p>
+</div>
+</div>
+</div>
+<p>Gene enrichment barcode for the same top/bottom pathways (pathway
+names left; member genes marked along the ranked list; red = pathway NES
+&gt; 0, blue = NES &lt; 0; padj and NES on the right):</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_GOCC_gsea_barcode.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_GOCC_gsea_barcode.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a607246fe.png" alt="IgG_vs_IgM_GOCC_gsea_barcode" width="510" height="441" style="max-width: none !important; width: 510px; height: 441px;"/></p>
+</div>
+</div>
+</div>
+<p>Top 10 up- and top 10 down-regulated pathways by normalized
+enrichment score (NES), shown regardless of significance; significance
+stars: <code>*</code> padj &lt; 0.05, <code>**</code> &lt; 0.01,
+<code>***</code> &lt; 0.001. <code>leadingEdge</code> lists the driving
+genes for each pathway. Sort by any column or search by pathway using
+the box below. The full GSEA CSV is linked beside the table.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsea/GOCC_gsea.csv" class="btn btn-default btn-sm" download="GOCC_gsea.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-7d96dcf9ab8d541f32cb"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-7d96dcf9ab8d541f32cb">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"2e-04\" data-max=\"0.0653\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0692\" data-max=\"0.4377\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.2878\" data-max=\"0.5188\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.7728\" data-max=\"0.799\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1.7242\" data-max=\"1.8856\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"18\" data-max=\"328\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["GOCC_NADH_DEHYDROGENASE_COMPLEX","GOCC_CONDENSED_CHROMOSOME_CENTROMERIC_REGION","GOCC_SPINDLE_MIDZONE","GOCC_CHROMOSOMAL_REGION","GOCC_CHROMOSOME_CENTROMERIC_REGION","GOCC_CONDENSED_CHROMOSOME","GOCC_PROTON_TRANSPORTING_ATP_SYNTHASE_COMPLEX","GOCC_PROTEASOME_CORE_COMPLEX","GOCC_DNA_PACKAGING_COMPLEX","GOCC_NUCLEAR_CHROMOSOME","GOCC_SYNAPTIC_VESICLE_MEMBRANE","GOCC_RECYCLING_ENDOSOME","GOCC_EARLY_ENDOSOME","GOCC_PRESYNAPTIC_ACTIVE_ZONE","GOCC_EXTERNAL_SIDE_OF_PLASMA_MEMBRANE","GOCC_RECEPTOR_COMPLEX","GOCC_TERTIARY_GRANULE_LUMEN","GOCC_EXCITATORY_SYNAPSE","GOCC_ENDOCYTIC_VESICLE","GOCC_GABA_ERGIC_SYNAPSE"],[0.0144,0.0036,0.0277,0.0002,0.0032,0.0013,0.0187,0.023,0.0653,0.0189,0.0206,0.024,0.0156,0.0187,0.0212,0.0205,0.0137,0.008800000000000001,0.0059,0.0033],[0.368,0.2468,0.368,0.0692,0.2468,0.2468,0.368,0.368,0.4377,0.368,0.368,0.368,0.368,0.368,0.368,0.368,0.368,0.368,0.3478,0.2468],[0.3807,0.4317,0.3525,0.5188,0.4317,0.4551,0.3525,0.3525,0.2878,0.3525,0.3525,0.3525,0.3807,0.3525,0.3525,0.3525,0.3807,0.3807,0.407,0.4317],[0.7264,0.6092,0.7383999999999999,0.5615,0.591,0.5798,0.7989000000000001,0.7647,0.5953000000000001,0.5495,-0.6022999999999999,-0.5225,-0.4853,-0.6301,-0.5204,-0.5283,-0.6877,-0.769,-0.5383,-0.7727000000000001],[1.8856,1.8663,1.8649,1.8541,1.853,1.8343,1.7813,1.7051,1.6873,1.6851,-1.5606,-1.5631,-1.5635,-1.5645,-1.5928,-1.6277,-1.6604,-1.6891,-1.7005,-1.7242],[40,149,31,328,204,213,18,18,68,179,58,151,294,42,180,196,34,22,231,25],["Ndufa1,Ndufb6,Ndufb9,Ndufa4,Ndufs8,Foxred1,Ndufa13,Ndufc1,Ndufa12,Ndufv1,Ndufs5,Ndufb7,Ndufb8,Ndufs6,Ndufab1,Ndufa11,Ndufs2,Ndufa2,Ndufs7,Ndufa8,Ndufv3,Ndufv2,Ndufb1,Ndufb2,Ndufa3,Ndufs1,Ndufs3,Ndufb11,Ndufb5,Ndufb4,Ndufc2,Ndufa5,Ndufb3,Ndufa9","Cenpk,Spc24,Nek2,Cenpf,Knl1,Nuf2,Cenpe,Knstrn,Spc25,Cenpi,Aurkb,Cenph,Birc5,Ccnb1,Ska1,Plk1,Ttk,Cenpw,Kif2c,Cenps,Bub1,Ncapg,Cenpc1,Kif22,Kntc1,Ncapd2,Ska3,Sgo2a,Incenp,Ndc80,Orc2,Sgo1,Mtbp,Hjurp,Ckap5,Cbx5,Mad2l1,Cenpa,Tpr,Nup133,Dctn3,Cenpm,Septin6,Atrx,Nsl1,Chmp6,Phf6,Ercc6l,Spag5,Sec13,Nup107,Spdl1,Anapc16,Bub3,Nde1,Rangap1","Cdca8,Cenpe,Cdc6,Aurkb,Aurka,Kif18b,Plk1,Prc1,Incenp,Kif20b,App,Racgap1","Cenpk,Spc24,Nek2,Cenpf,Knl1,Nuf2,Oip5,Cdca5,Cdca8,Rad51,Cenpe,Knstrn,Rad51ap1,Spc25,Cenpi,Aurkb,Mcm5,Cenph,Spo11,Birc5,Cdk1,Ccnb1,Mis18bp1,Ska1,Sp100,Top2a,Plk1,Ttk,Cenpw,Dscc1,H2ax,Kif2c,Cenps,Mcm3,Chek1,Bub1,Ncapg,Nhp2,Mcm4,Cenpc1,Kif22,Fen1,Kntc1,Ncapd2,Ska3,Sgo2a,Incenp,Ndc80,Hells,Wrap53,Smc4,Orc4,Mcm2,Rtel1,Suv39h2,Orc2,Pcna,Sgo1,Cenpp,Orc1,Mtbp,Hjurp,Ckap5,Apex1,Cbx5,Mad2l1,Cenpa,Telo2,Pif1,H4c3,Tpr,Thoc6,Nup133,Hat1,Alyref,Ssb,Rif1,Mcm6,Dctn3,Cenpm,Pold1,Mcm7,Tinf2,Septin6,Wapl,Recql4,Nat10,Xrcc6,Atrx,Nsl1,Cdk2,Chmp6,Zfp330,Phf6,Ercc6l,Rpa1,Spag5,Sec13,Suv39h1,H4c17,Men1,Nup107,Spdl1,Anapc16,Lig4,Bub3,Hnrnpa2b1,Nde1,Dnmt1,H4c18,Rangap1,Ctcf","Cenpk,Spc24,Nek2,Cenpf,Knl1,Nuf2,Oip5,Cdca5,Cdca8,Cenpe,Knstrn,Spc25,Cenpi,Aurkb,Cenph,Birc5,Ccnb1,Mis18bp1,Ska1,Top2a,Plk1,Ttk,Cenpw,Dscc1,Kif2c,Cenps,Bub1,Ncapg,Cenpc1,Kif22,Kntc1,Ncapd2,Ska3,Sgo2a,Incenp,Ndc80,Hells,Smc4,Suv39h2,Orc2,Sgo1,Cenpp,Mtbp,Hjurp,Ckap5,Cbx5,Mad2l1,Cenpa,H4c3,Tpr,Nup133,Dctn3,Cenpm,Septin6,Wapl,Atrx,Nsl1,Chmp6,Zfp330,Phf6,Ercc6l,Spag5,Sec13,Suv39h1,H4c17,Nup107,Spdl1,Anapc16,Bub3,Nde1,Dnmt1,H4c18,Rangap1,Ctcf","Rsph1,Cenpk,Spc24,Nek2,Cenpf,Knl1,Nuf2,Rad51,Cenpe,Knstrn,Spc25,Smc2,Cenpi,Aurkb,Cenph,Birc5,Ccnb1,Ska1,Hmgb2,Top2a,Plk1,Mki67,Ttk,Cenpw,H2ax,Kif2c,Cenps,Chek1,Bub1,Ncapg,Cenpc1,Kif22,Kntc1,Ncapd2,Ska3,Sgo2a,Incenp,Ndc80,Syce2,Nifk,Rrs1,Topbp1,Orc2,Sgo1,Mtbp,Hjurp,Ckap5,Rgs12,Cbx5,Mad2l1,Psmc3ip,Cenpa,Rcc1,Tpr,Ago3,Nup133,Rif1,Dctn3,Cenpm,Tubg1,Septin6,Wapl,Atrx,Nsl1,Cdk2,Chmp6","Atp5j,Atp5k,Atp5j2,Atp5mpl,Atp5l,Atp5md,Atp5b,Atp5g3,Atp5c1,Atp5o,Atp5g1,Atp5e,Atp5pb,Atp5a1","Psmb8,Psma7,Psma5,Psma4,Psmb3,Psma1,Psmb5,Psmb2,Psmb7,Psmb1,Psmb6,Psma3,Psma2,Psmb4","Smc2,H1f5,H2ac7,H2ac23,Ncaph,H2ax,H2az1,Ncapg,H1f4,H2ac8,Ncapd2,Ncapg2,H1f0,Smc4,Kdm1b,H2aj,H1f3,Ruvbl1,Kat6b,Cenpa,H4c3","Rsph1,Nek2,Gins2,Mcm10,Rad51,Smc2,Mcm5,Spo11,Birc5,Fignl1,Cdc45,Top2a,Plk1,Prim1,Pola1,H2ax,Timeless,Mcm3,Chek1,Trim24,H2az1,Mcm4,Ncapd2,Orc6,Incenp,Syce2,Orc4,Mcm2,Nifk,Rrs1,Top1,Topbp1,Orc2,Pcna,Tipin,Orc1,Ruvbl1,Rgs12,Wdhd1,Smarcb1,Psmc3ip,Baz1a,Rcc1,H4c3,Ago3,Mcm6,Exosc9,Pold1,Tubg1,Mcm7,Wapl,Atrx,Ino80b","Unc13a,Syt12,Dmxl2,Slc6a9,Rab3b,Scamp1,Cbarp,Sypl,Mctp2","Inpp4a,Itsn1,Rabgef1,Ehd4,Abcg1,Mcoln2,Rab11fip4,Dennd6a,Fchsd2,Scamp1,Optn,H2-Q7,Plekhb2,Atp9a,Cd22,Sgk3,Tmub1,Slc9a7,Cmtm6,Zfyve27,Avl9,Denn2b,Tbc1d14,Rabep1,Stx7,H2-Q2,Ackr3,Ehd1,Gm8909,Tpcn1,Rab11fip5,Tmem230,Slc39a4,Cln3,Rap2c,Pank1,Rnf11,Rap2b,Rab14","Wls,Adrb1,Inpp4a,Mcoln3,Nox1,Rap1gap,Cd8b1,Rapgef1,Apoe,Rabgef1,Ehd4,Ppp1r21,Marchf1,Snx8,Litaf,Rin3,Laptm4b,Rasgef1b,Wasf2,Trak2,Snx13,Wdfy1,Pikfyve,Adrb2,H2-Q7,Atp9a,Plpp2,Rabgap1l,Cd22,Trim3,Eps15,Serpinb1a,Als2,Numb,Sgk3,Osbpl6,Cmtm6,Rab21,Appl2,Rabep1,Nf2,Ankrd27,Ubxn6,Stx7,H2-Q2,Fkbp15,Ackr3,Slc15a4,Snx30,Ehd1,Uhrf1bp1l,Gm8909,Tpcn1,Aph1a,Rab11fip5,Tmem230,Stx6,Itch,Hap1,Rusc1,Ecpas,Cln3,Mtmr4","Cdh2,Unc13a,Ppfibp2,Rims2,Stx11,Ppfibp1","Kit,Lag3,Fcer2a,Cd83,Il5ra,Cd3g,Icosl,Cd40,Ccr7,Il27ra,Tgfbr2,Abcg1,Itgav,Pdcd1lg2,Ece1,Ctla4,Cd36,Fcer1g,Alcam,Lamp1,Il13ra1,Icam1,Abca1,H2-Q7,Cd9,Pdcd1,Cd22,Serpine2,Slc7a5,Heg1,Crlf2,Cd33,Il2rg,Map3k5,Adgra3,H2-Q2,Ccr5,Ackr3","Kit,Nr3c2,Ptpn6,Il5ra,Axl,Nrp2,Cd3g,Cd8b1,Abhd6,Fcrl5,Ahr,Plxna3,Cd40,Ryk,Il27ra,Tgfbr2,Itgav,Lyn,Gabra4,Tnfrsf1b,Cd36,Igf1r,Traf1,Rxra,Il13ra1,Plxnc1,Adrb2,Tspan32,Tlr6,Plp1,Tnfrsf1a,Itpr2","Ggh,Ptpn6,Timp2,Ctss","Nlgn3,Slc6a9,Pde4b","Nlgn3,Sgip1,Wls,Sftpa1,Myo1e,Ncf1,Cd3g,Cybb,Apoe,Rabgef1,Ehd4,Itgav,Lyn,Ctla4,Rin3,Rab11fip4,Cd36,Lamp1,Ctss,Pikfyve,Adrb2,Pip4p1,Rab20,Abca1,Tlr6,Rinl,H2-Q7,Actg1,Rab43,Camk2a,Dpp4,Lpar2,Cd9,Ncf2,Stxbp3,Cyba,Pglyrp1,Appl2,H2-Aa,Trim14,Rabep1,Tlr2,Stx7,Anxa11,Flot2,H2-Q2,Dvl2,Ehd1,Gm8909,Hsph1,Rab11fip5,Unc93b1,Stx6,Camk2g,Atg14,Ecpas,Rab7,Snap23,Cltc,Slc2a8,Scarb2,Atg5,Lamp2,Vps9d1,Nod1,Tgoln1,Rab14,Atp6v0a1,Rab11fip1,Rab5b,Mcoln1,Calr,Epn2,Atp7a,Tap2,Zdhhc5","Nlgn3,Abhd6,Gabra4"],["GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC","GOCC"],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"],["mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>pval<\/th>\n      <th>padj<\/th>\n      <th>log2err<\/th>\n      <th>ES<\/th>\n      <th>NES<\/th>\n      <th>size<\/th>\n      <th>leadingEdge<\/th>\n      <th>collection<\/th>\n      <th>comparison<\/th>\n      <th>org<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"lengthMenu":[10,25,50,100,20],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsea-coll-igg-vs-igm-gomf" class="tab-pane fade"
+role="tabpanel" style="padding-top: 1em;">
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_GOMF_gsea_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_GOMF_gsea_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a18a3eb6e.png" alt="IgG_vs_IgM_GOMF_gsea_barplot" width="432" height="282" style="max-width: none !important; width: 432px; height: 282px;"/></p>
+</div>
+</div>
+</div>
+<p>Gene enrichment barcode for the same top/bottom pathways (pathway
+names left; member genes marked along the ranked list; red = pathway NES
+&gt; 0, blue = NES &lt; 0; padj and NES on the right):</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_GOMF_gsea_barcode.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_GOMF_gsea_barcode.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a61d5f71b.png" alt="IgG_vs_IgM_GOMF_gsea_barcode" width="510" height="441" style="max-width: none !important; width: 510px; height: 441px;"/></p>
+</div>
+</div>
+</div>
+<p>Top 10 up- and top 10 down-regulated pathways by normalized
+enrichment score (NES), shown regardless of significance; significance
+stars: <code>*</code> padj &lt; 0.05, <code>**</code> &lt; 0.01,
+<code>***</code> &lt; 0.001. <code>leadingEdge</code> lists the driving
+genes for each pathway. Sort by any column or search by pathway using
+the box below. The full GSEA CSV is linked beside the table.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsea/GOMF_gsea.csv" class="btn btn-default btn-sm" download="GOMF_gsea.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-ecf5b650d25be416269d"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-ecf5b650d25be416269d">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1e-04\" data-max=\"0.0271\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0342\" data-max=\"0.3494\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.3525\" data-max=\"0.5384\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.8166\" data-max=\"0.8257\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1.9189\" data-max=\"1.9651\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"15\" data-max=\"390\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["GOMF_SINGLE_STRANDED_DNA_HELICASE_ACTIVITY","GOMF_NADH_DEHYDROGENASE_ACTIVITY","GOMF_DNA_REPLICATION_ORIGIN_BINDING","GOMF_OXIDOREDUCTASE_ACTIVITY_ACTING_ON_NAD_P_H_QUINONE_OR_SIMILAR_COMPOUND_AS_ACCEPTOR","GOMF_ATP_DEPENDENT_ACTIVITY_ACTING_ON_DNA","GOMF_DNA_HELICASE_ACTIVITY","GOMF_PLUS_END_DIRECTED_MICROTUBULE_MOTOR_ACTIVITY","GOMF_HORMONE_ACTIVITY","GOMF_DISULFIDE_OXIDOREDUCTASE_ACTIVITY","GOMF_MICROTUBULE_MOTOR_ACTIVITY","GOMF_PROTEIN_KINASE_C_BINDING","GOMF_DNA_BINDING_TRANSCRIPTION_ACTIVATOR_ACTIVITY","GOMF_SPHINGOLIPID_BINDING","GOMF_TRANSFORMING_GROWTH_FACTOR_BETA_BINDING","GOMF_PHOSPHOTYROSINE_RESIDUE_BINDING","GOMF_NUCLEAR_RECEPTOR_ACTIVITY","GOMF_MOLECULAR_TRANSDUCER_ACTIVITY","GOMF_TRANSMEMBRANE_RECEPTOR_PROTEIN_TYROSINE_KINASE_ACTIVITY","GOMF_SH3_DOMAIN_BINDING","GOMF_TRANSMEMBRANE_RECEPTOR_PROTEIN_KINASE_ACTIVITY"],[0.0107,0.0026,0.0014,0.014,0.0187,0.0137,0.0061,0.008699999999999999,0.0157,0.0271,0.0048,0.0013,0.0072,0.0052,0.0089,0.0033,0.0001,0.0004,0.0026,0.0001],[0.288,0.2243,0.1605,0.297,0.3168,0.297,0.2788,0.2788,0.3168,0.3494,0.2788,0.1605,0.2788,0.2788,0.2788,0.2429,0.0342,0.0823,0.2243,0.0342],[0.3807,0.4317,0.4551,0.3807,0.3525,0.3807,0.407,0.3807,0.3525,0.3525,0.407,0.4551,0.407,0.407,0.3807,0.4317,0.5384,0.4985,0.4317,0.5384],[0.8257,0.724,0.8243,0.6645,0.5899,0.6105,0.7841,0.7638,0.6515,0.6261,-0.6836,-0.5348000000000001,-0.7546,-0.8008999999999999,-0.6909,-0.7514,-0.5266,-0.8166,-0.653,-0.7873],[1.9651,1.85,1.8153,1.7219,1.7141,1.7112,1.6922,1.682,1.6715,1.6593,-1.666,-1.6716,-1.6732,-1.6831,-1.6894,-1.7193,-1.7198,-1.8494,-1.8642,-1.9189],[23,36,16,43,99,71,15,16,37,49,36,227,21,15,35,26,390,25,98,36],["Chtf18,Rad51,Rfc4,Mcm5,Dscc1,Mcm3,Mcm4,Polq,Mcm2,Mcm8,Rfc5,Pif1,Helb,Mcm6,Mcm7","Ndufa1,Ndufb6,Ndufb9,Ndufa4,Ndufs8,Ndufa13,Ndufc1,Ndufa12,Ndufv1,Ndufs5,Ndufb7,Aifm1,Ndufb8,Ndufs6,Ndufs2,Ndufa2,Ndufs7,Ndufa8,Ndufv3,Ndufv2,Ndufb1,Ndufb2,Ndufa3,Ndufs1,Ndufs3,Ndufb5,Ndufb4,Ndufc2,Ndufa5,Ndufb3,Ndufa9","Mcm10,Cdc6,Mcm5,Cdc45,Pola1,Orc4,Mcm2,Orc2,Orc1","Ndufa1,Ndufb6,Ndufb9,Ndufa4,Ndufs8,Ndufa13,Ndufc1,Ndufa12,Ndufv1,Dhrs4,Ndufs5,Ndufb7,Ndufb8,Ndufs6,Ndufs2,Ndufa2,Nqo2,Ndufs7,Ndufa8,Ndufv3,Ndufv2,Ndufb1,Ndufb2,Ndufa3,Ndufs1,Ndufs3,Ndufb5,Ndufb4,Ndufc2,Ndufa5,Ndufb3,Ndufa9","Chtf18,Rad51,Rfc4,Mcm5,Spo11,Atad5,Top2a,Brip1,Rad54l,Dscc1,Mcm3,Hltf,Mcm4,Polq,Rad51b,Chd9,Mcm2,Rtel1,Mcm8,Dqx1,Rfc5,Ruvbl1,Pif1,Helb,Ascc3,Mcm6,Mcm7,Recql4,Xrcc6,Atrx","Chtf18,Rad51,Rfc4,Mcm5,Brip1,Rad54l,Dscc1,Mcm3,Mcm4,Polq,Chd9,Mcm2,Rtel1,Mcm8,Dqx1,Rfc5,Ruvbl1,Pif1,Helb,Ascc3,Mcm6,Mcm7,Recql4,Xrcc6,Atrx,Ercc6l","Kif11,Cenpe,Kif18b,Kif1b,Kif20b","a,Gal,Metrn,Insl6,Tshb,Inhbb,Fbn1","Gsto1,Glrx,Stab1,Pdia5,Ero1b,Txn1,Txnl1,P4hb,Pgk1,Glrx5,Pdia6,Glrx2","Kif11,Cenpe,Kif18b,Kif1b,Kif2c,Kif15,Kif4,Kif22,Dnah8,Kif20b,Dync2h1,Kif20a,Kifc2,Dync1h1","Ldb3,Hdac9,Hspb1,Plek,Itgav","Neurod2,Egr2,Nfib,Atf5,Smad1,Egr1,Carf,Ddit3,Nfkb2,Litaf,Klf4,Nfkb1,Egr3,Cebpd,Mafg,Tfdp2,Esr1,Prdm2,Ikzf3,Stox2,Zfp395,Hif1a,Zbtb7b,Irf1,Jun,Nfe2l2,Nfat5,Stat6,Mef2c,Atf2,Foxj2,Nr4a1,Plscr1,Rbpj,Elf1,Maff,Nfia,Foxj3,Cebpg,Vezf1,E4f1,Junb,Zfp668,Yy1,Mitf,Gata3,Zfp292,Rel,Rreb1,Clock,Batf,Etv5,Glis2,Zfp523,Foxo1","Sell,Cd300lf,Lyn,Laptm4b,Mag,Cln8","Twsg1,Tgfbr2,Itgav,Cd36","Ptpn6,Samsn1,Sh3bp2,Bcar3,Vav2,Grb2,Ptpn11,Nck2,Pik3r1","Nr3c2,Rarg,Ahr,Rxra,Esr1,Nr4a1,Nr2c1,Arnt","Kit,Nlgn3,Nr3c2,Lag3,Btla,Adrb1,Ptpn6,Crim1,Il5ra,Axl,Nfam1,Rarg,Neo1,Nrp2,Cd3g,Fzd6,Fcmr,Cd8b1,Cd300lf,Fcrl5,Ahr,Cnr2,Gpr18,Plxna3,Cd40,Ccr7,P2ry10,Ryk,Il27ra,Tgfbr2,Itgav,Lmbr1,Hcrtr2,Pvr,Adgre5,Gabra4,Tnfrsf1b,Cd36,Mrc1,Fcer1g,Igf1r,P2rx4,Adgrl2,Rxra,Antxr2,Il13ra1,Plxnc1,Icam1,Adrb2,H2-Ob,Il10ra,Abca1,Esr1,Tlr6,C5ar1,Tnfrsf17,Lpar2","Kit,Crim1,Axl,Nrp2,Ryk,Igf1r","Sh2d2a,Sgip1,Ptpn6,Ncf1,Dtx1,Rapgef1,Sh3bgrl2,Lyn,Sh3bgr,Sh3bp5,Wasf2,Sh3bp2,Ptpn22,Evl,Sirpa,Elmo3,Eps15,Cyba,Grb2,Grik5,Plscr1,Socs7,Sos1","Kit,Crim1,Axl,Nrp2,Ryk,Tgfbr2,Igf1r"],["GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF","GOMF"],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"],["mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>pval<\/th>\n      <th>padj<\/th>\n      <th>log2err<\/th>\n      <th>ES<\/th>\n      <th>NES<\/th>\n      <th>size<\/th>\n      <th>leadingEdge<\/th>\n      <th>collection<\/th>\n      <th>comparison<\/th>\n      <th>org<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"lengthMenu":[10,25,50,100,20],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsea-coll-igg-vs-igm-kegg" class="tab-pane fade"
+role="tabpanel" style="padding-top: 1em;">
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_KEGG_gsea_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_KEGG_gsea_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a71bce8d6.png" alt="IgG_vs_IgM_KEGG_gsea_barplot" width="432" height="282" style="max-width: none !important; width: 432px; height: 282px;"/></p>
+</div>
+</div>
+</div>
+<p>Gene enrichment barcode for the same top/bottom pathways (pathway
+names left; member genes marked along the ranked list; red = pathway NES
+&gt; 0, blue = NES &lt; 0; padj and NES on the right):</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_KEGG_gsea_barcode.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_KEGG_gsea_barcode.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a7be83367.png" alt="IgG_vs_IgM_KEGG_gsea_barcode" width="510" height="441" style="max-width: none !important; width: 510px; height: 441px;"/></p>
+</div>
+</div>
+</div>
+<p>Top 10 up- and top 10 down-regulated pathways by normalized
+enrichment score (NES), shown regardless of significance; significance
+stars: <code>*</code> padj &lt; 0.05, <code>**</code> &lt; 0.01,
+<code>***</code> &lt; 0.001. <code>leadingEdge</code> lists the driving
+genes for each pathway. Sort by any column or search by pathway using
+the box below. The full GSEA CSV is linked beside the table.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsea/KEGG_gsea.csv" class="btn btn-default btn-sm" download="KEGG_gsea.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-1550c5ef23df069635e4"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-1550c5ef23df069635e4">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0016\" data-max=\"0.0665\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.1721\" data-max=\"0.4481\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.2572\" data-max=\"0.4551\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.7565\" data-max=\"0.7777\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1.7229\" data-max=\"1.8936\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"15\" data-max=\"117\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["KEGG_CELL_CYCLE","KEGG_PROTEASOME","KEGG_DNA_REPLICATION","KEGG_BIOSYNTHESIS_OF_UNSATURATED_FATTY_ACIDS","KEGG_ECM_RECEPTOR_INTERACTION","KEGG_O_GLYCAN_BIOSYNTHESIS","KEGG_PPAR_SIGNALING_PATHWAY","KEGG_P53_SIGNALING_PATHWAY","KEGG_PARKINSONS_DISEASE","KEGG_OXIDATIVE_PHOSPHORYLATION","KEGG_LEISHMANIA_INFECTION","KEGG_HEMATOPOIETIC_CELL_LINEAGE","KEGG_CYTOKINE_CYTOKINE_RECEPTOR_INTERACTION","KEGG_METABOLISM_OF_XENOBIOTICS_BY_CYTOCHROME_P450","KEGG_ALLOGRAFT_REJECTION","KEGG_GLYCOSAMINOGLYCAN_BIOSYNTHESIS_CHONDROITIN_SULFATE","KEGG_AUTOIMMUNE_THYROID_DISEASE","KEGG_ADHERENS_JUNCTION","KEGG_SELENOAMINO_ACID_METABOLISM","KEGG_CELL_ADHESION_MOLECULES_CAMS"],[0.0051,0.0016,0.0097,0.0121,0.0022,0.0237,0.0352,0.0439,0.0665,0.0665,0.0433,0.0354,0.0176,0.0576,0.0424,0.0493,0.0265,0.0228,0.0126,0.0075],[0.2651,0.1721,0.2783,0.2783,0.1721,0.3673,0.4184,0.4184,0.4481,0.4481,0.4184,0.4184,0.3409,0.4384,0.4184,0.4184,0.3735,0.3673,0.2783,0.2783],[0.407,0.4551,0.3807,0.3807,0.4317,0.3525,0.3218,0.3218,0.282,0.282,0.2879,0.3218,0.3525,0.2572,0.3218,0.2765,0.3525,0.3525,0.3807,0.407],[0.6327,0.7057,0.6915,0.7776999999999999,0.6644,0.7625,0.5971,0.5612,0.489,0.4864,-0.5667,-0.5891999999999999,-0.5296,-0.7037,-0.7029,-0.7173,-0.7025,-0.61,-0.7565,-0.6452],[1.8936,1.8386,1.7798,1.7255,1.7145,1.6673,1.553,1.5176,1.4135,1.4059,-1.4681,-1.497,-1.5042,-1.5087,-1.5402,-1.5439,-1.5708,-1.5839,-1.6577,-1.7229],[117,41,35,17,40,15,38,58,101,101,51,45,100,17,21,18,23,52,21,67],["Gadd45g,Cdc7,Ccnb2,Cdc6,E2f2,Mcm5,Sfn,Tfdp1,Cdk1,Ccnb1,Cdc45,Gadd45b,Cdc20,Cdc25a,Plk1,Ttk,Espl1,E2f1,Mcm3,Chek1,Bub1,Ccna2,Ywhaq,Mcm4,Orc6,Anapc4,Orc4,Cdc25c,Mcm2,Pkmyt1,Myc,Orc2,Pcna,Orc1,Rbl1,Mad2l1,Skp1,Mcm6,Skp2,Mcm7,Ccnh,Fzr1,Cdk2","Psmb8,Psmd12,Psma7,Psmd14,Psma5,Psma4,Psmc5,Psmb3,Psma1,Psmb5,Pomp,Psmd2,Psmd1,Psmc4,Psmb2,Psmb7,Psmb1,Psmb6,Psma3,Psmc2,Psmd8,Psma2,Psme3,Psmc6,Psmd6,Psmb4,Psmd3,Psmd7","Rfc4,Mcm5,Prim1,Pola1,Mcm3,Rnaseh2b,Mcm4,Fen1,Mcm2,Pcna,Rfc5,Lig1,Mcm6,Pold1,Mcm7,Rnaseh2a,Rpa1,Rnaseh2c,Rnaseh1,Prim2","Fads2,Acot7,Pecr,Fads1","Lama5,Lamb2,Itgb7,Hmmr,Itgb5,Col1a1,Sdc3,Itga4,Itga10","Galnt5,Galnt6,C1galt1c1","Fads2,Fabp5,Angptl4,Pltp,Acsl3,Acsl5,Dbi","Perp,Gadd45g,Ccnb2,Rrm2,Sfn,Cdk1,Ccnb1,Gadd45b,Gtse1,Chek1,Cycs,Fas","Ndufa1,Cycs,Uqcrfs1,Ndufb6,Atp5j,Ndufb9,Ndufa4,Cox5a,Cyc1,Sdhb,Cox6c,Uqcrq,Cox7a2,Ndufs8,Ndufc1,Atp5b,Ndufv1,Park7,Uchl1,Atp5g3,Ndufs5,Ndufb7,Ube2j1,Atp5c1,Uqcrb,Ndufb8,Atp5o,Atp5g1,Ndufs6,Atp5e,Ndufab1,Uqcrc1,Ndufs2,Atp5pb,Ndufa2,Uqcr10,Uqcr11,Ndufs7,Ndufa8,Cox5b,Ndufv3,Atp5a1,Ndufv2,Ndufb1,Casp3,Ube2g2,Ndufb2,Ube2j2,Ndufa3,Ndufs1,Sdhd,Ndufs3,Ube2l3,Cox6a1,Cox6b1,Ndufb5,Uqcrc2,Ndufb4,Slc25a5","Ndufa1,Ppa1,Uqcrfs1,Ndufb6,Atp5j,Ndufb9,Ndufa4,Cox5a,Cyc1,Sdhb,Cox6c,Atp5k,Uqcrq,Cox7a2,Atp5j2,Ndufs8,Atp5l,Ndufc1,Atp5b,Ndufv1,Atp5g3,Atp6ap1,Ndufs5,Ndufb7,Atp5c1,Uqcrb,Ndufb8,Atp5o,Atp5g1,Ndufs6,Atp5e,Ndufab1,Uqcrc1,Ndufa11,Ndufs2,Atp5pb,Ndufa2,Uqcr10,Uqcr11,Ndufs7,Ndufa8,Cox5b,Ndufv3,Atp5a1,Ndufv2,Ndufb1,Cox17,Ndufb2,Ndufa3,Ndufs1,Sdhd,Ndufs3,Atp6v0b,Cox6a1,Cox6b1,Atp6v1d,Ndufb5,Uqcrc2","Ptpn6,Ncf1,Il10,Nfkb1,H2-Ob,Tgfb1,Ncf2,Mapk12,Nfkbia,Jak2,Cyba,Jun,H2-Aa,Tlr2,H2-DMa","Kit,Fcer2a,Il5ra,Cd3g,Cd8b1,Cd38,Cd36,Cd9,Cd22","Kit,Il5ra,Il10,Clcf1,Cd40,Ccr7,Tgfbr2,Tnfrsf1b,Ltb,Il13ra1,Il10ra,Tgfb1,Tnfrsf17,Tnfrsf1a,Relt,Osm,Crlf2,Plekho2,Il2rg,Ccr5,Tnfrsf13b,Il9r,Tnfrsf9,Csf2ra,Tnfsf18,Il10rb,Pdgfc,Cxcr4,Kitl,Vegfb","Ephx1,Mgst1,Gstm1,Gstm4,Mgst2","Il10,Cd40,H2-Ob,H2-Q7,H2-Aa,H2-DMa,H2-Q2,Gm8909","Csgalnact1,Chst3,Chst11","Il10,Cd40,Ctla4,H2-Ob,H2-Q7,H2-Aa,H2-DMa,H2-Q2,Gm8909","Ptpn6,Tcf7l2,Tgfbr2,Fer,Wasf2,Igf1r,Ptprj,Actg1,Actn1,Vcl,Nectin4,Sorbs1,Nlk,Ctnna1,Rhoa,Csnk2b,Lmo7","Cth,Ggt5","Sell,Nlgn3,Cdh2,Neo1,Icosl,Cd8b1,Cd40,Itgav,Pdcd1lg2,Ctla4,Pvr,Alcam,Icam1,H2-Ob,Negr1,H2-Q7,Mag,Pdcd1,Cd22"],["KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG","KEGG"],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"],["mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>pval<\/th>\n      <th>padj<\/th>\n      <th>log2err<\/th>\n      <th>ES<\/th>\n      <th>NES<\/th>\n      <th>size<\/th>\n      <th>leadingEdge<\/th>\n      <th>collection<\/th>\n      <th>comparison<\/th>\n      <th>org<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"lengthMenu":[10,25,50,100,20],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsea-coll-igg-vs-igm-reactome" class="tab-pane fade"
+role="tabpanel" style="padding-top: 1em;">
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_REACTOME_gsea_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_REACTOME_gsea_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a1f4283d2.png" alt="IgG_vs_IgM_REACTOME_gsea_barplot" width="432" height="282" style="max-width: none !important; width: 432px; height: 282px;"/></p>
+</div>
+</div>
+</div>
+<p>Gene enrichment barcode for the same top/bottom pathways (pathway
+names left; member genes marked along the ranked list; red = pathway NES
+&gt; 0, blue = NES &lt; 0; padj and NES on the right):</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_REACTOME_gsea_barcode.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_REACTOME_gsea_barcode.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a2502f9b8.png" alt="IgG_vs_IgM_REACTOME_gsea_barcode" width="510" height="441" style="max-width: none !important; width: 510px; height: 441px;"/></p>
+</div>
+</div>
+</div>
+<p>Top 10 up- and top 10 down-regulated pathways by normalized
+enrichment score (NES), shown regardless of significance; significance
+stars: <code>*</code> padj &lt; 0.05, <code>**</code> &lt; 0.01,
+<code>***</code> &lt; 0.001. <code>leadingEdge</code> lists the driving
+genes for each pathway. Sort by any column or search by pathway using
+the box below. The full GSEA CSV is linked beside the table.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsea/REACTOME_gsea.csv" class="btn btn-default btn-sm" download="REACTOME_gsea.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-2a77d98aebc1ea08ac54"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-2a77d98aebc1ea08ac54">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.0174\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0031\" data-max=\"0.2388\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.3525\" data-max=\"0.6105\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.7883\" data-max=\"0.8128\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1.7217\" data-max=\"2.1475\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"19\" data-max=\"264\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["REACTOME_ACTIVATION_OF_ATR_IN_RESPONSE_TO_REPLICATION_STRESS","REACTOME_CELL_CYCLE_CHECKPOINTS","REACTOME_DEPOSITION_OF_NEW_CENPA_CONTAINING_NUCLEOSOMES_AT_THE_CENTROMERE","REACTOME_G2_M_CHECKPOINTS","REACTOME_RESOLUTION_OF_SISTER_CHROMATID_COHESION","REACTOME_DNA_REPLICATION_PRE_INITIATION","REACTOME_DNA_REPLICATION","REACTOME_SEPARATION_OF_SISTER_CHROMATIDS","REACTOME_MITOTIC_METAPHASE_AND_ANAPHASE","REACTOME_MITOTIC_SPINDLE_CHECKPOINT","REACTOME_PROTEIN_PROTEIN_INTERACTIONS_AT_SYNAPSES","REACTOME_SIGNALING_BY_VEGF","REACTOME_INTERLEUKIN_3_INTERLEUKIN_5_AND_GM_CSF_SIGNALING","REACTOME_INTERLEUKIN_2_FAMILY_SIGNALING","REACTOME_NEUREXINS_AND_NEUROLIGINS","REACTOME_SIGNALING_BY_SCF_KIT","REACTOME_KERATAN_SULFATE_KERATIN_METABOLISM","REACTOME_CELL_CELL_COMMUNICATION","REACTOME_INTERLEUKIN_RECEPTOR_SHC_SIGNALING","REACTOME_CELL_CELL_JUNCTION_ORGANIZATION"],[0.0014,0,0.009599999999999999,0.0005999999999999999,0.0012,0.0024,0.0005,0.0004,0.0002,0.0061,0.009599999999999999,0.0031,0.0066,0.0073,0.0038,0.0072,0.0174,0.012,0.0029,0.009900000000000001],[0.1321,0.0031,0.2215,0.07530000000000001,0.1235,0.1566,0.07530000000000001,0.075,0.0597,0.2106,0.2215,0.1619,0.2153,0.2215,0.1619,0.2215,0.2388,0.2238,0.1619,0.2215],[0.4551,0.6105,0.3807,0.4773,0.4551,0.4317,0.4773,0.4985,0.5188,0.407,0.3807,0.4317,0.407,0.407,0.4317,0.407,0.3525,0.3807,0.4317,0.3807],[0.8128,0.661,0.7717000000000001,0.6821,0.6870000000000001,0.6879,0.6657999999999999,0.6445,0.634,0.6661,-0.6534,-0.5894,-0.6572,-0.6814,-0.7043,-0.6843,-0.7883,-0.6365,-0.7682,-0.7583],[2.1474,2.147,2.1096,2.0876,2.0709,2.0608,2.0419,2.0193,2.0148,2.0011,-1.6266,-1.6308,-1.6316,-1.6658,-1.6757,-1.6836,-1.6946,-1.7002,-1.7146,-1.7217],[37,264,46,144,114,106,148,177,219,109,45,88,43,37,32,39,19,69,23,25],["Clspn,Mcm10,Cdc7,Cdc6,Rfc4,Mcm5,Cdc45,Cdc25a,Mcm3,Chek1,Mcm4,Orc6,Orc4,Cdc25c,Mcm2,Mcm8,Orc2,Rfc5,Orc1","Clspn,Cenpk,Spc24,Cenpf,Knl1,Nuf2,Mcm10,Cdca8,Cdc7,Ccnb2,Cenpe,Cdc6,Spc25,Cenpi,Aurkb,Rfc4,Ube2c,Mcm5,Cenph,Birc5,Sfn,Cdk1,Ccnb1,Cdc45,Ska1,Cdc20,Cdc25a,Plk1,Gtse1,Brip1,H2ax,Kif2c,Rmi2,Cenps,Mcm3,Chek1,Bub1,Ccna2,Ywhaq,Mcm4,Exo1,Cenpc1,Psmb8,Kntc1,Sgo2a,Psmd12,Orc6,Incenp,Ndc80,Anapc4,Psma7,Orc4,Cdc25c,Mcm2,Pkmyt1,Ppp2r5e,Psmd14,Psma5,Mcm8,Bard1,Psma4,Psmc5,Topbp1,Orc2,Rfc5,Sgo1,Cenpp,Orc1,Ckap5,Psmb3,Psma1,Mad2l1,Psmb5,Cenpa,Dync1h1,Brcc3,Psmd2,Psmd1,H4c3,Psmc4,Psmb2,Psmb7,Psmb1,Psmb6,Nup133,Psma3,Mcm6,Psmc2,Cenpm,Mcm7,Psmd8,Psma2,Psme3,Ube2s,Babam1,Nsl1,Cdk2,Ercc6l,Rpa1,Sec13,Psmc6,H4c17,Nup107,Spdl1,Anapc5,Anapc16,Psmd6,Ube2v2,Bub3,Psmb4,Nde1,H4c18,Rangap1,Psmd3","Cenpk,Knl1,Oip5,Cenpi,Cenph,H2ac7,Mis18bp1,H2ac23,Cenpw,H2ax,Cenps,H2az1,Cenpc1,H2aj,Cenpp,Hjurp,Ruvbl1,Cenpa,H4c3","Clspn,Mcm10,Cdc7,Ccnb2,Cdc6,Rfc4,Mcm5,Sfn,Cdk1,Ccnb1,Cdc45,Cdc25a,Gtse1,Brip1,H2ax,Rmi2,Mcm3,Chek1,Ywhaq,Mcm4,Exo1,Psmb8,Psmd12,Orc6,Psma7,Orc4,Cdc25c,Mcm2,Pkmyt1,Psmd14,Psma5,Mcm8,Bard1,Psma4,Psmc5,Topbp1,Orc2,Rfc5,Orc1,Psmb3,Psma1,Psmb5,Brcc3,Psmd2,Psmd1,H4c3,Psmc4,Psmb2,Psmb7,Psmb1,Psmb6,Psma3,Mcm6,Psmc2,Mcm7,Psmd8,Psma2,Psme3,Babam1,Cdk2","Cenpk,Spc24,Cenpf,Knl1,Nuf2,Cdca5,Cdca8,Ccnb2,Cenpe,Spc25,Cenpi,Aurkb,Cenph,Birc5,Cdk1,Ccnb1,Ska1,Cdc20,Plk1,Tubb2a,Kif2c,Cenps,Bub1,Cenpc1,Kntc1,Sgo2a,Incenp,Ndc80,Ppp2r5e,Sgo1,Cenpp,Ckap5,Tuba1b,Mad2l1,Cenpa,Dync1h1","Mcm10,Cdc7,Cdc6,E2f2,Mcm5,H2ac7,Cdc45,H2ac23,Prim1,E2f1,Pola1,H2ax,Mcm3,H2az1,Mcm4,Psmb8,Gmnn,Psmd12,Orc6,Psma7,Orc4,Mcm2,Psmd14,Psma5,Mcm8,H2aj,Psma4,Psmc5,Orc2,Orc1,Psmb3,Psma1,Psmb5,Psmd2,Psmd1,H4c3,Psmc4,Psmb2,Psmb7,Psmb1,Psmb6,Psma3,Mcm6,Psmc2,Mcm7,Psmd8,Psma2,Psme3,Cdk2,Rpa1,Psmc6,H4c17,Psmd6,Psmb4,H4c18,Psmd3,Prim2,Psmd7","Gins2,Mcm10,Cdc7,Cdc6,E2f2,Rfc4,Ube2c,Mcm5,H2ac7,Cdc45,H2ac23,Prim1,E2f1,Pola1,H2ax,Mcm3,H2az1,Ccna2,Mcm4,Psmb8,Fen1,Gmnn,Psmd12,Orc6,Anapc4,Psma7,Orc4,Mcm2,Psmd14,Psma5,Mcm8,H2aj,Psma4,Psmc5,Orc2,Pcna,Rfc5,Orc1,Lig1,Psmb3,Psma1,Psmb5,Psmd2,Psmd1,H4c3,Psmc4,Psmb2,Psmb7,Psmb1,Skp1,Psmb6,Psma3,Mcm6,Psmc2,Skp2,Pold1,Mcm7,Psmd8,Psma2,Psme3,Ube2s,Fzr1,Cdk2,Rpa1,Psmc6,H4c17,Anapc5,Anapc16,Psmd6,Psmb4,H4c18,Psmd3,Prim2,Psmd7","Cenpk,Spc24,Cenpf,Knl1,Nuf2,Cdca5,Cdca8,Cenpe,Spc25,Cenpi,Aurkb,Ube2c,Cenph,Birc5,Ska1,Cdc20,Plk1,Espl1,Tubb2a,Kif2c,Cenps,Bub1,Cenpc1,Psmb8,Kntc1,Sgo2a,Psmd12,Incenp,Ndc80,Anapc4,Psma7,Ppp2r5e,Psmd14,Psma5,Psma4,Psmc5,Sgo1,Cenpp,Ckap5,Psmb3,Psma1,Tuba1b,Mad2l1,Psmb5,Cenpa,Dync1h1,Psmd2,Psmd1,Psmc4,Psmb2,Psmb7,Psmb1,Psmb6,Nup133,Psma3,Psmc2,Cenpm,Psmd8,Psma2,Psme3,Ube2s,Wapl,Nsl1,Ercc6l,Tubb4b,Sec13,Psmc6,Nup107,Spdl1,Anapc5,Anapc16,Psmd6,Bub3,Psmb4,Nde1,Rangap1,Psmd3","Cenpk,Spc24,Cenpf,Knl1,Nuf2,Cdca5,Cdca8,Ccnb2,Cenpe,Spc25,Cenpi,Aurkb,Ube2c,Cenph,Birc5,Cdk1,Ccnb1,Ska1,Cdc20,Plk1,Espl1,Tubb2a,Lbr,Kif2c,Cenps,Bub1,Cenpc1,Psmb8,Kntc1,Sgo2a,Psmd12,Incenp,Ndc80,Anapc4,Psma7,Fbxo5,Ppp2r5e,Psmd14,Psma5,Psma4,Psmc5,Nup62,Sgo1,Cenpp,Ndc1,Ckap5,Psmb3,Lmnb1,Psma1,Tuba1b,Mad2l1,Psmb5,Cenpa,Dync1h1,Rcc1,Psmd2,Psmd1,Psmc4,Psmb2,Psmb7,Psmb1,Psmb6,Nup133,Psma3,Tmpo,Psmc2,Cenpm,Psmd8,Psma2,Psme3,Ube2s,Wapl,Nsl1,Chmp6,Ercc6l,Tubb4b,Sec13,Nup35,Psmc6,Nup107,Spdl1,Anapc5,Anapc16,Psmd6,Bub3,Psmb4,Nde1,Rangap1,Psmd3,Psmd7,Ran,Dynll1","Cenpk,Spc24,Cenpf,Knl1,Nuf2,Cdca8,Cenpe,Spc25,Cenpi,Aurkb,Ube2c,Cenph,Birc5,Ska1,Cdc20,Plk1,Kif2c,Cenps,Bub1,Cenpc1,Kntc1,Sgo2a,Incenp,Ndc80,Anapc4,Ppp2r5e,Sgo1,Cenpp,Ckap5,Mad2l1,Cenpa,Dync1h1","Nlgn3,Syt12,Epb41l2,Ppfibp2","Sh2d2a,Axl,Ncf1,Nrp2,Hspb1,Cybb,Itgav,Plcg1,Wasf2,Actg1,Ncf2,Mapk12,Itpr2,Vav2,Cyba,Pak2,Vav3,Trib3,Nck2,Pik3ca,Pik3r1,Prkcb,Prkca,Prkacb,Ctnna1,Rhoa,Mapk11,Mapkapk3","Ptpn6,Il5ra,Rapgef1,Lyn,Jak2,Grb2,Jak3,Il2rg,Ptpn11,Sos1,Pik3ca,Pik3r1,Csf2ra,Tec","Ptpn6,Il5ra,Lgals9,Jak2,Grb2,Jak3,Il2rg,Sos1,Pik3ca,Pik3r1,Il9r,Csf2ra","Nlgn3,Syt12,Epb41l2","Kit,Ptpn6,Grap,Fer,Lyn,Socs1,Jak2,Grb2,Ptpn11,Sos1,Pik3ca,Pik3r1,Prkca","Hexa,Chst1,Gns,B4galt3,St3gal6,B3gnt2,St3gal2","Sftpa1,Cdh2,Ptpn6,Pvr,Patj,Cadm2,Sirpa,Actg1,Actn1,Grb2,Nectin4,Ptpn11,Nck2,Pik3ca,Pik3r1","Ptpn6,Il5ra,Jak2,Grb2,Jak3,Il2rg,Sos1,Pik3ca,Pik3r1,Csf2ra","Cdh2,Pvr,Patj,Cadm2,Actg1,Nectin4"],["REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME","REACTOME"],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"],["mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>pval<\/th>\n      <th>padj<\/th>\n      <th>log2err<\/th>\n      <th>ES<\/th>\n      <th>NES<\/th>\n      <th>size<\/th>\n      <th>leadingEdge<\/th>\n      <th>collection<\/th>\n      <th>comparison<\/th>\n      <th>org<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"lengthMenu":[10,25,50,100,20],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsea-coll-igg-vs-igm-pid" class="tab-pane fade" role="tabpanel"
+style="padding-top: 1em;">
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_PID_gsea_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_PID_gsea_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a47a67b01.png" alt="IgG_vs_IgM_PID_gsea_barplot" width="432" height="282" style="max-width: none !important; width: 432px; height: 282px;"/></p>
+</div>
+</div>
+</div>
+<p>Gene enrichment barcode for the same top/bottom pathways (pathway
+names left; member genes marked along the ranked list; red = pathway NES
+&gt; 0, blue = NES &lt; 0; padj and NES on the right):</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_PID_gsea_barcode.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_PID_gsea_barcode.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a6e7b67c4.png" alt="IgG_vs_IgM_PID_gsea_barcode" width="510" height="441" style="max-width: none !important; width: 510px; height: 441px;"/></p>
+</div>
+</div>
+</div>
+<p>Top 10 up- and top 10 down-regulated pathways by normalized
+enrichment score (NES), shown regardless of significance; significance
+stars: <code>*</code> padj &lt; 0.05, <code>**</code> &lt; 0.01,
+<code>***</code> &lt; 0.001. <code>leadingEdge</code> lists the driving
+genes for each pathway. Sort by any column or search by pathway using
+the box below. The full GSEA CSV is linked beside the table.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsea/PID_gsea.csv" class="btn btn-default btn-sm" download="PID_gsea.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-ce806f77443917e250bd"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-ce806f77443917e250bd">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0013\" data-max=\"0.0592\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.1571\" data-max=\"0.351\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.2664\" data-max=\"0.4551\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-0.7921\" data-max=\"0.7803\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-1.7683\" data-max=\"1.942\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"17\" data-max=\"65\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["PID_AURORA_B_PATHWAY","PID_FOXM1_PATHWAY","PID_E2F_PATHWAY","PID_PLK1_PATHWAY","PID_A6B1_A6B4_INTEGRIN_PATHWAY","PID_INTEGRIN1_PATHWAY","PID_SYNDECAN_1_PATHWAY","PID_P73PATHWAY","PID_BARD1_PATHWAY","PID_INTEGRIN_CS_PATHWAY","PID_CD8_TCR_DOWNSTREAM_PATHWAY","PID_VEGFR1_2_PATHWAY","PID_RAC1_PATHWAY","PID_IL4_2PATHWAY","PID_PDGFRA_PATHWAY","PID_NFAT_TFPATHWAY","PID_EPO_PATHWAY","PID_KIT_PATHWAY","PID_P38_ALPHA_BETA_DOWNSTREAM_PATHWAY","PID_NCADHERIN_PATHWAY"],[0.0018,0.009900000000000001,0.0263,0.0139,0.0149,0.0219,0.0443,0.0266,0.0338,0.0592,0.0144,0.0146,0.0115,0.0086,0.0138,0.0086,0.0124,0.0048,0.0058,0.0013],[0.1571,0.1831,0.2534,0.1831,0.1831,0.2516,0.3045,0.2534,0.2534,0.351,0.1831,0.1831,0.1831,0.1831,0.1831,0.1831,0.1831,0.1831,0.1831,0.1571],[0.4551,0.3807,0.3525,0.3807,0.3807,0.3525,0.3218,0.3525,0.3218,0.2664,0.3807,0.3807,0.3807,0.3807,0.3807,0.3807,0.3807,0.407,0.407,0.4551],[0.7803,0.7331,0.6292,0.6377,0.6663,0.6642,0.6814,0.5763,0.6371,0.6881,-0.6336000000000001,-0.6128,-0.6379,-0.6595,-0.7897999999999999,-0.7407,-0.7316,-0.6788999999999999,-0.7383999999999999,-0.7921],[1.942,1.8103,1.7278,1.6615,1.6446,1.6076,1.5766,1.5743,1.5537,1.5427,-1.5582,-1.6229,-1.6272,-1.6327,-1.6414,-1.6536,-1.6931,-1.6972,-1.741,-1.7683],[34,32,64,45,31,28,21,65,29,18,41,60,50,42,17,25,29,46,32,25],["Stmn1,Cdca8,Smc2,Aurkb,Aurka,Birc5,Ncaph,Kif2c,Bub1,Ncapg,Vim,Ncapd2,Incenp,Ndc80,Smc4,Sgo1,Kif20a,Racgap1,Cbx5,Cenpa,Psma3,Nsun2","Nek2,Cenpf,Foxm1,Ccnb2,Aurkb,Birc5,Cdk1,Ccnb1,Plk1,Ccna2,Cks1b,Myc,Cenpa","Cdc6,Rrm2,E2f2,Tyms,Tfdp1,Cdk1,Cdc25a,E2f1,Pola1,Mcm3,Ccna2,Rrm1,Kat2a,Mybl2,Dhfr,Myc,Topbp1,Orc1,Rbl1,Cbx5,E2f7,Ranbp1","Clspn,Spc24,Cenpe,Aurka,Cdk1,Ccnb1,Tpx2,Cdc20,Plk1,Bub1,Prc1,Bora,Incenp,Ndc80,Fbxo5,Cdc25c,Sgo1,Kif20a","Lama5,Lamb2,Sfn,Rps6kb1,Ywhaq","Lama5,Lamb2,Col1a1,Igsf8,Itga4,Itga10","Lama5,Col1a1,Ppib,Bsg","Plpp1,Rnf43,Ada,Yap1,Rad51,Sfn,Cdk1,Ccnb1,Plk1,Chek1,Bub1,Ccna2,Fas,Myc,Aen,Hagh,Pin1","Fanca,Rad51,Bard1,Topbp1,Pcna,Xrcc6,Cdk2,Ube2l3,Cstf1,Rbbp8,Fancc,Ewsr1,Fancd2","Itgb7,Itgam,Itgb5,Itgb2,Itgal,Itga4,Itga10","Cd3g,Cd8b1,Egr1,Eomes,H2-Q7,Mapk8,Jun,Il2rg,Junb,Prkcb,Prkca,Tnfrsf9","Sh2d2a,Ptpn6,Itgav,Plcg1,Myof,Ptprj,Vcl,Pak2,Grb2,Ptpn11,Nck2,Pik3ca,Pik3r1,Prkcb,Prkca,Ctnna1,Rhoa,Mapk11","Nox1,Ncf1,Cybb,Noxo1,Arhgap5,Wasf2,Mapk8,Ncf2,Cyba,Pak2,Jun,Atf2","Fcer2a,Egr2,Ptpn6,Il10,Il13ra1,Socs1,Socs5,Jak2,Grb2,Jak3,Stat6,Il2rg,Pik3ca,Pik3r1","Rapgef1,Itgav,Plcg1,Grb2,Jun,Sos1,Pik3ca,Pik3r1","Egr2,Egr1,Slc3a2,Ctla4,Egr3,Ikzf1,Jun,Junb,Gata3,Itch,Pou2f1","Ptpn6,Rapgef1,Bcl2,Plcg1,Lyn,Nfkb1,Mapk8,Vav2,Jak2,Grb2,Ptpn11,Sos1,Pik3r1","Kit,Ptpn6,Bcl2,Fer,Lyn,Socs1,Mapk8,Jak2,Grb2,Ptpn11,Spred2,Sos1,Pik3ca,Pik3r1,Mitf","Hspb1,Ddit3,Esr1,Jun,Mef2c,Atf2,Rps6ka5,Mknk1,Mitf,Eif4ebp1,Hbp1,Mapk11,Mapkapk3,Csnk2b,Mapkapk2,Slc9a1,Csnk2a2","Cdh2,Fer,Plcg1,Mapk8,Ptpn11,Pik3ca,Pik3r1,Camk2g,Ctnna1,Rhoa"],["PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID","PID"],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"],["mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse","mouse"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>pval<\/th>\n      <th>padj<\/th>\n      <th>log2err<\/th>\n      <th>ES<\/th>\n      <th>NES<\/th>\n      <th>size<\/th>\n      <th>leadingEdge<\/th>\n      <th>collection<\/th>\n      <th>comparison<\/th>\n      <th>org<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"lengthMenu":[10,25,50,100,20],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>$(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function () { if (window.HTMLWidgets) HTMLWidgets.staticRender(); if (window.jQuery && $.fn.dataTable) { $($.fn.dataTable.tables(true)).DataTable().columns.adjust(); } });</script>
+</div>
+<div id="leading-edge-overlap" class="section level3">
+<h3>Leading-edge overlap</h3>
+<p>Per contrast, pathways with <strong>padj &lt; 0.05</strong> are
+pooled across all MSigDB collections. Pairwise <strong>Jaccard</strong>
+similarity of leading-edge gene sets is clustered with
+simplifyEnrichment <strong>binary_cut</strong> (to choose <em>k</em>).
+Splits and word clouds cut the same Jaccard <strong>hclust</strong>
+dendrogram at that <em>k</em>, so partition lines match the trees. The
+heatmap omits pathway name labels; side word clouds summarise tokens
+from pathway names within each cluster.</p>
+<p>19 significant pathway(s) (padj &lt; 0.05; all collections pooled).
+Binary-cut found <strong>8</strong> cluster(s).</p>
+<div id="jaccard-heatmap-cluster-word-clouds" class="section level4">
+<h4>Jaccard heatmap + cluster word clouds</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM_figures/IgG_vs_IgM_pathway_jaccard_heatmap.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_pathway_jaccard_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="gsea_overlap/IgG_vs_IgM_pathway_jaccard.csv" class="btn btn-default btn-sm" download="IgG_vs_IgM_pathway_jaccard.csv">
+<i class="fa fa-download"></i> Download full Jaccard CSV </a> </span>
+<span class="degreports-dl-btn-wrap">
+<a href="gsea_overlap/IgG_vs_IgM_sig_pathways.csv" class="btn btn-default btn-sm" download="IgG_vs_IgM_sig_pathways.csv">
+<i class="fa fa-download"></i> Download sig pathways CSV </a>
+</span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgG_vs_IgM_figures/fig-11b64a52ed241b.png" alt="jaccard_IgG_vs_IgM" width="649" height="318" style="max-width: 100% !important; height: auto !important; display: block;"/></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+
+</body>
+</html>

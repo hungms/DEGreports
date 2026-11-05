@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports</h1>
+<h4 class="date">2026-11-05 10:40</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<strong>Index</strong>  |  <a href="qc/qc.html">QC</a>  | 
+<a href="deseq2/deseq2.html">DESeq2</a>  | 
+<a href="clusterprofiler/clusterprofiler.html">clusterProfiler</a>  | 
+<a href="gsva/gsva.html">GSVA</a>  | 
+<a href="wgcna/wgcna.html">WGCNA</a>  | 
+<a href="decoupler-tf/decoupleR-TF.html">decoupleR-TF</a>  | 
+<a href="decoupler-ccc/decoupleR-CCC.html">decoupleR-CCC</a>  | 
+<a href="viper/viper.html">VIPER</a>  | 
+<a href="multihit/multihit.html">Multihit</a>
+</div>
+<div id="run-summary" class="section level2">
+<h2>Run summary</h2>
+<p>The R script below reruns this analysis with the same input and
+settings (the input is saved beside it in
+<code>reproduce/inputs.rds</code>). Run it from the folder that holds
+this page.</p>
+<p><a href="reproduce/reproduce_run.R" class="btn btn-default btn-sm" download="reproduce_run.R">
+<i class="fa fa-download"></i> Download R script </a></p>
+<pre class="r"><code># Reproduce this DEGreports run (run_deseq2)
+# Written 2026-11-05 10:27 by DEGreports 0.4.0.
+# Run from the folder that holds index.html; results go to reproduced_run/.
+
+# Load the package
+library(DEGreports)
+
+# Load the inputs saved with this run
+inputs &lt;- readRDS(&quot;reproduce/inputs.rds&quot;)
+
+# The DESeqDataSet passed to run_deseq2(), before QC
+dds &lt;- inputs$dds
+
+# Run QC, PCA, DESeq2, GSEA and the enabled modules, then render the HTML report
+out &lt;- run_deseq2(
+    dds,
+    var = &quot;isotype&quot;,
+    design = NULL,
+    comparisons = NULL,
+    batch = &quot;batch&quot;,
+    platform = &quot;rnaseq&quot;,
+    filter_method = &quot;cpm&quot;,
+    cpm_percentile = 0.05,
+    remove_mt = TRUE,
+    remove_xy = FALSE,
+    remove_vdj = &quot;BCR&quot;,
+    ranking = &quot;log2FoldChange&quot;,
+    collections = c(&quot;HALLMARK&quot;, &quot;GOBP&quot;, &quot;GOCC&quot;, &quot;GOMF&quot;, &quot;KEGG&quot;, &quot;REACTOME&quot;, &quot;PID&quot;),
+    run_gsva = TRUE,
+    run_wgcna = TRUE,
+    run_decoupler_tf = TRUE,
+    run_decoupler_ccc = TRUE,
+    run_viper = TRUE,
+    render_html = TRUE,
+    parallel_render = TRUE,
+    render_workers = 50L,
+    save_dir = &quot;reproduced_run&quot;
+)
+
+# Open the report
+# browseURL(&quot;reproduced_run/index.html&quot;)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Field</th>
+<th align="left">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Grouping variable</td>
+<td align="left">isotype</td>
+</tr>
+<tr class="even">
+<td align="left">Design formula</td>
+<td align="left">~batch + isotype</td>
+</tr>
+<tr class="odd">
+<td align="left">Organism</td>
+<td align="left">mouse</td>
+</tr>
+<tr class="even">
+<td align="left">Samples</td>
+<td align="left">11</td>
+</tr>
+<tr class="odd">
+<td align="left">Genes (post-QC)</td>
+<td align="left">13570</td>
+</tr>
+<tr class="even">
+<td align="left">Significance threshold (alpha)</td>
+<td align="left">0.05</td>
+</tr>
+<tr class="odd">
+<td align="left">LFC threshold</td>
+<td align="left">0.5</td>
+</tr>
+<tr class="even">
+<td align="left">VDJ gene removal</td>
+<td align="left">BCR</td>
+</tr>
+<tr class="odd">
+<td align="left">DEGreports version</td>
+<td align="left">0.4.0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="contrasts" class="section level2">
+<h2>Contrasts</h2>
+<p>6 contrast(s) in this run, with the question each asks and the number
+of samples its model was fitted on. Full detail (design formula,
+coefficients) is in <code>deseq2/contrasts.csv</code> and on the DESeq2
+page.</p>
+<table>
+<colgroup>
+<col width="19%" />
+<col width="76%" />
+<col width="3%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Contrast</th>
+<th align="left">Question</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">IgG_vs_IgM</td>
+<td align="left">Is isotype IgG versus IgM differentially
+expressed?</td>
+<td align="right">11</td>
+</tr>
+<tr class="even">
+<td align="left">IgA_vs_IgM</td>
+<td align="left">Is isotype IgA versus IgM differentially
+expressed?</td>
+<td align="right">11</td>
+</tr>
+<tr class="odd">
+<td align="left">IgA_vs_IgG</td>
+<td align="left">Is isotype IgA versus IgG differentially
+expressed?</td>
+<td align="right">11</td>
+</tr>
+<tr class="even">
+<td align="left">IgM_vs_IgG+IgA</td>
+<td align="left">Is isotype IgM versus IgG + IgA differentially
+expressed?</td>
+<td align="right">11</td>
+</tr>
+<tr class="odd">
+<td align="left">IgG_vs_IgM+IgA</td>
+<td align="left">Is isotype IgG versus IgM + IgA differentially
+expressed?</td>
+<td align="right">11</td>
+</tr>
+<tr class="even">
+<td align="left">IgA_vs_IgM+IgG</td>
+<td align="left">Is isotype IgA versus IgM + IgG differentially
+expressed?</td>
+<td align="right">11</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="pipeline-arguments" class="section level2">
+<h2>Pipeline arguments</h2>
+<p>Arguments passed to <code>run_deseq2()</code> for this run:</p>
+<table>
+<colgroup>
+<col width="31%" />
+<col width="68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Argument</th>
+<th align="left">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">var</td>
+<td align="left">isotype</td>
+</tr>
+<tr class="even">
+<td align="left">design</td>
+<td align="left">~batch + isotype</td>
+</tr>
+<tr class="odd">
+<td align="left">comparisons</td>
+<td align="left">NULL</td>
+</tr>
+<tr class="even">
+<td align="left">include_interactions</td>
+<td align="left">FALSE</td>
+</tr>
+<tr class="odd">
+<td align="left">stratified</td>
+<td align="left">FALSE</td>
+</tr>
+<tr class="even">
+<td align="left">batch</td>
+<td align="left">batch</td>
+</tr>
+<tr class="odd">
+<td align="left">platform</td>
+<td align="left">rnaseq</td>
+</tr>
+<tr class="even">
+<td align="left">export_counts</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="odd">
+<td align="left">filter_method</td>
+<td align="left">cpm</td>
+</tr>
+<tr class="even">
+<td align="left">cpm_percentile</td>
+<td align="left">0.05</td>
+</tr>
+<tr class="odd">
+<td align="left">min_count</td>
+<td align="left">10</td>
+</tr>
+<tr class="even">
+<td align="left">min_samples_per_group</td>
+<td align="left">NULL</td>
+</tr>
+<tr class="odd">
+<td align="left">remove_mt</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="even">
+<td align="left">remove_xy</td>
+<td align="left">FALSE</td>
+</tr>
+<tr class="odd">
+<td align="left">remove_vdj</td>
+<td align="left">BCR</td>
+</tr>
+<tr class="even">
+<td align="left">ranking</td>
+<td align="left">log2FoldChange</td>
+</tr>
+<tr class="odd">
+<td align="left">collections</td>
+<td align="left">HALLMARK, GOBP, GOCC, GOMF, KEGG, REACTOME, PID</td>
+</tr>
+<tr class="even">
+<td align="left">run_clusterprofiler</td>
+<td align="left">FALSE</td>
+</tr>
+<tr class="odd">
+<td align="left">run_gsva</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="even">
+<td align="left">run_wgcna</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="odd">
+<td align="left">run_decoupler_tf</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="even">
+<td align="left">run_decoupler_ccc</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="odd">
+<td align="left">run_viper</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="even">
+<td align="left">run_cspa</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="odd">
+<td align="left">render_html</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="even">
+<td align="left">parallel_render</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="odd">
+<td align="left">render_workers</td>
+<td align="left">50</td>
+</tr>
+<tr class="even">
+<td align="left">use_targets</td>
+<td align="left">FALSE</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="report-sections" class="section level2">
+<h2>Report sections</h2>
+<p>This report is split across the following linked pages (each module’s
+HTML lives in its own folder, alongside the figures and downloads it
+links to, and is viewable offline):</p>
+<ul>
+<li><a href="qc/qc.html"><strong>QC</strong></a> – sample QC, library
+QC, PCA, and sample-similarity heatmap</li>
+<li><a href="deseq2/deseq2.html"><strong>DESeq2</strong></a> –
+per-comparison MA plot, volcano plot, DEG table, and PPI
+connectivity</li>
+<li><a
+href="clusterprofiler/clusterprofiler.html"><strong>clusterProfiler</strong></a>
+– per-comparison, per-collection GSEA barplot, gene-enrichment barcode,
+and results table, plus leading-edge Jaccard overlap (binary-cut
+clusters + word clouds)</li>
+<li><a href="wgcna/wgcna.html"><strong>WGCNA</strong></a> –
+co-expression modules, module-trait/eigengene heatmaps, per-module
+pathway enrichment, and module PPI connectivity</li>
+<li><a href="gsva/gsva.html"><strong>GSVA</strong></a> – sample-level
+gene-set variation analysis (HALLMARK always; large collections
+heatmapped by group association)</li>
+<li><a
+href="decoupler-tf/decoupleR-TF.html"><strong>decoupleR-TF</strong></a>
+– CollecTRI network + ULM transcription-factor activities</li>
+<li><a
+href="decoupler-ccc/decoupleR-CCC.html"><strong>decoupleR-CCC</strong></a>
+– LIANA / OmniPath ligand–receptor pairs + ULM (per comparison)</li>
+<li><a href="viper/viper.html"><strong>VIPER</strong></a> – bcellViper
+regulon + VIPER / msVIPER protein-activity inference</li>
+<li><a href="multihit/multihit.html"><strong>Multihit</strong></a> –
+cross-analysis gene ranking (DEG / GSEA / VIPER / decoupleR-TF /
+decoupleR-CCC / CSPA)</li>
+</ul>
+</div>
+<div id="session-info" class="section level2">
+<h2>Session info</h2>
+<pre><code>## R version 4.3.2 (2023-10-31)
+## Platform: x86_64-conda-linux-gnu (64-bit)
+## Running under: Rocky Linux 8.7 (Green Obsidian)
+## 
+## Matrix products: default
+## BLAS/LAPACK: /nemo/lab/caladod/working/Matthew/.conda/envs/seurat5/lib/libopenblasp-r0.3.23.so;  LAPACK version 3.11.0
+## 
+## locale:
+##  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
+##  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
+##  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
+## [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+## 
+## time zone: Europe/London
+## tzcode source: system (glibc)
+## 
+## attached base packages:
+## [1] stats4    stats     graphics  grDevices datasets  utils     methods  
+## [8] base     
+## 
+## other attached packages:
+##  [1] fastcluster_1.2.6           dynamicTreeCut_1.63-1      
+##  [3] DEGreports_0.4.0            testthat_3.3.1             
+##  [5] DESeq2_1.40.2               SummarizedExperiment_1.32.0
+##  [7] Biobase_2.62.0              MatrixGenerics_1.14.0      
+##  [9] matrixStats_1.5.0           GenomicRanges_1.54.1       
+## [11] GenomeInfoDb_1.38.0         IRanges_2.36.0             
+## [13] S4Vectors_0.40.1            BiocGenerics_0.48.0        
+## 
+## loaded via a namespace (and not attached):
+##   [1] vroom_1.6.5                 GSEABase_1.62.0            
+##   [3] progress_1.2.3              nnet_7.3-19                
+##   [5] DT_0.30                     Biostrings_2.70.1          
+##   [7] HDF5Array_1.30.0            vctrs_0.6.5                
+##   [9] digest_0.6.39               png_0.1-8                  
+##  [11] shape_1.4.6                 proxy_0.4-27               
+##  [13] DEGreport_1.36.0            OmnipathR_3.11.4           
+##  [15] ggrepel_0.9.4               mixsqp_0.3-54              
+##  [17] parallelly_1.46.1           renv_1.1.8                 
+##  [19] bcellViper_1.36.0           MASS_7.3-60                
+##  [21] reshape_0.8.9               reshape2_1.4.4             
+##  [23] SQUAREM_2021.1              foreach_1.5.2              
+##  [25] qvalue_2.32.0               withr_3.0.2                
+##  [27] psych_2.3.9                 xfun_0.57                  
+##  [29] ggfun_0.1.2                 ellipsis_0.3.2             
+##  [31] survival_3.5-7              memoise_2.0.1              
+##  [33] proxyC_0.4.1                clusterProfiler_4.8.2      
+##  [35] gson_0.1.0                  systemfonts_1.3.1          
+##  [37] mixtools_2.0.0              bsplus_0.1.5               
+##  [39] ragg_1.5.0                  tidytree_0.4.5             
+##  [41] GlobalOptions_0.1.2         simplifyEnrichment_1.10.0  
+##  [43] gtools_3.9.5                logging_0.10-108           
+##  [45] Formula_1.2-5               prettyunits_1.2.0          
+##  [47] KEGGREST_1.42.0             httr_1.4.7                 
+##  [49] downloader_0.4              globals_0.19.0             
+##  [51] hash_2.2.6.4                rhdf5filters_1.12.1        
+##  [53] rstudioapi_0.17.1           ashr_2.2-63                
+##  [55] rhdf5_2.46.0                generics_0.1.4             
+##  [57] DOSE_3.26.1                 dir.expiry_1.8.0           
+##  [59] base64enc_0.1-6             babelgene_22.9             
+##  [61] curl_7.0.0                  zlibbioc_1.48.0            
+##  [63] ScaledMatrix_1.8.1          ggraph_2.1.0               
+##  [65] polyclip_1.10-7             GenomeInfoDbData_1.2.11    
+##  [67] viper_1.34.0                SparseArray_1.2.0          
+##  [69] xtable_1.8-8                stringr_1.5.1              
+##  [71] desc_1.4.3                  doParallel_1.0.17          
+##  [73] evaluate_1.0.5              S4Arrays_1.2.0             
+##  [75] preprocessCore_1.61.0       hms_1.1.3                  
+##  [77] irlba_2.3.7                 filelock_1.0.2             
+##  [79] colorspace_2.1-0            NLP_0.3-2                  
+##  [81] reticulate_1.34.0           readxl_1.4.3               
+##  [83] magrittr_2.0.4              readr_2.1.5                
+##  [85] later_1.3.1                 viridis_0.6.4              
+##  [87] ggtree_3.8.2                lattice_0.21-8             
+##  [89] future.apply_1.11.0         genefilter_1.84.0          
+##  [91] scuttle_1.10.3              XML_3.99-0.14              
+##  [93] shadowtext_0.1.2            cowplot_1.1.1              
+##  [95] class_7.3-22                Hmisc_5.1-1                
+##  [97] pillar_1.11.1               nlme_3.1-163               
+##  [99] iterators_1.0.14            caTools_1.18.2             
+## [101] compiler_4.3.2              beachmat_2.18.0            
+## [103] stringi_1.8.7               lubridate_1.9.3            
+## [105] plyr_1.8.9                  msigdbr_7.5.1              
+## [107] crayon_1.5.3                abind_1.4-8                
+## [109] truncnorm_1.0-9             ggdendro_0.2.0             
+## [111] gridGraphics_0.5-1          emdbook_1.3.13             
+## [113] chron_2.3-63                sp_2.2-0                   
+## [115] locfit_1.5-9.12             graphlayouts_1.0.0         
+## [117] org.Hs.eg.db_3.17.0         bit_4.6.0                  
+## [119] dplyr_1.1.4                 fastmatch_1.1-4            
+## [121] textshaping_0.3.6           codetools_0.2-19           
+## [123] BiocSingular_1.16.0         pandoc_0.2.0               
+## [125] crosstalk_1.2.0             bslib_0.5.1                
+## [127] slam_0.1-55                 e1071_1.7-13               
+## [129] GetoptLong_1.0.5            plotly_4.10.3              
+## [131] tm_0.7-16                   mime_0.13                  
+## [133] splines_4.3.2               circlize_0.4.15            
+## [135] Rcpp_1.0.11                 basilisk_1.13.4            
+## [137] sparseMatrixStats_1.14.0    HDO.db_0.99.1              
+## [139] cellranger_1.1.0            knitr_1.51                 
+## [141] blob_1.2.4                  clue_0.3-66                
+## [143] apeglm_1.22.1               fs_1.6.6                   
+## [145] listenv_0.10.1              checkmate_2.2.0            
+## [147] DelayedMatrixStats_1.24.0   logger_0.2.2               
+## [149] pkgbuild_1.4.8              GSVA_1.51.6                
+## [151] ggplotify_0.1.2             tibble_3.3.0               
+## [153] sqldf_0.4-12                Matrix_1.6-4               
+## [155] statmod_1.5.0               tzdb_0.5.0                 
+## [157] tweenr_2.0.2                pkgconfig_2.0.3            
+## [159] pheatmap_1.0.12             tools_4.3.2                
+## [161] cachem_1.0.8                RSQLite_2.3.2              
+## [163] viridisLite_0.4.3           rvest_1.0.3                
+## [165] DBI_1.1.3                   numDeriv_2016.8-1.1        
+## [167] impute_1.74.1               fastmap_1.2.0              
+## [169] rmarkdown_2.30              scales_1.4.0               
+## [171] grid_4.3.2                  liana_0.1.12               
+## [173] sass_0.4.7                  broom_1.0.5                
+## [175] patchwork_1.2.0             coda_0.19-4                
+## [177] BiocManager_1.30.23         dotCall64_1.2              
+## [179] graph_1.78.0                rpart_4.1.21               
+## [181] farver_2.1.2                tidygraph_1.2.3            
+## [183] scatterpie_0.2.1            mgcv_1.9-0                 
+## [185] gsubfn_0.7                  yaml_2.3.12                
+## [187] foreign_0.8-85              cli_3.6.5                  
+## [189] purrr_1.0.4                 lifecycle_1.0.4            
+## [191] mvtnorm_1.2-3               bluster_1.10.0             
+## [193] kernlab_0.9-32              backports_1.5.0            
+## [195] BiocParallel_1.36.0         annotate_1.80.0            
+## [197] timechange_0.2.0            gtable_0.3.6               
+## [199] rjson_0.2.21                progressr_0.14.0           
+## [201] parallel_4.3.2              ape_5.7-1                  
+## [203] limma_3.56.2                jsonlite_2.0.0             
+## [205] edgeR_3.42.4                bitops_1.0-9               
+## [207] ggplot2_3.5.2               bit64_4.6.0-1              
+## [209] brio_1.1.5                  yulab.utils_0.2.0          
+## [211] BiocNeighbors_1.18.0        SeuratObject_5.0.2         
+## [213] proto_1.0.0                 bdsmatrix_1.3-7            
+## [215] jquerylib_0.1.4             metapod_1.8.0              
+## [217] dqrng_0.3.1                 GOSemSim_2.26.1            
+## [219] segmented_2.1-4             lazyeval_0.2.2             
+## [221] ConsensusClusterPlus_1.66.0 htmltools_0.5.6.1          
+## [223] enrichplot_1.20.1           GO.db_3.18.0               
+## [225] basilisk.utils_1.13.3       rappdirs_0.3.4             
+## [227] downloadthis_0.5.0          glue_1.8.0                 
+## [229] STRINGdb_2.12.1             spam_2.10-0                
+## [231] XVector_0.42.0              RCurl_1.98-1.12            
+## [233] decoupleR_2.9.1             rprojroot_2.1.1            
+## [235] treeio_1.33.0               scran_1.28.2               
+## [237] mnormt_2.1.1                gridExtra_2.3              
+## [239] igraph_2.1.4                invgamma_1.1               
+## [241] R6_2.6.1                    sva_3.35.2                 
+## [243] tidyr_1.3.1                 SingleCellExperiment_1.24.0
+## [245] gplots_3.1.3                labeling_0.4.3             
+## [247] cluster_2.1.4               bbmle_1.0.25.1             
+## [249] pkgload_1.4.1               Rhdf5lib_1.24.0            
+## [251] aplot_0.2.0                 DelayedArray_0.28.0        
+## [253] tidyselect_1.2.1            plotrix_3.8-4              
+## [255] WGCNA_1.74                  htmlTable_2.4.1            
+## [257] ggforce_0.4.1               xml2_1.3.5                 
+## [259] future_1.70.0               AnnotationDbi_1.64.0       
+## [261] rsvd_1.0.5                  KernSmooth_2.23-22         
+## [263] data.table_1.17.2           htmlwidgets_1.6.2          
+## [265] fgsea_1.26.0                ComplexHeatmap_2.16.0      
+## [267] RColorBrewer_1.1-3          rlang_1.1.7                
+## [269] Cairo_1.6-2</code></pre>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+
+</body>
+</html>

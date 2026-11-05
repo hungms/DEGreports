@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports – QC</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="lib/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="lib/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+<link href="lib/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="lib/pagedtable-1.1/js/pagedtable.js"></script>
+<script src="lib/htmlwidgets-1.6.2/htmlwidgets.js"></script>
+<script src="lib/plotly-binding-4.10.3/plotly.js"></script>
+<script src="lib/typedarray-0.1/typedarray.min.js"></script>
+<link href="lib/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet" />
+<script src="lib/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+<link href="lib/plotly-htmlwidgets-css-2.11.1/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="lib/plotly-main-2.11.1/plotly-latest.min.js"></script>
+<link href="lib/font-awesome-6.7.2/css/all.min.css" rel="stylesheet" />
+<link href="lib/font-awesome-6.7.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports – QC</h1>
+<h4 class="date">2026-11-05 10:38</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<a href="../index.html">Index</a>  |  <strong>QC</strong>  | 
+<a href="../deseq2/deseq2.html">DESeq2</a>  | 
+<a href="../clusterprofiler/clusterprofiler.html">clusterProfiler</a>
+ |  <a href="../gsva/gsva.html">GSVA</a>  | 
+<a href="../wgcna/wgcna.html">WGCNA</a>  | 
+<a href="../decoupler-tf/decoupleR-TF.html">decoupleR-TF</a>  | 
+<a href="../decoupler-ccc/decoupleR-CCC.html">decoupleR-CCC</a>  | 
+<a href="../viper/viper.html">VIPER</a>  | 
+<a href="../multihit/multihit.html">Multihit</a>
+</div>
+<div id="sample-qc" class="section level2">
+<h2>Sample QC</h2>
+<p>Per-sample detection depth on the <strong>input</strong> count matrix
+(before gene filtering): detected genes = genes with count &gt; 0; total
+transcripts = sum of counts.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Sample</th>
+<th align="right">Detected genes</th>
+<th align="left">Total transcripts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">BM_IgA_1</td>
+<td align="right">14449</td>
+<td align="left">28,803,651</td>
+</tr>
+<tr class="even">
+<td align="left">BM_IgA_2</td>
+<td align="right">14460</td>
+<td align="left">26,876,313</td>
+</tr>
+<tr class="odd">
+<td align="left">BM_IgA_3</td>
+<td align="right">14473</td>
+<td align="left">28,924,431</td>
+</tr>
+<tr class="even">
+<td align="left">BM_IgA_4</td>
+<td align="right">14431</td>
+<td align="left">29,708,137</td>
+</tr>
+<tr class="odd">
+<td align="left">BM_IgG_1</td>
+<td align="right">14389</td>
+<td align="left">20,185,146</td>
+</tr>
+<tr class="even">
+<td align="left">BM_IgG_2</td>
+<td align="right">14476</td>
+<td align="left">22,160,407</td>
+</tr>
+<tr class="odd">
+<td align="left">BM_IgG_3</td>
+<td align="right">14379</td>
+<td align="left">23,729,749</td>
+</tr>
+<tr class="even">
+<td align="left">BM_IgG_4</td>
+<td align="right">14432</td>
+<td align="left">22,525,681</td>
+</tr>
+<tr class="odd">
+<td align="left">BM_IgM_1</td>
+<td align="right">14443</td>
+<td align="left">28,269,954</td>
+</tr>
+<tr class="even">
+<td align="left">BM_IgM_3</td>
+<td align="right">14490</td>
+<td align="left">30,767,945</td>
+</tr>
+<tr class="odd">
+<td align="left">BM_IgM_4</td>
+<td align="right">14471</td>
+<td align="left">28,973,814</td>
+</tr>
+</tbody>
+</table>
+<p><a href="qc_sample_summary.csv" class="btn btn-default btn-sm" download="qc_sample_summary.csv">
+<i class="fa fa-download"></i> Download sample QC CSV </a></p>
+</div>
+<div id="library-qc" class="section level2">
+<h2>Library QC</h2>
+<p>Genes removed at each QC step:</p>
+<table>
+<colgroup>
+<col width="47%" />
+<col width="13%" />
+<col width="14%" />
+<col width="10%" />
+<col width="12%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Step</th>
+<th align="right">Genes before</th>
+<th align="right">Genes removed</th>
+<th align="left">% removed</th>
+<th align="right">Genes after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Input</td>
+<td align="right">14631</td>
+<td align="right">0</td>
+<td align="left">0.00%</td>
+<td align="right">14631</td>
+</tr>
+<tr class="even">
+<td align="left">Mitochondrial gene removal</td>
+<td align="right">14631</td>
+<td align="right">20</td>
+<td align="left">0.14%</td>
+<td align="right">14611</td>
+</tr>
+<tr class="odd">
+<td align="left">VDJ gene removal (BCR)</td>
+<td align="right">14611</td>
+<td align="right">326</td>
+<td align="left">2.23%</td>
+<td align="right">14285</td>
+</tr>
+<tr class="even">
+<td align="left">Low-expression gene removal (CPM percentile)</td>
+<td align="right">14285</td>
+<td align="right">715</td>
+<td align="left">5.01%</td>
+<td align="right">13570</td>
+</tr>
+</tbody>
+</table>
+<p>Low-expression filter: removed every gene with no reads in any
+sample, then the bottom <strong>5%</strong> of the remaining (expressed)
+genes by mean CPM across samples.</p>
+<p>Reproduce library QC with this package module:</p>
+<pre class="r"><code>dds_qc &lt;- run_qc(dds, var = &quot;condition&quot;, filter_method = &quot;cpm&quot;)</code></pre>
+<div id="count-distribution" class="section level3">
+<h3>Count distribution</h3>
+<p>Distribution of the per-gene filtering statistic before and after
+low-expression removal, overlaid on the same axes. The dashed line marks
+the expression cutoff.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/count_distribution_plot.pdf" class="btn btn-default btn-sm" download="count_distribution_plot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a29448eab38.png" alt="count_distribution_plot" width="450" height="375" style="max-width: none !important; width: 450px; height: 375px;"/></p>
+</div>
+</div>
+</div>
+</div>
+<div id="library-size" class="section level3">
+<h3>Library size</h3>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/library_size_plot.pdf" class="btn btn-default btn-sm" download="library_size_plot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a29302eb58b.png" alt="library_size_plot" width="548" height="375" style="max-width: none !important; width: 548px; height: 375px;"/></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="pca" class="section level2">
+<h2>PCA</h2>
+<p>Reproduce PCA + sample similarity with this package module:</p>
+<pre class="r"><code>distance_out &lt;- run_distance_pca(dds_qc, var = &quot;condition&quot;)</code></pre>
+<div id="pca-scatter" class="section level3 tabset">
+<h3 class="tabset">PCA scatter</h3>
+<div id="after-combat-seq" class="section level4">
+<h4>After ComBat-seq</h4>
+<p>Hover over a point to see its sample name. PCA/scree/loadings below
+are all computed on the batch-corrected matrix; batch correction is for
+visualization only and does not alter the DESeq2 design or differential
+expression results.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/pca_plot.pdf" class="btn btn-default btn-sm" download="pca_plot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<div id="htmlwidget-48a87bbc5074439b0acf" class="plotly html-widget"
+style="width:399.247820672478px;height:344px;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-48a87bbc5074439b0acf">{"x":{"data":[{"x":[-18.268532019037313,23.483978787100792],"y":[0,0],"text":"","type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(127,127,127,1)","dash":"dot"},"hoveron":"points","showlegend":false,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[0,0],"y":[-14.942354779878775,9.5054957643064704],"text":"","type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(127,127,127,1)","dash":"dot"},"hoveron":"points","showlegend":false,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[20.004602886589282,19.893450473611406,11.93126438781503],"y":[7.0015621821600522,6.9874607113217841,2.6781351213423989],"text":["Sample: BM_IgM_1<br>isotype: IgM","Sample: BM_IgM_3<br>isotype: IgM","Sample: BM_IgM_4<br>isotype: IgM"],"type":"scatter","mode":"markers","marker":{"autocolorscale":false,"color":"rgba(248,118,109,1)","opacity":0.84999999999999998,"size":11.338582677165356,"symbol":"circle","line":{"width":1.8897637795275593,"color":"rgba(248,118,109,1)"}},"hoveron":"points","name":"IgM","legendgroup":"IgM","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[-1.980273049030242,-0.080778474105579368,-0.66942853464445662,2.6828064654789623],"y":[-10.411660978333082,-9.9916479960411539,-12.905033901196671,-7.8790619741048289],"text":["Sample: BM_IgG_1<br>isotype: IgG","Sample: BM_IgG_2<br>isotype: IgG","Sample: BM_IgG_3<br>isotype: IgG","Sample: BM_IgG_4<br>isotype: IgG"],"type":"scatter","mode":"markers","marker":{"autocolorscale":false,"color":"rgba(0,186,56,1)","opacity":0.84999999999999998,"size":11.338582677165356,"symbol":"circle","line":{"width":1.8897637795275593,"color":"rgba(0,186,56,1)"}},"hoveron":"points","name":"IgG","legendgroup":"IgG","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[-13.261466517853826,-12.443720960968513,-14.789156118525804,-11.287300558366265],"y":[5.0554011530595577,6.0943992792496182,7.468174885624367,5.9022715169179589],"text":["Sample: BM_IgA_1<br>isotype: IgA","Sample: BM_IgA_2<br>isotype: IgA","Sample: BM_IgA_3<br>isotype: IgA","Sample: BM_IgA_4<br>isotype: IgA"],"type":"scatter","mode":"markers","marker":{"autocolorscale":false,"color":"rgba(97,156,255,1)","opacity":0.84999999999999998,"size":11.338582677165356,"symbol":"circle","line":{"width":1.8897637795275593,"color":"rgba(97,156,255,1)"}},"hoveron":"points","name":"IgA","legendgroup":"IgA","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":43.098381070983812,"r":91.970112079701124,"b":40.647571606475722,"l":47.023661270236623},"plot_bgcolor":"rgba(255,255,255,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":15.940224159402241},"title":{"text":"After ComBat-seq","font":{"color":"rgba(0,0,0,1)","family":"","size":19.128268991282692},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":false,"type":"linear","autorange":false,"range":[-18.268532019037313,23.483978787100792],"tickmode":"array","ticktext":["-10","0","10","20"],"tickvals":[-10,0,10,19.999999999999996],"categoryorder":"array","categoryarray":["-10","0","10","20"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.9850560398505603,"tickwidth":0.72455564360919278,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":12.7521793275218},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(235,235,235,1)","gridwidth":0.72455564360919278,"zeroline":false,"anchor":"y","title":{"text":"PC1: 52.9% variance","font":{"color":"rgba(0,0,0,1)","family":"","size":15.940224159402241}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":false,"type":"linear","autorange":false,"range":[-14.942354779878775,9.5054957643064704],"tickmode":"array","ticktext":["-10","-5","0","5"],"tickvals":[-10,-5,0,5.0000000000000018],"categoryorder":"array","categoryarray":["-10","-5","0","5"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.9850560398505608,"tickwidth":0.72455564360919278,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":12.7521793275218},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(235,235,235,1)","gridwidth":0.72455564360919278,"zeroline":false,"anchor":"x","title":{"text":"PC2: 22.6% variance","font":{"color":"rgba(0,0,0,1)","family":"","size":15.940224159402241}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":"transparent","line":{"color":"rgba(51,51,51,1)","width":0.72455564360919278,"linetype":"solid"},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":2.0615604867573367,"font":{"color":"rgba(0,0,0,1)","family":"","size":12.7521793275218},"x":1.02,"xanchor":"left","xref":"paper","y":0.5,"yanchor":"middle","yref":"paper"},"hovermode":"closest","width":399.24782067247827,"height":344,"barmode":"relative","autosize":false},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false,"displaylogo":false,"responsive":false},"source":"A","attrs":{"114a291d5a1a45":{"yintercept":{},"type":"scatter"},"114a2941593d57":{"xintercept":{}},"114a29789c9a5f":{"x":{},"y":{},"colour":{},"text":{}}},"cur_data":"114a291d5a1a45","visdat":{"114a291d5a1a45":["function (y) ","x"],"114a2941593d57":["function (y) ","x"],"114a29789c9a5f":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="scree-plot" class="section level5">
+<h5>Scree plot</h5>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/scree_plot.pdf" class="btn btn-default btn-sm" download="scree_plot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a297627a30.png" alt="scree_plot" width="450" height="338" style="max-width: none !important; width: 450px; height: 338px;"/></p>
+</div>
+</div>
+</div>
+</div>
+<div id="top-pca-loadings" class="section level5">
+<h5>Top PCA loadings</h5>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/pca_loadings_plot.pdf" class="btn btn-default btn-sm" download="pca_loadings_plot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a2947138950.png" alt="pca_loadings_plot" width="1080" height="540" style="max-width: none !important; width: 1080px; height: 540px;"/></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="before-batch-correction" class="section level4">
+<h4>Before batch correction</h4>
+<p>Shown for comparison against the batch-corrected PCA in the other
+tab. Hover over a point to see its sample name.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/pca_plot_uncorrected.pdf" class="btn btn-default btn-sm" download="pca_plot_uncorrected.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<div id="htmlwidget-e13d7208a4bdce9a2330" class="plotly html-widget"
+style="width:399.247820672478px;height:344px;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-e13d7208a4bdce9a2330">{"x":{"data":[{"x":[-19.707654952318308,23.670909621830447],"y":[0,0],"text":"","type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(127,127,127,1)","dash":"dot"},"hoveron":"points","showlegend":false,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[0,0],"y":[-15.014181010020661,13.331334179316144],"text":"","type":"scatter","mode":"lines","line":{"width":1.8897637795275593,"color":"rgba(127,127,127,1)","dash":"dot"},"hoveron":"points","showlegend":false,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[20.056029240651384,19.329705273752229,13.927995676026541],"y":[10.969207913538076,8.8284283396505625,-2.5896531059036638],"text":["Sample: BM_IgM_1<br>isotype: IgM","Sample: BM_IgM_3<br>isotype: IgM","Sample: BM_IgM_4<br>isotype: IgM"],"type":"scatter","mode":"markers","marker":{"autocolorscale":false,"color":"rgba(248,118,109,1)","opacity":0.84999999999999998,"size":11.338582677165356,"symbol":"circle","line":{"width":1.8897637795275593,"color":"rgba(248,118,109,1)"}},"hoveron":"points","name":"IgM","legendgroup":"IgM","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[-2.5126540331045732,-0.028585282033300866,-0.53350338100876205,4.6889752904603164],"y":[-7.8380515943655542,-7.6159478076138099,-11.707565292995884,-12.652054744242593],"text":["Sample: BM_IgG_1<br>isotype: IgG","Sample: BM_IgG_2<br>isotype: IgG","Sample: BM_IgG_3<br>isotype: IgG","Sample: BM_IgG_4<br>isotype: IgG"],"type":"scatter","mode":"markers","marker":{"autocolorscale":false,"color":"rgba(0,186,56,1)","opacity":0.84999999999999998,"size":11.338582677165356,"symbol":"circle","line":{"width":1.8897637795275593,"color":"rgba(0,186,56,1)"}},"hoveron":"points","name":"IgG","legendgroup":"IgG","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null},{"x":[-15.247123822120447,-13.45196420239685,-16.092774571139245,-10.136100189087282],"y":[4.9763264351263832,9.4103363274278955,5.9837672203072305,2.2352063090713541],"text":["Sample: BM_IgA_1<br>isotype: IgA","Sample: BM_IgA_2<br>isotype: IgA","Sample: BM_IgA_3<br>isotype: IgA","Sample: BM_IgA_4<br>isotype: IgA"],"type":"scatter","mode":"markers","marker":{"autocolorscale":false,"color":"rgba(97,156,255,1)","opacity":0.84999999999999998,"size":11.338582677165356,"symbol":"circle","line":{"width":1.8897637795275593,"color":"rgba(97,156,255,1)"}},"hoveron":"points","name":"IgA","legendgroup":"IgA","showlegend":true,"xaxis":"x","yaxis":"y","hoverinfo":"text","frame":null}],"layout":{"margin":{"t":43.098381070983812,"r":91.970112079701124,"b":40.647571606475722,"l":47.023661270236623},"plot_bgcolor":"rgba(255,255,255,1)","paper_bgcolor":"rgba(255,255,255,1)","font":{"color":"rgba(0,0,0,1)","family":"","size":15.940224159402241},"title":{"text":"Before batch correction","font":{"color":"rgba(0,0,0,1)","family":"","size":19.128268991282692},"x":0,"xref":"paper"},"xaxis":{"domain":[0,1],"automargin":false,"type":"linear","autorange":false,"range":[-19.707654952318308,23.670909621830447],"tickmode":"array","ticktext":["-10","0","10","20"],"tickvals":[-10,0,10,20],"categoryorder":"array","categoryarray":["-10","0","10","20"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.9850560398505603,"tickwidth":0.72455564360919278,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":12.7521793275218},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(235,235,235,1)","gridwidth":0.72455564360919278,"zeroline":false,"anchor":"y","title":{"text":"PC1: 37.4% variance","font":{"color":"rgba(0,0,0,1)","family":"","size":15.940224159402241}},"hoverformat":".2f"},"yaxis":{"domain":[0,1],"automargin":false,"type":"linear","autorange":false,"range":[-15.014181010020661,13.331334179316144],"tickmode":"array","ticktext":["-15","-10","-5","0","5","10"],"tickvals":[-15,-10,-5,-1.7763568394002505e-15,5,10],"categoryorder":"array","categoryarray":["-15","-10","-5","0","5","10"],"nticks":null,"ticks":"outside","tickcolor":"rgba(51,51,51,1)","ticklen":3.9850560398505608,"tickwidth":0.72455564360919278,"showticklabels":true,"tickfont":{"color":"rgba(77,77,77,1)","family":"","size":12.7521793275218},"tickangle":-0,"showline":false,"linecolor":null,"linewidth":0,"showgrid":true,"gridcolor":"rgba(235,235,235,1)","gridwidth":0.72455564360919278,"zeroline":false,"anchor":"x","title":{"text":"PC2: 16.4% variance","font":{"color":"rgba(0,0,0,1)","family":"","size":15.940224159402241}},"hoverformat":".2f"},"shapes":[{"type":"rect","fillcolor":"transparent","line":{"color":"rgba(51,51,51,1)","width":0.72455564360919278,"linetype":"solid"},"yref":"paper","xref":"paper","x0":0,"x1":1,"y0":0,"y1":1}],"showlegend":true,"legend":{"bgcolor":"rgba(255,255,255,1)","bordercolor":"transparent","borderwidth":2.0615604867573367,"font":{"color":"rgba(0,0,0,1)","family":"","size":12.7521793275218},"x":1.02,"xanchor":"left","xref":"paper","y":0.5,"yanchor":"middle","yref":"paper"},"hovermode":"closest","width":399.24782067247827,"height":344,"barmode":"relative","autosize":false},"config":{"doubleClick":"reset","modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false,"displaylogo":false,"responsive":false},"source":"A","attrs":{"114a29ce46151":{"yintercept":{},"type":"scatter"},"114a2924162acf":{"xintercept":{}},"114a291a6744da":{"x":{},"y":{},"colour":{},"text":{}}},"cur_data":"114a29ce46151","visdat":{"114a29ce46151":["function (y) ","x"],"114a2924162acf":["function (y) ","x"],"114a291a6744da":["function (y) ","x"]},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="scree-plot-1" class="section level5">
+<h5>Scree plot</h5>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/scree_plot_uncorrected.pdf" class="btn btn-default btn-sm" download="scree_plot_uncorrected.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a2916c06c2c.png" alt="scree_plot_uncorrected" width="450" height="338" style="max-width: none !important; width: 450px; height: 338px;"/></p>
+</div>
+</div>
+</div>
+</div>
+<div id="top-pca-loadings-1" class="section level5">
+<h5>Top PCA loadings</h5>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/pca_loadings_plot_uncorrected.pdf" class="btn btn-default btn-sm" download="pca_loadings_plot_uncorrected.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a2977c2e612.png" alt="pca_loadings_plot_uncorrected" width="1080" height="540" style="max-width: none !important; width: 1080px; height: 540px;"/></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="pccovariate-association" class="section level3 tabset">
+<h3 class="tabset">PC–covariate association</h3>
+<p>Association of the top 15 PC scores with sample covariates
+(<code>batch</code>, grouping <code>var</code>, and <code>time</code>
+when present for LRT). Colour = -log10(p) from ANOVA (factors) or
+Pearson correlation (numeric); numbers are shown only for associations
+with p &lt; 0.05.</p>
+<div id="after-combat-seq-1" class="section level4">
+<h4>After ComBat-seq</h4>
+<p>Computed on the <strong>batch-corrected</strong> PC scores (same
+matrix as the “After ComBat-seq” PCA tab).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/pca_covariate_association.pdf" class="btn btn-default btn-sm" download="pca_covariate_association.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<button class="btn btn-default btn-sm" has_icon="TRUE" onclick="&#10;    async function downloadFile(event) {&#10;      event.preventDefault();&#10;      try {&#10;        const response = await fetch(&#39;data:text/csv;base64,cGM7Y292YXJpYXRlO3BfdmFsdWU7bmVnbG9nMTBfcDtyMgpQQzE7aXNvdHlwZTsxLDk2OTA4NjI4MTYzMjIwZS0wNjs1LDcwNTczNTI1MzQ4MzEyZSswMDs5LDYyNTQwMTM2ODM1Mjg3ZS0wMQpQQzI7aXNvdHlwZTsyLDY5Nzc1Mjg0ODI5NTcwZS0wNjs1LDU2ODk5Nzg0MDI2MDExZSswMDs5LDU5NDcyNDMyMjk5ODE2ZS0wMQpQQzM7aXNvdHlwZTs5LDUyNTk2MjgyNjY0MTg5ZS0wMTsyLDEwOTExMTc1NzcyOTQ0ZS0wMjsxLDIwNjc2MTgzNzk3Nzg2ZS0wMgpQQzQ7aXNvdHlwZTs4LDU1MjM1OTc1NzU1MTc3ZS0wMTs2LDc5MTQwMzg2ODg3MzY0ZS0wMjszLDgzNDAxMzY2ODIwMTI5ZS0wMgpQQzU7aXNvdHlwZTs5LDA0MTUzMjI5MzU0MDE4ZS0wMTs0LDM3NTc5NjIxOTc1NjQ2ZS0wMjsyLDQ4NzQ1MDkzMDc1MzQ5ZS0wMgpQQzY7aXNvdHlwZTs5LDk3ODkwOTE4NDk3NDIwZS0wMTs5LDE2OTI5NzM4NDgxNTUyZS0wNDs1LDI3Njg3OTEwNTIzNzcyZS0wNApQQzc7aXNvdHlwZTs5LDkxNzU4NDEwNzAwMjIxZS0wMTszLDU5NDEwNzc2MzEwNzQ2ZS0wMzsyLDA2Njc5NTk2OTI1NDUxZS0wMwpQQzg7aXNvdHlwZTs5LDk5NzMwNjU5MTMzMDU4ZS0wMTsxLDE2OTg5MDA3OTMxODI3ZS0wNDs2LDczNDIwMTg4NTE0MzMyZS0wNQpQQzk7aXNvdHlwZTs5LDk5ODQ4NTgwNjk5MDc1ZS0wMTs2LDU3NjU1NDYwNTc0NDUwZS0wNTszLDc4NTY5NzQ5MDI3Njc1ZS0wNQpQQzEwO2lzb3R5cGU7OSw5OTk3ODA2NTY5MjI2OGUtMDE7OSw1MjYwNTMyODY0MDQ2NWUtMDY7NSw0ODM2MjIwMzc5ODE0NmUtMDYKUEMxMTtpc290eXBlOzMsNjYzOTAzNDYxNzkyMjVlLTAyOzEsNDM2MDU1OTc3ODQzNTBlKzAwOzUsNjI0OTE5OTMwODA1OTBlLTAxClBDMTtiYXRjaDs5LDI4NTQ1NDU0MDM3NTg2ZS0wMTszLDIxOTY4MzE4NzYyNDE2ZS0wMjs1LDkxNjE3ODcyMTE3MDE4ZS0wMgpQQzI7YmF0Y2g7OSw5MTU0ODUwMTAxNDA1M2UtMDE7Myw2ODYwMzc2Nzg5NDg5MmUtMDM7MSwzNjEwODQxNTI0NDQzMWUtMDIKUEMzO2JhdGNoOzksOTk3MTg2MzMzNDQxMDBlLTAxOzEsMjIyMTMxODAyMTIzNjJlLTA0OzEsMzkxNDA1MzExMDcyODdlLTAzClBDNDtiYXRjaDs5LDg3NzM1ODc1MjcwMjQyZS0wMTs1LDM1OTE3MjA2MDEzNTY3ZS0wMzsxLDc1MTQzMjY1MDYwMjIzZS0wMgpQQzU7YmF0Y2g7OSw5MjU5MTk2NTIzNDMzMGUtMDE7MywyMjkyNDQ2MjE3ODcyOGUtMDM7MSwyNDUxNTkyMDg5MTk1N2UtMDIKUEM2O2JhdGNoOzksOTQzNjAwODQwNzE4NjNlLTAxOzIsNDU2MzE3NjA3ODI3ODllLTAzOzEsMDM1OTk2OTM2Mzg2MzVlLTAyClBDNztiYXRjaDs5LDk2OTY3ODM2NTA0OTQxZS0wMTsxLDMxODg1MjM3NDE0MjIyZS0wMzs2LDgyNTU1MjcxNjEzMzQ3ZS0wMwpQQzg7YmF0Y2g7MSwxNTQyNTgxMzcyODU5OGUtMDc7Niw5Mzc2OTcwNTUwNzc5M2UrMDA7OSw5MTgwOTA1NjEyNjAwM2UtMDEKUEM5O2JhdGNoOzEsMTUzOTA3NDQ3NDc3MzdlLTA0OzMsOTM3ODI5MDIzNjQyODZlKzAwOzksNDA3MTEwODkwNTYyODdlLTAxClBDMTA7YmF0Y2g7OCwyNTAzNTExNTUxMTAxN2UtMDU7NCwwODM1Mjc1NjY0MjIwNmUrMDA7OSw0NjE2NDM4MDA5NTI3OGUtMDEKUEMxMTtiYXRjaDs3LDk0MTc4MjM4ODc5MzQ2ZS0wMTsxLDAwMDgyMDE3MTI2MjAwZS0wMTsxLDI4NzY2ODMwNjM0MDYyZS0wMQo=&#39;);&#10;        if (!response.ok) throw new Error(&#39;Network response failed&#39;);&#10;        const blob = await response.blob();&#10;        const blobUrl = window.URL.createObjectURL(blob);&#10;        const a = document.createElement(&#39;a&#39;);&#10;        a.href = blobUrl;&#10;        a.download = &#39;pca_covariate_association.csv&#39;;&#10;        a.style.display = &#39;none&#39;;&#10;        document.body.appendChild(a);&#10;        a.dispatchEvent(new MouseEvent(&#39;click&#39;));&#10;        document.body.removeChild(a);&#10;        setTimeout(() =&gt; {&#10;          window.URL.revokeObjectURL(blobUrl);&#10;        }, 100);&#10;        return false;&#10;      } catch (error) {&#10;        console.error(&#39;Download failed:&#39;, error);&#10;        alert(&#39;Download failed. Please try again.&#39;);&#10;      }&#10;    }&#10;    downloadFile(event);&#10;  "><i class="fa fa-save"></i>
+Download CSV</button> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a29412686eb.png" alt="pca_covariate_association" width="504" height="131" style="max-width: 100% !important; height: auto !important; width: 504px;"/></p>
+</div>
+</div>
+</div>
+</div>
+<div id="before-batch-correction-1" class="section level4">
+<h4>Before batch correction</h4>
+<p>Computed on the <strong>uncorrected</strong> PC scores (same matrix
+as the “Before batch correction” PCA tab).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/pca_covariate_association_uncorrected.pdf" class="btn btn-default btn-sm" download="pca_covariate_association_uncorrected.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<button class="btn btn-default btn-sm" has_icon="TRUE" onclick="&#10;    async function downloadFile(event) {&#10;      event.preventDefault();&#10;      try {&#10;        const response = await fetch(&#39;data:text/csv;base64,cGM7Y292YXJpYXRlO3BfdmFsdWU7bmVnbG9nMTBfcDtyMgpQQzE7aXNvdHlwZTsyLDYwMTY5NjIxMTQzMjQwZS0wNjs1LDU4NDc0MzQxNTQ2MTE4NjgwOzAsOTU5ODM4MTA5NjQ2ODMwMzYyClBDMjtpc290eXBlOzEsNTExMDExNTI5MjUwOTBlLTAzOzIsODIwNzMyMjIxOTE0NDg1NDc7MCw4MDI4NDA4NDY2NDg5ODQxNDEKUEMzO2lzb3R5cGU7NSwxMjc5MTM2MjM5NDMxOGUtMDE7MCwyOTAwNTkyOTg4MDkyMDM5NTswLDE1Mzc3NjMxNzY0ODM3MDc0MgpQQzQ7aXNvdHlwZTs5LDk1NzI4NzQ5MTA2MTg2ZS0wMTswLDAwMTg1ODk1MzU1NDc0MDY1OzAsMDAxMDY5NTI3MzMzNDM1OTEwClBDNTtpc290eXBlOzksNjE2NzEyNjI1NTAzNTBlLTAxOzAsMDE2OTczMzYxNzA0MDA4OTg7MCwwMDk3MjMwNzQ2NjY0NDA4ODAKUEM2O2lzb3R5cGU7OSw2NDU1MDk1NjU4NjYyMmUtMDE7MCwwMTU2NzQ4MjM5MjQ5MDE5ODswLDAwODk4MjU2NzQ4NjgwNjU0NQpQQzc7aXNvdHlwZTs5LDIzNDg0NTAyNzA4NjE2ZS0wMTswLDAzNDU3MDM4ODE5ODQwNjQ4OzAsMDE5NzAzNjEwODQ2NzUxMDc5ClBDODtpc290eXBlOzgsODQ5NTg1NDU0MTA1ODFlLTAxOzAsMDUzMDc3MDcyNzE1ODQ4NDA7MCwwMzAwOTE1NzQ5NDc1OTkwMTYKUEM5O2lzb3R5cGU7OSw0NzUyMjc5MTEzNTk3M2UtMDE7MCwwMjM0MTAzMzQ5NzkzNjQ5NDswLDAxMzM4NTY3NjM0MjM4Mzc3OApQQzEwO2lzb3R5cGU7OSw5NzY0NzMwMDgyMTI2MmUtMDE7MCwwMDEwMjI5NjgxMTE0Mzg1NTswLDAwMDU4ODY5NDQzMjM5ODA1NQpQQzExO2lzb3R5cGU7MywzOTMxMjQ3OTk3ODU5MWUtMDI7MSw0Njk0MDAxNjY2MjYxNDMzNzswLDU3MDgwOTY0MDQxMTk0NjkyOApQQzE7YmF0Y2g7OSwxNDcxODUwODYyODM5NWUtMDE7MCwwMzg3MTI1MzMyMDk4NTYwNTswLDA2NzExMjczMDY1ODI4MTAyMgpQQzI7YmF0Y2g7OCwzODMyNTM2Mzk1NzI1MmUtMDE7MCwwNzY1ODczOTM4NDM2Mjk0ODswLDEwNzE2Mjc0OTkxNDA4ODQ3MwpQQzM7YmF0Y2g7Miw4Mjk2OTAyOTEzMTY2NGUtMDI7MSw1NDgyNjEwOTUyNjQ2MzY5NjswLDcwNTU3MTA4OTkxNjU5Mjc4NgpQQzQ7YmF0Y2g7MSw5NTkxNDQ3MjMyMzEyNmUtMDI7MSw3MDc5MzM0ODEyMTg1MzI5NTswLDczNjA4NjI0MTU1MjI1NTMyNwpQQzU7YmF0Y2g7MSwzMjQ5NzA3NzYyNDQwOGUtMDE7MCw4Nzc3OTM3MDA0ODYzNDM0MjswLDUyOTE0MjQ4NDMwOTkyODA1MgpQQzY7YmF0Y2g7MiwwOTUzMTA3NTc4NzM1N2UtMDE7MCw2Nzg3NTE1NTcyMjIyMDI2MDswLDQ1NTc5MjE0NTc3Nzk2ODExNgpQQzc7YmF0Y2g7OSw1ODA2MTMwMTY0ODA2NWUtMDE7MCwwMTg2MDY3MDE2NTY2MDAwMzswLDA0MDY5ODA0NzgxNDE3MDQ5NgpQQzg7YmF0Y2g7OSwyODYwMjEzMzA2NjAxOGUtMDE7MCwwMzIxNzAzMjMwNjI5NzczMzswLDA1OTEyODQ3Nzg1NzU1NTQ4NApQQzk7YmF0Y2g7OCwzMDA5NDkyODE4ODcxOGUtMDE7MCwwODA4NzIyMzk2MzQ2MDU2NzswLDExMTI0Mzg4NTEzMzk1NzA2OApQQzEwO2JhdGNoOzYsNjk2NTQzODM0MTExNzFlLTAxOzAsMTc0MTQ5Mjg0MDIyNjkxODk7MCwxODgwNjIxNDcwNjUyMDU5MDkKUEMxMTtiYXRjaDs4LDkwMTE2MTAwMTUwNDc4ZS0wMTswLDA1MDU1MzM0MzUwNTM3NDUxOzAsMDgwNTc5NzY3NTU1NDY5MTUzCg==&#39;);&#10;        if (!response.ok) throw new Error(&#39;Network response failed&#39;);&#10;        const blob = await response.blob();&#10;        const blobUrl = window.URL.createObjectURL(blob);&#10;        const a = document.createElement(&#39;a&#39;);&#10;        a.href = blobUrl;&#10;        a.download = &#39;pca_covariate_association_uncorrected.csv&#39;;&#10;        a.style.display = &#39;none&#39;;&#10;        document.body.appendChild(a);&#10;        a.dispatchEvent(new MouseEvent(&#39;click&#39;));&#10;        document.body.removeChild(a);&#10;        setTimeout(() =&gt; {&#10;          window.URL.revokeObjectURL(blobUrl);&#10;        }, 100);&#10;        return false;&#10;      } catch (error) {&#10;        console.error(&#39;Download failed:&#39;, error);&#10;        alert(&#39;Download failed. Please try again.&#39;);&#10;      }&#10;    }&#10;    downloadFile(event);&#10;  "><i class="fa fa-save"></i>
+Download CSV</button> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a29263d2f6d.png" alt="pca_covariate_association_uncorrected" width="543" height="112" style="max-width: 100% !important; height: auto !important; width: 543px;"/></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="sample-similarity-spearman" class="section level3 tabset">
+<h3 class="tabset">Sample similarity (Spearman)</h3>
+<p>Pairwise Spearman correlation between samples (colour scale spans the
+actual min/max off-diagonal correlation observed in this matrix; darker
+red = more similar, darker blue = less similar). The self-correlation
+diagonal carries no information and is blanked out (dark grey).</p>
+<div id="after-combat-seq-2" class="section level4">
+<h4>After ComBat-seq</h4>
+<p>Spearman correlation after <strong>ComBat-seq</strong> (protecting
+the biological grouping variable). This is the same corrected matrix
+used for the PCA above and for the sample-level modules (WGCNA, GSVA,
+VIPER, decoupleR).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/sample_similarity_heatmap_batch_corrected.pdf" class="btn btn-default btn-sm" download="sample_similarity_heatmap_batch_corrected.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<button class="btn btn-default btn-sm" has_icon="TRUE" onclick="&#10;    async function downloadFile(event) {&#10;      event.preventDefault();&#10;      try {&#10;        const response = await fetch(&#39;data:text/csv;base64,c2FtcGxlO0JNX0lnQV8xO0JNX0lnQV8yO0JNX0lnQV8zO0JNX0lnQV80O0JNX0lnR18xO0JNX0lnR18yO0JNX0lnR18zO0JNX0lnR180O0JNX0lnTV8xO0JNX0lnTV8zO0JNX0lnTV80CkJNX0lnQV8xOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTc5NjYwNzIwNDY0NjAwOzAsOTgxODgyODEwNTEwNjM2OzAsOTY2NjYxODg2MDI3NzYwOzAsOTQ4Mjc1NDMxMzEzMjc0OzAsOTYyODUyMDc5MzY5NDcyOzAsOTU3ODgwNjQyMzg2NjcyOzAsOTU4NTE5NzAyMzUyMDc5OzAsOTI0MzIwNDc1MzA5MjAwOzAsOTM1MTM2NDA2NTA2MzM0OzAsOTUzNTk4MTk5MjYzMTk5CkJNX0lnQV8yOzAsOTc5NjYwNzIwNDY0NjAwOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTgxODUxNzYwODI4MzkxOzAsOTcxNDM2MDM1NDI3MjM4OzAsOTYyNTMxMjU1NDUxNjM5OzAsOTQ1ODI2Njg2NzE4MTgxOzAsOTU5MzkyOTg2NDI5NTYxOzAsOTYxNDM0OTEyODAzNDQ1OzAsOTM0NTUzOTczNzIxODI1OzAsOTM3NjAyODE0NzMyOTk4OzAsOTQ5NTk1NTYyNDM2MDcxCkJNX0lnQV8zOzAsOTgxODgyODEwNTEwNjM2OzAsOTgxODUxNzYwODI4MzkxOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTcwODI5ODk3MjMzNjc4OzAsOTU2MDQ2NTU0NjA3MDg4OzAsOTU5MDY5MzEzMTg3NDg2OzAsOTQ1NjI0Mjg2MDQwNTU4OzAsOTU1MDE0MzY5NTkxOTM2OzAsOTMwNjg2MTI5MTE1MjA5OzAsOTI4NDgyNjc3ODk5MDU3OzAsOTQ5NzUzMDU2NDcwMzU2CkJNX0lnQV80OzAsOTY2NjYxODg2MDI3NzYwOzAsOTcxNDM2MDM1NDI3MjM4OzAsOTcwODI5ODk3MjMzNjc4OzEsMDAwMDAwMDAwMDAwMDAwOzAsOTU3MzYyNzg1OTA1MTM3OzAsOTU5MTI5MTkwMDI1NzQwOzAsOTUxODQ1MTEwNDYzMzEzOzAsOTM3NzI5NzIxODI1NTA2OzAsOTM2NTg4ODEzNjg1NjI3OzAsOTM4OTA5ODY5MDQ4NjExOzAsOTMzOTA1ODcwNjY0Mzc5CkJNX0lnR18xOzAsOTQ4Mjc1NDMxMzEzMjc0OzAsOTYyNTMxMjU1NDUxNjM5OzAsOTU2MDQ2NTU0NjA3MDg4OzAsOTU3MzYyNzg1OTA1MTM3OzEsMDAwMDAwMDAwMDAwMDAwOzAsOTc3MTE3NDUzNzA3OTcxOzAsOTc2ODU3NTIwNzczODMzOzAsOTcxOTQxNjYxNDkzNjY5OzAsOTMzNzg4Nzc4MDE3NTc2OzAsOTQ1NzYyMjk2OTE3NDQwOzAsOTU3MDA2OTM0Njg2NDUyCkJNX0lnR18yOzAsOTYyODUyMDc5MzY5NDcyOzAsOTQ1ODI2Njg2NzE4MTgxOzAsOTU5MDY5MzEzMTg3NDg2OzAsOTU5MTI5MTkwMDI1NzQwOzAsOTc3MTE3NDUzNzA3OTcxOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTc5Njc4MzM0NTEwNTcwOzAsOTc2OTc4MDQ4Mjk3NDg3OzAsOTQ2MDEwMjQ4NzI5MzU0OzAsOTQ5ODMyNzQyNzY3ODA0OzAsOTU5NzE3NzUwNTU3ODExCkJNX0lnR18zOzAsOTU3ODgwNjQyMzg2NjcyOzAsOTU5MzkyOTg2NDI5NTYxOzAsOTQ1NjI0Mjg2MDQwNTU4OzAsOTUxODQ1MTEwNDYzMzEzOzAsOTc2ODU3NTIwNzczODMzOzAsOTc5Njc4MzM0NTEwNTcwOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTc1NjA3NDQzNjM3MjUzOzAsOTQzNDYyMzA4OTQ1NjEzOzAsOTM5NTE5NjE4NzM3NTIyOzAsOTYwMjU1NDM1NDE1NzEyCkJNX0lnR180OzAsOTU4NTE5NzAyMzUyMDc5OzAsOTYxNDM0OTEyODAzNDQ1OzAsOTU1MDE0MzY5NTkxOTM2OzAsOTM3NzI5NzIxODI1NTA2OzAsOTcxOTQxNjYxNDkzNjY5OzAsOTc2OTc4MDQ4Mjk3NDg3OzAsOTc1NjA3NDQzNjM3MjUzOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTU1NzIxMTQ1MTYzOTgxOzAsOTU4MTQ5Nzc2ODIyNjA2OzAsOTU4ODg0Nzk5NTY4NTc4CkJNX0lnTV8xOzAsOTI0MzIwNDc1MzA5MjAwOzAsOTM0NTUzOTczNzIxODI1OzAsOTMwNjg2MTI5MTE1MjA5OzAsOTM2NTg4ODEzNjg1NjI3OzAsOTMzNzg4Nzc4MDE3NTc2OzAsOTQ2MDEwMjQ4NzI5MzU0OzAsOTQzNDYyMzA4OTQ1NjEzOzAsOTU1NzIxMTQ1MTYzOTgxOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTg0NDQ0NzE5NjY3ODUxOzAsOTcxNTQ0ODYyMzI0NDU4CkJNX0lnTV8zOzAsOTM1MTM2NDA2NTA2MzM0OzAsOTM3NjAyODE0NzMyOTk4OzAsOTI4NDgyNjc3ODk5MDU3OzAsOTM4OTA5ODY5MDQ4NjExOzAsOTQ1NzYyMjk2OTE3NDQwOzAsOTQ5ODMyNzQyNzY3ODA0OzAsOTM5NTE5NjE4NzM3NTIyOzAsOTU4MTQ5Nzc2ODIyNjA2OzAsOTg0NDQ0NzE5NjY3ODUxOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTc1Mjg0NjYzODAzNDkwCkJNX0lnTV80OzAsOTUzNTk4MTk5MjYzMTk5OzAsOTQ5NTk1NTYyNDM2MDcxOzAsOTQ5NzUzMDU2NDcwMzU2OzAsOTMzOTA1ODcwNjY0Mzc5OzAsOTU3MDA2OTM0Njg2NDUyOzAsOTU5NzE3NzUwNTU3ODExOzAsOTYwMjU1NDM1NDE1NzEyOzAsOTU4ODg0Nzk5NTY4NTc4OzAsOTcxNTQ0ODYyMzI0NDU4OzAsOTc1Mjg0NjYzODAzNDkwOzEsMDAwMDAwMDAwMDAwMDAwCg==&#39;);&#10;        if (!response.ok) throw new Error(&#39;Network response failed&#39;);&#10;        const blob = await response.blob();&#10;        const blobUrl = window.URL.createObjectURL(blob);&#10;        const a = document.createElement(&#39;a&#39;);&#10;        a.href = blobUrl;&#10;        a.download = &#39;sample_similarity_matrix_batch_corrected.csv&#39;;&#10;        a.style.display = &#39;none&#39;;&#10;        document.body.appendChild(a);&#10;        a.dispatchEvent(new MouseEvent(&#39;click&#39;));&#10;        document.body.removeChild(a);&#10;        setTimeout(() =&gt; {&#10;          window.URL.revokeObjectURL(blobUrl);&#10;        }, 100);&#10;        return false;&#10;      } catch (error) {&#10;        console.error(&#39;Download failed:&#39;, error);&#10;        alert(&#39;Download failed. Please try again.&#39;);&#10;      }&#10;    }&#10;    downloadFile(event);&#10;  "><i class="fa fa-save"></i>
+Download CSV</button> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a291ce479c9.png" alt="sample_similarity_heatmap_batch_corrected" width="712" height="578" style="max-width: none !important; width: 712px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+</div>
+<div id="before-batch-correction-2" class="section level4">
+<h4>Before batch correction</h4>
+<p>Spearman correlation on the <strong>uncorrected</strong>
+variance-stabilized matrix (no ComBat-seq).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="qc_figures/sample_similarity_heatmap.pdf" class="btn btn-default btn-sm" download="sample_similarity_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<button class="btn btn-default btn-sm" has_icon="TRUE" onclick="&#10;    async function downloadFile(event) {&#10;      event.preventDefault();&#10;      try {&#10;        const response = await fetch(&#39;data:text/csv;base64,c2FtcGxlO0JNX0lnQV8xO0JNX0lnQV8yO0JNX0lnQV8zO0JNX0lnQV80O0JNX0lnR18xO0JNX0lnR18yO0JNX0lnR18zO0JNX0lnR180O0JNX0lnTV8xO0JNX0lnTV8zO0JNX0lnTV80CkJNX0lnQV8xOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTYyNjcxMzk2OTgwMjU5OzAsOTY1NDg5Nzc4NjQwMjYzOzAsOTU4NTU5NDgwMDE0NjUyOzAsOTQzMzg4MDIwNTM3MDc3OzAsOTQ0NTM4NzUzODc0MTEzOzAsOTQxNDc4NjgzMDQ1MzM3OzAsOTM0MDYwNjg1MTQ2MjY1OzAsOTE4MzAyNDE4OTA3NTg3OzAsOTI0ODg1MTgyOTYwMzg0OzAsOTMzMDc5MTAwMzEwMTg4CkJNX0lnQV8yOzAsOTYyNjcxMzk2OTgwMjU5OzEsMDAwMDAwMDAwMDAwMDAwOzAsOTY0ODk0MzA4MzY0MzgwOzAsOTU0NzcyMjg5NjQ2Nzc5OzAsOTM3MDMzNzAyMjM5OTEwOzAsOTQ3NjcxNTA4Mzk5MjAyOzAsOTM2MDA0NTA2Mjg2ODMxOzAsOTI4Njc5MjQ1MDgyNzA4OzAsOTI0MzQ1ODY5NDk5NzAyOzAsOTI4MTIzMTYwMzEwNTU0OzAsOTI3MzcyNzg4ODU4NDYzCkJNX0lnQV8zOzAsOTY1NDg5Nzc4NjQwMjYzOzAsOTY0ODk0MzA4MzY0MzgwOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTYwMTQyNzk5NjA1NDEyOzAsOTM1MTQ4NzQ3MDAwMTE4OzAsOTQzMzI4NTgyMzM1MzM2OzAsOTQyMzIwMDExNzA3NTkwOzAsOTM0Mjg0Nzg2NTkwNjk0OzAsOTE0NjY0MzIzMDI5Mjc3OzAsOTI2NDE2NzkzMzYwNDYwOzAsOTMxOTcxOTE1MTU1MTAxCkJNX0lnQV80OzAsOTU4NTU5NDgwMDE0NjUyOzAsOTU0NzcyMjg5NjQ2Nzc5OzAsOTYwMTQyNzk5NjA1NDEyOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTQ0NzM2MjcyMDY4NTQzOzAsOTQ1NDQxODQyMzk5NzY5OzAsOTQ2Nzk2NzE5MTExMzEyOzAsOTQzNTQ1MjI5NDgzOTk0OzAsOTIyMDM5NTUwODA1OTY1OzAsOTMyMjk3MTgwMTM1NDQzOzAsOTQwMzk0NzYxMTEyOTEwCkJNX0lnR18xOzAsOTQzMzg4MDIwNTM3MDc3OzAsOTM3MDMzNzAyMjM5OTEwOzAsOTM1MTQ4NzQ3MDAwMTE4OzAsOTQ0NzM2MjcyMDY4NTQzOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTQ5OTI5MzY4Mzk4MjAyOzAsOTUzNDI0MzkyNTEwNTA0OzAsOTQwNTIxNTcwNjQ2MDAyOzAsOTI5MDQ2NDIyNDAwOTAwOzAsOTI5ODYxOTg5MDExMTg3OzAsOTMwNDk1OTMzNTU1NDQ1CkJNX0lnR18yOzAsOTQ0NTM4NzUzODc0MTEzOzAsOTQ3NjcxNTA4Mzk5MjAyOzAsOTQzMzI4NTgyMzM1MzM2OzAsOTQ1NDQxODQyMzk5NzY5OzAsOTQ5OTI5MzY4Mzk4MjAyOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTU3MTQ4MDQ2NTA5ODkwOzAsOTQ5MTQwMzg3ODYwMzk2OzAsOTM1MjE3NDY1NDU2MzIyOzAsOTQxMzQ0OTc1Mjc1MjcyOzAsOTQxNTEwNjY2Nzk3OTk5CkJNX0lnR18zOzAsOTQxNDc4NjgzMDQ1MzM3OzAsOTM2MDA0NTA2Mjg2ODMxOzAsOTQyMzIwMDExNzA3NTkwOzAsOTQ2Nzk2NzE5MTExMzEyOzAsOTUzNDI0MzkyNTEwNTA0OzAsOTU3MTQ4MDQ2NTA5ODkwOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTU1NDUwNDYzODE5NTU4OzAsOTI1MzAwMTI2ODUxMTIzOzAsOTM2MDg2NTM5MjU4MDM4OzAsOTQzNzE5NzkwMzE2NDkwCkJNX0lnR180OzAsOTM0MDYwNjg1MTQ2MjY1OzAsOTI4Njc5MjQ1MDgyNzA4OzAsOTM0Mjg0Nzg2NTkwNjk0OzAsOTQzNTQ1MjI5NDgzOTk0OzAsOTQwNTIxNTcwNjQ2MDAyOzAsOTQ5MTQwMzg3ODYwMzk2OzAsOTU1NDUwNDYzODE5NTU4OzEsMDAwMDAwMDAwMDAwMDAwOzAsOTIxOTcxNDc4ODIzNzkzOzAsOTM3MTgxMTg0Mjc4MjU0OzAsOTYyOTcxNzAwNTY5ODkwCkJNX0lnTV8xOzAsOTE4MzAyNDE4OTA3NTg3OzAsOTI0MzQ1ODY5NDk5NzAyOzAsOTE0NjY0MzIzMDI5Mjc3OzAsOTIyMDM5NTUwODA1OTY1OzAsOTI5MDQ2NDIyNDAwOTAwOzAsOTM1MjE3NDY1NDU2MzIyOzAsOTI1MzAwMTI2ODUxMTIzOzAsOTIxOTcxNDc4ODIzNzkzOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTcyNjQ2NTU2NTQ2NzEwOzAsOTQxNjY0MTYxOTk2NjQyCkJNX0lnTV8zOzAsOTI0ODg1MTgyOTYwMzg0OzAsOTI4MTIzMTYwMzEwNTU0OzAsOTI2NDE2NzkzMzYwNDYwOzAsOTMyMjk3MTgwMTM1NDQzOzAsOTI5ODYxOTg5MDExMTg3OzAsOTQxMzQ0OTc1Mjc1MjcyOzAsOTM2MDg2NTM5MjU4MDM4OzAsOTM3MTgxMTg0Mjc4MjU0OzAsOTcyNjQ2NTU2NTQ2NzEwOzEsMDAwMDAwMDAwMDAwMDAwOzAsOTU1ODAyMDU0MjU1ODY2CkJNX0lnTV80OzAsOTMzMDc5MTAwMzEwMTg4OzAsOTI3MzcyNzg4ODU4NDYzOzAsOTMxOTcxOTE1MTU1MTAxOzAsOTQwMzk0NzYxMTEyOTEwOzAsOTMwNDk1OTMzNTU1NDQ1OzAsOTQxNTEwNjY2Nzk3OTk5OzAsOTQzNzE5NzkwMzE2NDkwOzAsOTYyOTcxNzAwNTY5ODkwOzAsOTQxNjY0MTYxOTk2NjQyOzAsOTU1ODAyMDU0MjU1ODY2OzEsMDAwMDAwMDAwMDAwMDAwCg==&#39;);&#10;        if (!response.ok) throw new Error(&#39;Network response failed&#39;);&#10;        const blob = await response.blob();&#10;        const blobUrl = window.URL.createObjectURL(blob);&#10;        const a = document.createElement(&#39;a&#39;);&#10;        a.href = blobUrl;&#10;        a.download = &#39;sample_similarity_matrix.csv&#39;;&#10;        a.style.display = &#39;none&#39;;&#10;        document.body.appendChild(a);&#10;        a.dispatchEvent(new MouseEvent(&#39;click&#39;));&#10;        document.body.removeChild(a);&#10;        setTimeout(() =&gt; {&#10;          window.URL.revokeObjectURL(blobUrl);&#10;        }, 100);&#10;        return false;&#10;      } catch (error) {&#10;        console.error(&#39;Download failed:&#39;, error);&#10;        alert(&#39;Download failed. Please try again.&#39;);&#10;      }&#10;    }&#10;    downloadFile(event);&#10;  "><i class="fa fa-save"></i>
+Download CSV</button> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="qc_figures/fig-114a29790011c4.png" alt="sample_similarity_heatmap" width="712" height="578" style="max-width: none !important; width: 712px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+
+</body>
+</html>

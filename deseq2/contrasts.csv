@@ -1,0 +1,7 @@
+"label","class","fit_method","question","design","n_samples","coefficients","path"
+"IgG_vs_IgM","single","levels","Is isotype IgG versus IgM differentially expressed?","~batch + isotype",11,NA,"IgG_vs_IgM"
+"IgA_vs_IgM","single","levels","Is isotype IgA versus IgM differentially expressed?","~batch + isotype",11,NA,"IgA_vs_IgM"
+"IgA_vs_IgG","single","levels","Is isotype IgA versus IgG differentially expressed?","~batch + isotype",11,NA,"IgA_vs_IgG"
+"IgM_vs_IgG+IgA","single","levels","Is isotype IgM versus IgG + IgA differentially expressed?","~batch + isotype",11,NA,"IgM_vs_IgG+IgA"
+"IgG_vs_IgM+IgA","single","levels","Is isotype IgG versus IgM + IgA differentially expressed?","~batch + isotype",11,NA,"IgG_vs_IgM+IgA"
+"IgA_vs_IgM+IgG","single","levels","Is isotype IgA versus IgM + IgG differentially expressed?","~batch + isotype",11,NA,"IgA_vs_IgM+IgG"

@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports – DESeq2</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="lib/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="lib/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+<link href="lib/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="lib/pagedtable-1.1/js/pagedtable.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports – DESeq2</h1>
+<h4 class="date">2026-11-05 10:38</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<a href="../index.html">Index</a>  |  <a href="../qc/qc.html">QC</a>  | 
+<strong>DESeq2</strong>  | 
+<a href="../clusterprofiler/clusterprofiler.html">clusterProfiler</a>
+ |  <a href="../gsva/gsva.html">GSVA</a>  | 
+<a href="../wgcna/wgcna.html">WGCNA</a>  | 
+<a href="../decoupler-tf/decoupleR-TF.html">decoupleR-TF</a>  | 
+<a href="../decoupler-ccc/decoupleR-CCC.html">decoupleR-CCC</a>  | 
+<a href="../viper/viper.html">VIPER</a>  | 
+<a href="../multihit/multihit.html">Multihit</a>
+</div>
+<div id="deseq2" class="section level2">
+<h2>DESeq2</h2>
+<p>Reproduce differential expression with this package module:</p>
+<pre class="r"><code>diffexp_out &lt;- run_diffexp_pipeline(dds_qc, var = &quot;condition&quot;)</code></pre>
+<p>Reproduce PPI connectivity (embedded below per contrast) with:</p>
+<pre class="r"><code>ppi_out &lt;- run_ppi_pipeline(diffexp_out = diffexp_out)</code></pre>
+<p>Reproduce CSPA surface-marker heatmaps with:</p>
+<pre class="r"><code>cspa_out &lt;- run_cspa_marker_pipeline(dds_qc, diffexp_out, var = &quot;condition&quot;)</code></pre>
+<div id="contrasts-in-this-run" class="section level3">
+<h3>Contrasts in this run</h3>
+<p>Each row is one comparison: the question it asks, the design formula
+fitted for it, and the number of samples that model sees. The same table
+is written to <code>deseq2/contrasts.csv</code>.</p>
+<table style="width:100%;">
+<colgroup>
+<col width="14%" />
+<col width="54%" />
+<col width="16%" />
+<col width="2%" />
+<col width="12%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Contrast</th>
+<th align="left">Question</th>
+<th align="left">Design fitted</th>
+<th align="right">n</th>
+<th align="left">Coefficients</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">IgG_vs_IgM</td>
+<td align="left">Is isotype IgG versus IgM differentially
+expressed?</td>
+<td align="left">~batch + isotype</td>
+<td align="right">11</td>
+<td align="left">NA</td>
+</tr>
+<tr class="even">
+<td align="left">IgA_vs_IgM</td>
+<td align="left">Is isotype IgA versus IgM differentially
+expressed?</td>
+<td align="left">~batch + isotype</td>
+<td align="right">11</td>
+<td align="left">NA</td>
+</tr>
+<tr class="odd">
+<td align="left">IgA_vs_IgG</td>
+<td align="left">Is isotype IgA versus IgG differentially
+expressed?</td>
+<td align="left">~batch + isotype</td>
+<td align="right">11</td>
+<td align="left">NA</td>
+</tr>
+<tr class="even">
+<td align="left">IgM_vs_IgG+IgA</td>
+<td align="left">Is isotype IgM versus IgG + IgA differentially
+expressed?</td>
+<td align="left">~batch + isotype</td>
+<td align="right">11</td>
+<td align="left">NA</td>
+</tr>
+<tr class="odd">
+<td align="left">IgG_vs_IgM+IgA</td>
+<td align="left">Is isotype IgG versus IgM + IgA differentially
+expressed?</td>
+<td align="left">~batch + isotype</td>
+<td align="right">11</td>
+<td align="left">NA</td>
+</tr>
+<tr class="even">
+<td align="left">IgA_vs_IgM+IgG</td>
+<td align="left">Is isotype IgA versus IgM + IgG differentially
+expressed?</td>
+<td align="left">~batch + isotype</td>
+<td align="right">11</td>
+<td align="left">NA</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="significant-deg-summary" class="section level3">
+<h3>Significant DEG summary</h3>
+<p>Per contrast: number and percent of significant DEGs
+(<code>padj &lt; 0.05</code> and <code>|log2FoldChange| &gt; 0.5</code>)
+among genes with non-<code>NA</code> padj. Up / down follow the sign of
+<code>log2FoldChange</code>.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Contrast</th>
+<th align="right">Tested</th>
+<th align="right">Significant</th>
+<th align="left">Up</th>
+<th align="left">% up</th>
+<th align="left">Down</th>
+<th align="left">% down</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">IgG_vs_IgM</td>
+<td align="right">13306</td>
+<td align="right">986</td>
+<td align="left">454</td>
+<td align="left">3.41%</td>
+<td align="left">532</td>
+<td align="left">4.00%</td>
+</tr>
+<tr class="even">
+<td align="left">IgA_vs_IgM</td>
+<td align="right">13570</td>
+<td align="right">1348</td>
+<td align="left">655</td>
+<td align="left">4.83%</td>
+<td align="left">693</td>
+<td align="left">5.11%</td>
+</tr>
+<tr class="odd">
+<td align="left">IgA_vs_IgG</td>
+<td align="right">13570</td>
+<td align="right">970</td>
+<td align="left">500</td>
+<td align="left">3.68%</td>
+<td align="left">470</td>
+<td align="left">3.46%</td>
+</tr>
+<tr class="even">
+<td align="left">IgM_vs_IgG+IgA</td>
+<td align="right">13570</td>
+<td align="right">771</td>
+<td align="left">415</td>
+<td align="left">3.06%</td>
+<td align="left">356</td>
+<td align="left">2.62%</td>
+</tr>
+<tr class="odd">
+<td align="left">IgG_vs_IgM+IgA</td>
+<td align="right">12517</td>
+<td align="right">443</td>
+<td align="left">215</td>
+<td align="left">1.72%</td>
+<td align="left">228</td>
+<td align="left">1.82%</td>
+</tr>
+<tr class="even">
+<td align="left">IgA_vs_IgM+IgG</td>
+<td align="right">13570</td>
+<td align="right">824</td>
+<td align="left">406</td>
+<td align="left">2.99%</td>
+<td align="left">418</td>
+<td align="left">3.08%</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="contrasts" class="section level3">
+<h3>Contrasts</h3>
+<p>Each contrast has its own page to keep HTML size manageable:</p>
+<ul>
+<li><a
+href="IgG_vs_IgM/IgG_vs_IgM.html"><strong>IgG_vs_IgM</strong></a></li>
+<li><a
+href="IgA_vs_IgM/IgA_vs_IgM.html"><strong>IgA_vs_IgM</strong></a></li>
+<li><a
+href="IgA_vs_IgG/IgA_vs_IgG.html"><strong>IgA_vs_IgG</strong></a></li>
+<li><a
+href="IgM_vs_IgG+IgA/IgM_vs_IgG+IgA.html"><strong>IgM_vs_IgG+IgA</strong></a></li>
+<li><a
+href="IgG_vs_IgM+IgA/IgG_vs_IgM+IgA.html"><strong>IgG_vs_IgM+IgA</strong></a></li>
+<li><a
+href="IgA_vs_IgM+IgG/IgA_vs_IgM+IgG.html"><strong>IgA_vs_IgM+IgG</strong></a></li>
+</ul>
+</div>
+<div id="combined-cspa-surface-markers" class="section level3">
+<h3>Combined CSPA surface markers</h3>
+<p>Union of per-contrast top Cell Surface Protein Atlas (CSPA) markers
+(all categories; organism = <strong>mouse</strong>, 1268 CSPA genes).
+Heatmap: <strong>row-scaled ComBat-seq then VST</strong> across
+<strong>all samples</strong>. 73 unique markers.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="deseq2_figures/cspa_marker_heatmap_combined.pdf" class="btn btn-default btn-sm" download="cspa_marker_heatmap_combined.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="cspa_markers_combined.csv" class="btn btn-default btn-sm" download="cspa_markers_combined.csv">
+<i class="fa fa-download"></i> Download markers CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="deseq2_figures/fig-114a292b023afe.png" alt="cspa_combined" width="585" height="1170" style="max-width: none !important; width: 585px; height: 1170px;"/></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+
+</body>
+</html>

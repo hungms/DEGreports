@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports – decoupleR-TF</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="lib/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="lib/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+<link href="lib/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="lib/pagedtable-1.1/js/pagedtable.js"></script>
+<script src="lib/htmlwidgets-1.6.2/htmlwidgets.js"></script>
+<link href="lib/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet" />
+<script src="lib/datatables-binding-0.30/datatables.js"></script>
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="lib/dt-core-1.13.4/js/jquery.dataTables.min.js"></script>
+<link href="lib/dt-ext-buttons-1.13.4/css/buttons.dataTables.min.css" rel="stylesheet" />
+<script src="lib/dt-ext-buttons-1.13.4/js/dataTables.buttons.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.html5.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.colVis.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.print.min.js"></script>
+<link href="lib/nouislider-7.0.10/jquery.nouislider.min.css" rel="stylesheet" />
+<script src="lib/nouislider-7.0.10/jquery.nouislider.min.js"></script>
+<link href="lib/selectize-0.12.0/selectize.bootstrap3.css" rel="stylesheet" />
+<script src="lib/selectize-0.12.0/selectize.min.js"></script>
+<link href="lib/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet" />
+<script src="lib/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports – decoupleR-TF</h1>
+<h4 class="date">2026-11-05 10:40</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<a href="../index.html">Index</a>  |  <a href="../qc/qc.html">QC</a>  | 
+<a href="../deseq2/deseq2.html">DESeq2</a>  | 
+<a href="../clusterprofiler/clusterprofiler.html">clusterProfiler</a>
+ |  <a href="../gsva/gsva.html">GSVA</a>  | 
+<a href="../wgcna/wgcna.html">WGCNA</a>  | 
+<strong>decoupleR-TF</strong>  | 
+<a href="../decoupler-ccc/decoupleR-CCC.html">decoupleR-CCC</a>  | 
+<a href="../viper/viper.html">VIPER</a>  | 
+<a href="../multihit/multihit.html">Multihit</a>
+</div>
+<div id="decoupler-tf" class="section level2">
+<h2>decoupleR-TF</h2>
+<p>Transcription-factor (TF) activities inferred with <a
+href="https://bioconductor.org/packages/decoupleR/"><code>decoupleR</code></a>
+using the <strong>CollecTRI</strong> prior-knowledge network and the
+<strong>Univariate Linear Model (ULM)</strong> method, following the
+bulk RNA-seq TF activity vignette. Organism for CollecTRI:
+<strong>mouse</strong>.</p>
+<p>Sample-level scores use ComBat-seq then VST expression;
+contrast-level scores use each comparison’s DESeq2 Wald
+<code>stat</code> as the gene-level statistic.</p>
+<p>Reproduce decoupleR-TF analysis with this package module:</p>
+<pre class="r"><code>decoupler_tf_out &lt;- run_decoupler_tf_pipeline(
+  dds_qc, var = &quot;condition&quot;, diffexp_out = diffexp_out
+)</code></pre>
+<div id="sample-level-tf-activities" class="section level3">
+<h3>Sample-level TF activities</h3>
+<p>Top <strong>50</strong> most variable TFs across samples (rows =
+samples, columns = TFs; scores scaled per sample). Dark blue = inactive,
+red = active.</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="decoupleR-TF_figures/ulm_sample_tf_heatmap.pdf" class="btn btn-default btn-sm" download="ulm_sample_tf_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="ulm_sample_activities.csv" class="btn btn-default btn-sm" download="ulm_sample_activities.csv">
+<i class="fa fa-download"></i> Download sample activities CSV </a>
+</span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="decoupleR-TF_figures/fig-114a2919f33552.png" alt="ulm_sample_tf_heatmap" width="1152" height="369" style="max-width: none !important; width: 1152px; height: 369px;"/></p>
+</div>
+</div>
+</div>
+</div>
+<div id="contrast-level-tf-activities" class="section level3">
+<h3>Contrast-level TF activities</h3>
+<div id="pairwise" class="section level4 tabset">
+<h4 class="tabset">Pairwise</h4>
+<div id="igg_vs_igm" class="section level5">
+<h5>IgG_vs_IgM</h5>
+<p>ULM scores from DESeq2 Wald statistics for this contrast. Top
+<strong>25</strong> TFs by signed rank (most activated and most
+deactivated).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="decoupleR-TF_figures/IgG_vs_IgM_ulm_tf_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_ulm_tf_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="decoupleR-TF_figures/fig-114a2947f0f35e.png" alt="IgG_vs_IgM_ulm_tf_barplot" width="525" height="285" style="max-width: none !important; width: 525px; height: 285px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM/ulm_contrast.csv" class="btn btn-default btn-sm" download="ulm_contrast.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-ad19bac50322adb045ac"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-ad19bac50322adb045ac">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-4.0137\" data-max=\"5.3193\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.0217\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1e-04\" data-max=\"0.2132\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm"],["Nfya","E2f4","Srebf2","Nab2","E2f1","Nfkb1","Rfx1","Myc","G5E8H3","Pitx3","Tfap2b","E9Q1A8","Sfpq","Spi1","A0A1Y7VML1","Foxo3","Usf2","Tfdp1","A4QPD3","A0A2R8W6R9","Ezh2","Tp53","Q5SUS9","A0A087WR05","Jdp2","E9Q2D3","E2f2","Mycn","Znf354c","Nfkb2","A0A0R4J096","Srsf2","Sin3a","Srebf1","Rela","B5B2N2","Nr2c2","Notch1","Pou2af1","Pknox1","Irf1","Nr1h3","Mtf1","Foxp3","Irf5","Pou3f2","Etv1","Ppargc1a","Elf1","Hivep2"],["stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat"],[5.3192,5.0746,5.0416,4.8882,4.3668,-4.0137,-3.9601,3.8811,-3.7814,-3.631,-3.6148,-3.5691,-3.4583,-3.3955,3.3169,-3.3125,-3.2491,3.2248,-3.2028,-3.1986,3.1424,-3.1334,3.1054,-3.0037,2.9912,2.9171,2.899,2.8754,-2.8397,-2.8346,2.8159,2.7661,2.7657,2.7462,-2.6585,-2.6543,-2.6072,-2.593,-2.5764,-2.5604,-2.5467,-2.481,2.459,-2.403,-2.3969,-2.3856,-2.3439,2.3206,-2.3036,-2.2956],[0,0,0,0,0,0.0001,0.0001,0.0001,0.0002,0.0003,0.0003,0.0004,0.0005,0.0007,0.0009,0.0009,0.0012,0.0013,0.0014,0.0014,0.0017,0.0017,0.0019,0.0027,0.0028,0.0035,0.0038,0.004,0.0045,0.0046,0.0049,0.0057,0.0057,0.006,0.007900000000000001,0.008,0.0091,0.0095,0.01,0.0105,0.0109,0.0131,0.0139,0.0163,0.0165,0.0171,0.0191,0.0203,0.0213,0.0217],[0.0001,0.0001,0.0001,0.0001,0.0012,0.0049,0.0053,0.0064,0.008500000000000001,0.0135,0.0135,0.0147,0.0206,0.0241,0.0284,0.0284,0.0335,0.034,0.034,0.034,0.0386,0.0386,0.0407,0.0547,0.0547,0.0668,0.0682,0.0709,0.0752,0.0752,0.0772,0.08459999999999999,0.08459999999999999,0.0872,0.1085,0.1085,0.1213,0.1231,0.1258,0.1285,0.1304,0.1533,0.1592,0.1805,0.1805,0.1821,0.1995,0.2079,0.213,0.2132],["IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM","IgG_vs_IgM"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>statistic<\/th>\n      <th>source<\/th>\n      <th>condition<\/th>\n      <th>score<\/th>\n      <th>p_value<\/th>\n      <th>padj<\/th>\n      <th>comparison<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,50],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="iga_vs_igm" class="section level5">
+<h5>IgA_vs_IgM</h5>
+<p>ULM scores from DESeq2 Wald statistics for this contrast. Top
+<strong>25</strong> TFs by signed rank (most activated and most
+deactivated).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="decoupleR-TF_figures/IgA_vs_IgM_ulm_tf_barplot.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgM_ulm_tf_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="decoupleR-TF_figures/fig-114a294d8535b1.png" alt="IgA_vs_IgM_ulm_tf_barplot" width="525" height="285" style="max-width: none !important; width: 525px; height: 285px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgA_vs_IgM/ulm_contrast.csv" class="btn btn-default btn-sm" download="ulm_contrast.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-dfdd3ce144709fe67350"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-dfdd3ce144709fe67350">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-4.64\" data-max=\"5.3456\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.0115\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.1133\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm"],["Srebf2","Nab2","Spi1","Nfkb1","Rela","Tfap2b","Pax8","Znf354c","E9Q2D3","Rreb1","Hivep2","A0A0R4J096","Rfx5","Zfx","Irf1","Pou3f2","B5B2N2","Pou4f1","A0A087WR05","Nfkb2","Usf2","Cxxc1","Ssrp1","Spib","Satb2","Nfil3","A4QPD3","Hlx","G5E8H3","Klf3","Nr1h3","F6Y2T6","Srebf1","E9Q1A8","Nfya","Usf1","Atf2","Pbx1","Arid4a","A2A5C3","Nr2c2","Nr4a3","Sin3a","A5D6P6","Sp3","Ppara","Nr1h2","Snai2","Cebpa","Etv6"],["stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat"],[5.3456,5.0235,-4.64,-4.2615,-4.2578,-4.2397,-4.0727,-4.0608,3.9904,3.9496,-3.885,3.719,-3.7128,-3.6666,-3.5997,-3.5512,-3.5225,-3.4583,-3.3585,-3.2861,-3.2793,3.2404,-3.2235,-3.1972,-3.1455,-3.1024,-3.0995,3.0946,-3.0824,-3.0794,-3.0738,-3.0665,3.0388,-2.9822,2.9469,-2.9105,-2.8944,-2.8642,2.8161,-2.7849,-2.7842,-2.7531,2.7366,-2.7002,2.672,2.6715,-2.6213,2.604,-2.5511,-2.5264],[0,0,0,0,0,0,0,0,0.0001,0.0001,0.0001,0.0002,0.0002,0.0002,0.0003,0.0004,0.0004,0.0005,0.0008,0.001,0.001,0.0012,0.0013,0.0014,0.0017,0.0019,0.0019,0.002,0.0021,0.0021,0.0021,0.0022,0.0024,0.0029,0.0032,0.0036,0.0038,0.0042,0.0049,0.0054,0.0054,0.0059,0.0062,0.0069,0.0075,0.0076,0.008800000000000001,0.0092,0.0107,0.0115],[0,0.0001,0.0005999999999999999,0.0018,0.0018,0.0018,0.003,0.003,0.0036,0.0039,0.0046,0.0078,0.0078,0.008699999999999999,0.0105,0.0118,0.0124,0.0149,0.0203,0.0244,0.0244,0.0267,0.0271,0.0285,0.0326,0.0333,0.0333,0.0333,0.0333,0.0333,0.0333,0.0333,0.0354,0.0414,0.0451,0.0493,0.0505,0.0541,0.0613,0.0643,0.0643,0.06909999999999999,0.07099999999999999,0.0774,0.08069999999999999,0.08069999999999999,0.0916,0.0944,0.1077,0.1133],["IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM","IgA_vs_IgM"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>statistic<\/th>\n      <th>source<\/th>\n      <th>condition<\/th>\n      <th>score<\/th>\n      <th>p_value<\/th>\n      <th>padj<\/th>\n      <th>comparison<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,50],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="iga_vs_igg" class="section level5">
+<h5>IgA_vs_IgG</h5>
+<p>ULM scores from DESeq2 Wald statistics for this contrast. Top
+<strong>25</strong> TFs by signed rank (most activated and most
+deactivated).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="decoupleR-TF_figures/IgA_vs_IgG_ulm_tf_barplot.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgG_ulm_tf_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="decoupleR-TF_figures/fig-114a2931512884.png" alt="IgA_vs_IgG_ulm_tf_barplot" width="525" height="285" style="max-width: none !important; width: 525px; height: 285px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgA_vs_IgG/ulm_contrast.csv" class="btn btn-default btn-sm" download="ulm_contrast.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-29dac7a3e1f39e306055"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-29dac7a3e1f39e306055">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-4.4929\" data-max=\"4.3062\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.023\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0027\" data-max=\"0.222\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm"],["E2f1","Myc","Klf11","Arid4a","Spib","Gata1","E2f4","A0A1Y7VML1","Klf10","Pax8","Mycn","Nkx2-1","Wwtr1","Q6P1H7","Tfdp1","Snai2","Ybx1","E2f2","Rfx1","A5D6P6","Rreb1","Zfx","Foxo3","Hdac1","Sfpq","Vsx2","Dlx4","Smad7","Stat5b","Hey2","Neurod2","A0A087WPA7","Nr2e1","Q8K1Z8","Fosl1","Ddit3","Snai1","Nr0b2","Smad1","Rfx5","Cxxc1","Brca1","A0A087WSP5","Ovol1","Rela","Id2","Pou2af1","Foxo1","Hivep2","Lmo2"],["stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat"],[-4.4929,-4.3647,4.3062,3.957,-3.8248,3.7343,-3.7175,-3.5495,3.4805,-3.4802,-3.4187,-3.4182,-3.375,-3.3709,-3.3599,3.2507,3.2498,-3.2494,3.2267,-3.2254,3.2145,-3.2125,3.1328,3.048,2.9634,-2.8358,-2.8209,2.8076,-2.7753,-2.7227,2.7146,-2.7117,2.643,2.6375,-2.5762,-2.5545,2.5211,2.5155,-2.5051,-2.4971,2.479,2.4229,-2.4221,2.408,-2.3826,2.3726,2.361,2.2813,-2.2777,2.2738],[0,0,0,0.0001,0.0001,0.0002,0.0002,0.0004,0.0005,0.0005,0.0005999999999999999,0.0005999999999999999,0.0007,0.0008,0.0008,0.0012,0.0012,0.0012,0.0013,0.0013,0.0013,0.0013,0.0017,0.0023,0.003,0.0046,0.0048,0.005,0.0055,0.0065,0.0066,0.0067,0.008200000000000001,0.008399999999999999,0.01,0.0106,0.0117,0.0119,0.0123,0.0125,0.0132,0.0154,0.0154,0.0161,0.0172,0.0177,0.0182,0.0225,0.0228,0.023],[0.0027,0.0027,0.0027,0.0094,0.0129,0.0142,0.0142,0.0238,0.0247,0.0247,0.0256,0.0256,0.0256,0.0256,0.0256,0.0294,0.0294,0.0294,0.0294,0.0294,0.0294,0.0294,0.037,0.0472,0.0599,0.08649999999999999,0.0872,0.0876,0.0935,0.1028,0.1028,0.1028,0.1207,0.1207,0.1403,0.1452,0.1537,0.1537,0.1538,0.1538,0.1579,0.1763,0.1763,0.1792,0.1877,0.1887,0.1905,0.222,0.222,0.222],["IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>statistic<\/th>\n      <th>source<\/th>\n      <th>condition<\/th>\n      <th>score<\/th>\n      <th>p_value<\/th>\n      <th>padj<\/th>\n      <th>comparison<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,50],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+</div>
+<div id="one-vs.-all" class="section level4 tabset">
+<h4 class="tabset">One vs. all</h4>
+<div id="igm_vs_iggiga" class="section level5">
+<h5>IgM_vs_IgG+IgA</h5>
+<p>ULM scores from DESeq2 Wald statistics for this contrast. Top
+<strong>25</strong> TFs by signed rank (most activated and most
+deactivated).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="decoupleR-TF_figures/IgM_vs_IgG_IgA_ulm_tf_barplot.pdf" class="btn btn-default btn-sm" download="IgM_vs_IgG_IgA_ulm_tf_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="decoupleR-TF_figures/fig-114a291f232109.png" alt="IgM_vs_IgG_IgA_ulm_tf_barplot" width="525" height="285" style="max-width: none !important; width: 525px; height: 285px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgM_vs_IgG+IgA/ulm_contrast.csv" class="btn btn-default btn-sm" download="ulm_contrast.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-b828aef7a12ee73c9bc3"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-b828aef7a12ee73c9bc3">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-5.9872\" data-max=\"4.1737\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.0264\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.2575\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm"],["Srebf2","Nab2","Nfya","G5E8H3","Srebf1","Sp3","A0A087WR05","E2f4","Pou3f2","Nfkb1","E9Q2D3","Jdp2","Znf354c","Sin3a","Hlx","B5B2N2","Spi1","E9Q1A8","Ppara","Rela","Usf2","A0A0R4J096","Satb2","Epas1","A2A5C3","Nr1h3","Mtf1","Ssrp1","Nfkb2","Q8CEC4","Ezh2","Ppargc1a","B1ASA5","Cxxc1","Klf13","Atf2","Tp53","Nr2c2","Yap1","Tfap2b","Lef1","Etv1","Smad2","Pou4f1","Irf1","E2f1","Nfil3","Elf1","Usf1","Nrf1"],["stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat"],[-5.9872,-5.6371,-4.7199,4.1736,-3.9318,-3.6544,3.6006,-3.4654,3.3937,3.35,-3.2065,-3.1905,3.1718,-3.1154,-3.1121,3.0984,3.0718,3.0178,-2.9855,2.9465,2.8892,-2.8511,2.8315,2.7988,2.7059,2.7055,-2.7051,2.6799,2.6635,2.6521,-2.6017,-2.5775,-2.5735,-2.5363,2.5093,2.477,2.4598,2.4593,-2.4591,2.4328,-2.4076,2.4,-2.397,2.3555,2.3453,-2.3278,2.317,2.3136,2.3046,-2.22],[0,0,0,0,0.0001,0.0003,0.0003,0.0005,0.0007,0.0008,0.0013,0.0014,0.0015,0.0018,0.0019,0.0019,0.0021,0.0026,0.0028,0.0032,0.0039,0.0044,0.0046,0.0051,0.0068,0.0068,0.0068,0.0074,0.0077,0.008,0.009299999999999999,0.01,0.0101,0.0112,0.0121,0.0133,0.0139,0.0139,0.0139,0.015,0.0161,0.0164,0.0165,0.0185,0.019,0.0199,0.0205,0.0207,0.0212,0.0264],[0,0,0.0004,0.0037,0.0083,0.0212,0.0224,0.0326,0.0377,0.0398,0.0573,0.0573,0.0573,0.0598,0.0598,0.0598,0.0616,0.0696,0.0733,0.079,0.09039999999999999,0.0974,0.09909999999999999,0.1051,0.1243,0.1243,0.1243,0.1293,0.1311,0.1311,0.1471,0.1499,0.1499,0.1619,0.1699,0.1755,0.1755,0.1755,0.1755,0.1841,0.1889,0.1889,0.1889,0.2066,0.2076,0.2118,0.2118,0.2118,0.2125,0.2575],["IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA","IgM_vs_IgG+IgA"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>statistic<\/th>\n      <th>source<\/th>\n      <th>condition<\/th>\n      <th>score<\/th>\n      <th>p_value<\/th>\n      <th>padj<\/th>\n      <th>comparison<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,50],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="igg_vs_igmiga" class="section level5">
+<h5>IgG_vs_IgM+IgA</h5>
+<p>ULM scores from DESeq2 Wald statistics for this contrast. Top
+<strong>25</strong> TFs by signed rank (most activated and most
+deactivated).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="decoupleR-TF_figures/IgG_vs_IgM_IgA_ulm_tf_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_IgA_ulm_tf_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="decoupleR-TF_figures/fig-114a2953a7fa2f.png" alt="IgG_vs_IgM_IgA_ulm_tf_barplot" width="525" height="285" style="max-width: none !important; width: 525px; height: 285px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgG_vs_IgM+IgA/ulm_contrast.csv" class="btn btn-default btn-sm" download="ulm_contrast.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-cc63a09e9dfb7fac4ac6"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-cc63a09e9dfb7fac4ac6">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-4.3677\" data-max=\"6.1028\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.034\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.3295\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm"],["E2f1","E2f4","Myc","A0A1Y7VML1","Mycn","Foxo3","E2f2","Tfdp1","Rfx1","Nfya","Sfpq","Tp53","Q5SUS9","Zbtb7a","Foxo1","Ybx1","Olig2","Gata1","Srsf2","Q6P1H7","Arid4a","Ezh2","Nkx2-1","Ddit3","Ovol1","Mybl2","Ehf","E9Q1A8","Esr2","Rb1","Nfatc2","Dlx2","Aire","Pou2af1","Hcfc1","Smad1","Esr1","Klf11","Snai2","A0A087WPA7","Fos","Foxf2","Lmo2","Dlx4","Pawr","Q8K1Z8","Spib","Nfkb1","A0A0R4J0I0","Tp73"],["stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat"],[6.1028,6.0425,5.7016,5.05,4.4596,-4.3676,4.3443,4.2073,-4.0647,3.9621,-3.4753,-3.3909,3.1819,-3.1575,-2.9907,-2.9292,2.8919,-2.8211,2.7739,2.6952,-2.6711,2.6676,2.6023,2.568,-2.5479,2.5077,2.449,-2.4239,-2.4224,-2.407,-2.3809,2.3417,-2.3289,-2.3213,2.31,2.3055,2.2885,-2.2832,-2.2523,2.2504,-2.2073,-2.1976,-2.1774,2.1488,2.1412,-2.1395,2.1343,-2.1314,-2.1241,-2.12],[0,0,0,0,0,0,0,0,0,0.0001,0.0005,0.0007,0.0015,0.0016,0.0028,0.0034,0.0038,0.0048,0.0055,0.007,0.0076,0.0076,0.009299999999999999,0.0102,0.0108,0.0122,0.0143,0.0154,0.0154,0.0161,0.0173,0.0192,0.0199,0.0203,0.0209,0.0212,0.0221,0.0224,0.0243,0.0244,0.0273,0.028,0.0295,0.0317,0.0323,0.0324,0.0328,0.0331,0.0337,0.034],[0,0,0,0.0001,0.0008,0.001,0.001,0.0016,0.0026,0.0037,0.0229,0.0286,0.0554,0.0559,0.09130000000000001,0.1045,0.1108,0.1307,0.1433,0.1707,0.1707,0.1707,0.1979,0.2095,0.213,0.2297,0.2607,0.2613,0.2613,0.2634,0.2738,0.2885,0.2885,0.2885,0.2885,0.2885,0.2899,0.2899,0.3,0.3,0.3271,0.3272,0.3294,0.3294,0.3294,0.3294,0.3294,0.3294,0.3294,0.3294],["IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA","IgG_vs_IgM+IgA"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>statistic<\/th>\n      <th>source<\/th>\n      <th>condition<\/th>\n      <th>score<\/th>\n      <th>p_value<\/th>\n      <th>padj<\/th>\n      <th>comparison<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,50],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="iga_vs_igmigg" class="section level5">
+<h5>IgA_vs_IgM+IgG</h5>
+<p>ULM scores from DESeq2 Wald statistics for this contrast. Top
+<strong>25</strong> TFs by signed rank (most activated and most
+deactivated).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="decoupleR-TF_figures/IgA_vs_IgM_IgG_ulm_tf_barplot.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgM_IgG_ulm_tf_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="decoupleR-TF_figures/fig-114a294d0ea84d.png" alt="IgA_vs_IgM_IgG_ulm_tf_barplot" width="525" height="285" style="max-width: none !important; width: 525px; height: 285px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgA_vs_IgM+IgG/ulm_contrast.csv" class="btn btn-default btn-sm" download="ulm_contrast.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-bf39eed4206d394ea698"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-bf39eed4206d394ea698">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-4.2229\" data-max=\"4.2179\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.0154\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0061\" data-max=\"0.1512\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm"],["Pax8","Arid4a","Klf11","Snai2","Rela","Spib","A5D6P6","Spi1","Srebf2","Wwtr1","Rreb1","Klf10","Zfx","Cxxc1","Pou4f1","Myc","Gata1","Vsx2","Hdac1","Q6P1H7","Rfx5","Hivep2","Nr2e1","Ybx1","Neurod2","F6Y2T6","A0A087WSP5","Fosl1","Hey2","Nkx2-1","B9EHK7","Nfkb1","Tfap2b","B5B2N2","Stat5b","Atf2","Q8K1Z8","E9Q2D3","E2f1","Dlx4","Mycn","Pbx1","Smad7","Znf354c","Hlx","Fezf2","A0A0R4J096","Ssrp1","Nr1h3","Id1"],["stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat"],[-4.2229,4.2178,4.0124,3.6497,-3.6158,-3.4571,-3.3914,-3.3909,3.3605,-3.2924,3.2902,3.2879,-3.2463,3.1625,-3.1535,-3.1249,3.1033,-3.0503,3.0417,-2.9373,-2.9091,-2.8942,2.8737,2.8634,2.8462,-2.8195,-2.7927,-2.7914,-2.79,-2.7707,-2.7626,-2.7253,-2.6997,-2.6433,-2.6313,-2.6068,2.5952,2.5875,-2.5683,-2.568,-2.5571,-2.5534,2.5533,-2.5511,2.5404,-2.456,2.4505,-2.4345,-2.4263,2.4235],[0,0,0.0001,0.0003,0.0003,0.0005,0.0007,0.0007,0.0008,0.001,0.001,0.001,0.0012,0.0016,0.0016,0.0018,0.0019,0.0023,0.0024,0.0033,0.0036,0.0038,0.0041,0.0042,0.0044,0.0048,0.0052,0.0053,0.0053,0.0056,0.0057,0.0064,0.0069,0.008200000000000001,0.008500000000000001,0.0091,0.0095,0.0097,0.0102,0.0102,0.0106,0.0107,0.0107,0.0107,0.0111,0.0141,0.0143,0.0149,0.0153,0.0154],[0.0061,0.0061,0.009900000000000001,0.0295,0.0295,0.0414,0.0414,0.0414,0.0414,0.0414,0.0414,0.0414,0.0443,0.0529,0.0529,0.0547,0.0554,0.0609,0.0609,0.0814,0.0849,0.08500000000000001,0.0859,0.0859,0.08699999999999999,0.08939999999999999,0.08939999999999999,0.08939999999999999,0.08939999999999999,0.09089999999999999,0.09089999999999999,0.0987,0.1034,0.1187,0.1195,0.1199,0.1199,0.1199,0.1199,0.1199,0.1199,0.1199,0.1199,0.1199,0.1209,0.1492,0.1492,0.1511,0.1511,0.1511],["IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG","IgA_vs_IgM+IgG"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>statistic<\/th>\n      <th>source<\/th>\n      <th>condition<\/th>\n      <th>score<\/th>\n      <th>p_value<\/th>\n      <th>padj<\/th>\n      <th>comparison<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,50],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+
+</body>
+</html>

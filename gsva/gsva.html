@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports – GSVA</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="lib/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="lib/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+<link href="lib/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="lib/pagedtable-1.1/js/pagedtable.js"></script>
+<script src="lib/htmlwidgets-1.6.2/htmlwidgets.js"></script>
+<link href="lib/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet" />
+<script src="lib/datatables-binding-0.30/datatables.js"></script>
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="lib/dt-core-1.13.4/js/jquery.dataTables.min.js"></script>
+<link href="lib/dt-ext-buttons-1.13.4/css/buttons.dataTables.min.css" rel="stylesheet" />
+<script src="lib/dt-ext-buttons-1.13.4/js/dataTables.buttons.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.html5.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.colVis.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.print.min.js"></script>
+<link href="lib/nouislider-7.0.10/jquery.nouislider.min.css" rel="stylesheet" />
+<script src="lib/nouislider-7.0.10/jquery.nouislider.min.js"></script>
+<link href="lib/selectize-0.12.0/selectize.bootstrap3.css" rel="stylesheet" />
+<script src="lib/selectize-0.12.0/selectize.min.js"></script>
+<link href="lib/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet" />
+<script src="lib/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports – GSVA</h1>
+<h4 class="date">2026-11-05 10:39</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<a href="../index.html">Index</a>  |  <a href="../qc/qc.html">QC</a>  | 
+<a href="../deseq2/deseq2.html">DESeq2</a>  | 
+<a href="../clusterprofiler/clusterprofiler.html">clusterProfiler</a>
+ |  <strong>GSVA</strong>  |  <a href="../wgcna/wgcna.html">WGCNA</a>
+ |  <a href="../decoupler-tf/decoupleR-TF.html">decoupleR-TF</a>  | 
+<a href="../decoupler-ccc/decoupleR-CCC.html">decoupleR-CCC</a>  | 
+<a href="../viper/viper.html">VIPER</a>  | 
+<a href="../multihit/multihit.html">Multihit</a>
+</div>
+<div id="gsva" class="section level2">
+<h2>GSVA</h2>
+<p>Sample-level <a
+href="https://doi.org/10.1186/1471-2105-14-7">GSVA</a> on
+<strong>ComBat-seq then VST</strong> (protecting the grouping variable;
+DESeq2 still uses raw counts with batch in the design). This is
+<strong>not</strong> ranked-list GSEA: every gene set is scored in every
+sample, independently of clusterProfiler / fgsea (those pages are
+unchanged). Organism: <strong>mouse</strong>.</p>
+<p><strong>HALLMARK</strong> (~50 sets) is always included and the
+heatmap shows every scored set.</p>
+<p>GO / KEGG / REACTOME / PID have thousands of signatures, so a
+GSEA-style <code>padj</code> filter does not help: GSVA assigns a score
+to every set, and many would still pass a cutoff. Instead every set is
+scored (full CSV) and the heatmap keeps the top <strong>50</strong>
+pathways whose sample scores differ most across <code>isotype</code>
+(Kruskal–Wallis; variance if the test is undefined). Change the number
+with <code>gsva_n_heatmap</code>.</p>
+<p>Reproduce GSVA with this package module:</p>
+<pre class="r"><code>gsva_out &lt;- run_gsva_pipeline(dds_qc, var = &quot;condition&quot;)</code></pre>
+<div id="gsva-collections" class="degreports-bs-tabset"
+style="margin: 0.8em 0 1.2em 0;">
+<ul class="nav nav-tabs" role="tablist">
+<li role="presentation" class="active">
+<a href="#gsva-collections-hallmark" role="tab" data-toggle="tab">HALLMARK</a>
+</li>
+<li role="presentation">
+<a href="#gsva-collections-gobp" role="tab" data-toggle="tab">GOBP</a>
+</li>
+<li role="presentation">
+<a href="#gsva-collections-gocc" role="tab" data-toggle="tab">GOCC</a>
+</li>
+<li role="presentation">
+<a href="#gsva-collections-gomf" role="tab" data-toggle="tab">GOMF</a>
+</li>
+<li role="presentation">
+<a href="#gsva-collections-kegg" role="tab" data-toggle="tab">KEGG</a>
+</li>
+<li role="presentation">
+<a href="#gsva-collections-reactome" role="tab" data-toggle="tab">REACTOME</a>
+</li>
+<li role="presentation">
+<a href="#gsva-collections-pid" role="tab" data-toggle="tab">PID</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="gsva-collections-hallmark" class="tab-pane fade in active"
+role="tabpanel" style="padding-top: 1em;">
+<p>
+All scored HALLMARK gene sets (row-scaled GSVA scores).
+</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsva_figures/gsva_HALLMARK_heatmap.pdf" class="btn btn-default btn-sm" download="gsva_HALLMARK_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="HALLMARK/gsva_scores.csv" class="btn btn-default btn-sm" download="gsva_scores.csv">
+<i class="fa fa-download"></i> Download scores CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="gsva_figures/fig-114a2930220020.png" alt="gsva_HALLMARK_heatmap" width="660" height="925" style="max-width: none !important; width: 660px; height: 925px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="HALLMARK/gsva_pathway_stats.csv" class="btn btn-default btn-sm" download="gsva_pathway_stats.csv">
+<i class="fa fa-download"></i> Download pathway stats CSV </a>
+</span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-43db7a52cb2c99dbdaa1"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-43db7a52cb2c99dbdaa1">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0046\" data-max=\"0.1517\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0162\" data-max=\"0.075\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.1193\" data-max=\"0.1499\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["HALLMARK_INFLAMMATORY_RESPONSE","HALLMARK_TNFA_SIGNALING_VIA_NFKB","HALLMARK_MTORC1_SIGNALING","HALLMARK_MYC_TARGETS_V2","HALLMARK_ALLOGRAFT_REJECTION","HALLMARK_BILE_ACID_METABOLISM","HALLMARK_HYPOXIA","HALLMARK_MYC_TARGETS_V1","HALLMARK_E2F_TARGETS","HALLMARK_CHOLESTEROL_HOMEOSTASIS","HALLMARK_G2M_CHECKPOINT","HALLMARK_APOPTOSIS","HALLMARK_HEME_METABOLISM","HALLMARK_OXIDATIVE_PHOSPHORYLATION","HALLMARK_ESTROGEN_RESPONSE_EARLY","HALLMARK_COMPLEMENT","HALLMARK_IL2_STAT5_SIGNALING","HALLMARK_COAGULATION","HALLMARK_ESTROGEN_RESPONSE_LATE","HALLMARK_IL6_JAK_STAT3_SIGNALING","HALLMARK_KRAS_SIGNALING_DN","HALLMARK_KRAS_SIGNALING_UP","HALLMARK_PROTEIN_SECRETION","HALLMARK_DNA_REPAIR","HALLMARK_INTERFERON_ALPHA_RESPONSE"],[0.023,0.0459,0.0498,0.1452,0.0328,0.0252,0.0201,0.1517,0.1417,0.06270000000000001,0.1109,0.0046,0.0138,0.1117,0.0144,0.0126,0.0113,0.025,0.0214,0.06510000000000001,0.0276,0.0212,0.0446,0.0295,0.0216],[0.0163,0.022,0.0224,0.0238,0.0238,0.0238,0.0238,0.0272,0.0294,0.0294,0.0302,0.0302,0.0349,0.0358,0.0358,0.0404,0.0406,0.0487,0.0487,0.0498,0.0609,0.0609,0.0738,0.075,0.075],[0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1193,0.1245,0.1245,0.1245,0.1383,0.1383,0.1499,0.1499,0.1499]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>variance<\/th>\n      <th>p_group<\/th>\n      <th>padj_group<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,25],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsva-collections-gobp" class="tab-pane fade" role="tabpanel"
+style="padding-top: 1em;">
+<p>
+All 4297 sets were scored; heatmap shows the top 50 by Kruskal–Wallis
+p-value vs <code>isotype</code> (table below is the same ranking).
+</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsva_figures/gsva_GOBP_heatmap.pdf" class="btn btn-default btn-sm" download="gsva_GOBP_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="GOBP/gsva_scores.csv" class="btn btn-default btn-sm" download="gsva_scores.csv">
+<i class="fa fa-download"></i> Download scores CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="gsva_figures/fig-114a29607246fe.png" alt="gsva_GOBP_heatmap" width="627" height="1237" style="max-width: none !important; width: 627px; height: 1237px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="GOBP/gsva_pathway_stats.csv" class="btn btn-default btn-sm" download="gsva_pathway_stats.csv">
+<i class="fa fa-download"></i> Download pathway stats CSV </a>
+</span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-3d0d850f1ac2249542b8"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-3d0d850f1ac2249542b8">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0745\" data-max=\"0.2182\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0115\" data-max=\"0.0116\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.1584\" data-max=\"0.1585\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["GOBP_PURINE_NUCLEOBASE_BIOSYNTHETIC_PROCESS","GOBP_ANTIGEN_PROCESSING_AND_PRESENTATION_VIA_MHC_CLASS_IB","GOBP_GMP_BIOSYNTHETIC_PROCESS","GOBP_POSITIVE_REGULATION_OF_CYCLASE_ACTIVITY","GOBP_PURINE_NUCLEOBASE_METABOLIC_PROCESS","GOBP_REGULATION_OF_ADENYLATE_CYCLASE_ACTIVITY","GOBP_NUCLEOBASE_BIOSYNTHETIC_PROCESS","GOBP_NEGATIVE_REGULATION_OF_TRANSCRIPTION_REGULATORY_REGION_DNA_BINDING","GOBP_INTERMEDIATE_FILAMENT_BASED_PROCESS","GOBP_NEURON_FATE_COMMITMENT","GOBP_PYRIMIDINE_DEOXYRIBONUCLEOTIDE_METABOLIC_PROCESS","GOBP_POSITIVE_REGULATION_OF_TRANSFORMING_GROWTH_FACTOR_BETA_PRODUCTION","GOBP_REGULATION_OF_CATECHOLAMINE_METABOLIC_PROCESS","GOBP_PINOCYTOSIS","GOBP_TRNA_CATABOLIC_PROCESS","GOBP_POSITIVE_REGULATION_OF_INTERLEUKIN_12_PRODUCTION","GOBP_ANTIGEN_PROCESSING_AND_PRESENTATION_OF_EXOGENOUS_ANTIGEN","GOBP_REGULATION_OF_TRANSLATIONAL_ELONGATION","GOBP_ANTIGEN_PROCESSING_AND_PRESENTATION_OF_EXOGENOUS_PEPTIDE_ANTIGEN","GOBP_TRANSMISSION_OF_NERVE_IMPULSE","GOBP_NEGATIVE_REGULATION_OF_INTERLEUKIN_6_PRODUCTION","GOBP_ACIDIC_AMINO_ACID_TRANSPORT","GOBP_RELAXATION_OF_MUSCLE","GOBP_RRNA_MODIFICATION","GOBP_POSITIVE_REGULATION_OF_POTASSIUM_ION_TRANSPORT"],[0.2182,0.1996,0.191,0.1465,0.1443,0.1414,0.126,0.1222,0.1183,0.1156,0.1149,0.1147,0.1132,0.1114,0.109,0.1072,0.096,0.096,0.08550000000000001,0.0837,0.081,0.0795,0.07870000000000001,0.0746,0.0745],[0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116],[0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584,0.1584]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>variance<\/th>\n      <th>p_group<\/th>\n      <th>padj_group<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,25],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsva-collections-gocc" class="tab-pane fade" role="tabpanel"
+style="padding-top: 1em;">
+<p>
+All 580 sets were scored; heatmap shows the top 50 by Kruskal–Wallis
+p-value vs <code>isotype</code> (table below is the same ranking).
+</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsva_figures/gsva_GOCC_heatmap.pdf" class="btn btn-default btn-sm" download="gsva_GOCC_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="GOCC/gsva_scores.csv" class="btn btn-default btn-sm" download="gsva_scores.csv">
+<i class="fa fa-download"></i> Download scores CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="gsva_figures/fig-114a297be83367.png" alt="gsva_GOCC_heatmap" width="624" height="925" style="max-width: none !important; width: 624px; height: 925px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="GOCC/gsva_pathway_stats.csv" class="btn btn-default btn-sm" download="gsva_pathway_stats.csv">
+<i class="fa fa-download"></i> Download pathway stats CSV </a>
+</span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-7d96dcf9ab8d541f32cb"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-7d96dcf9ab8d541f32cb">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0159\" data-max=\"0.1517\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0115\" data-max=\"0.0199\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"1\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["GOCC_MHC_CLASS_II_PROTEIN_COMPLEX","GOCC_SNO_S_RNA_CONTAINING_RIBONUCLEOPROTEIN_COMPLEX","GOCC_MEIOTIC_SPINDLE","GOCC_PHOSPHOLIPID_TRANSLOCATING_ATPASE_COMPLEX","GOCC_PRONUCLEUS","GOCC_CATION_CHANNEL_COMPLEX","GOCC_PRESYNAPTIC_ACTIVE_ZONE","GOCC_COSTAMERE","GOCC_PROTON_TRANSPORTING_TWO_SECTOR_ATPASE_COMPLEX_CATALYTIC_DOMAIN","GOCC_PRESPLICEOSOME","GOCC_SPERM_PRINCIPAL_PIECE","GOCC_TELOMERASE_HOLOENZYME_COMPLEX","GOCC_LUMENAL_SIDE_OF_MEMBRANE","GOCC_SPINDLE_POLE","GOCC_PRESYNAPSE","GOCC_ENDOSOME","GOCC_CATALYTIC_STEP_2_SPLICEOSOME","GOCC_NEURON_PROJECTION","GOCC_IMMUNOLOGICAL_SYNAPSE","GOCC_LATE_ENDOSOME","GOCC_XY_BODY","GOCC_MITOTIC_SPINDLE_MIDZONE","GOCC_GLIAL_CELL_PROJECTION","GOCC_U12_TYPE_SPLICEOSOMAL_COMPLEX","GOCC_GOLGI_MEDIAL_CISTERNA"],[0.1419,0.1384,0.1347,0.1295,0.1193,0.0343,0.0327,0.1146,0.1057,0.094,0.07049999999999999,0.0336,0.0307,0.0258,0.0231,0.0209,0.017,0.0159,0.0458,0.0245,0.1517,0.1405,0.09959999999999999,0.0974,0.0736],[0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0163,0.0163,0.0198,0.0198,0.0198,0.0198,0.0198],[0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155,0.155]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>variance<\/th>\n      <th>p_group<\/th>\n      <th>padj_group<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,25],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsva-collections-gomf" class="tab-pane fade" role="tabpanel"
+style="padding-top: 1em;">
+<p>
+All 831 sets were scored; heatmap shows the top 50 by Kruskal–Wallis
+p-value vs <code>isotype</code> (table below is the same ranking).
+</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsva_figures/gsva_GOMF_heatmap.pdf" class="btn btn-default btn-sm" download="gsva_GOMF_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="GOMF/gsva_scores.csv" class="btn btn-default btn-sm" download="gsva_scores.csv">
+<i class="fa fa-download"></i> Download scores CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="gsva_figures/fig-114a296e7b67c4.png" alt="gsva_GOMF_heatmap" width="634" height="1237" style="max-width: none !important; width: 634px; height: 1237px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="GOMF/gsva_pathway_stats.csv" class="btn btn-default btn-sm" download="gsva_pathway_stats.csv">
+<i class="fa fa-download"></i> Download pathway stats CSV </a>
+</span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-ecf5b650d25be416269d"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-ecf5b650d25be416269d">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0219\" data-max=\"0.1575\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0115\" data-max=\"0.0156\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"1\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["GOMF_INTRACELLULAR_LIGAND_GATED_ION_CHANNEL_ACTIVITY","GOMF_CALCIUM_RELEASE_CHANNEL_ACTIVITY","GOMF_INTRAMOLECULAR_TRANSFERASE_ACTIVITY","GOMF_LIGAND_GATED_CALCIUM_CHANNEL_ACTIVITY","GOMF_INSULIN_LIKE_GROWTH_FACTOR_RECEPTOR_BINDING","GOMF_PROTEIN_DISULFIDE_REDUCTASE_NAD_P_ACTIVITY","GOMF_LYS48_SPECIFIC_DEUBIQUITINASE_ACTIVITY","GOMF_SNRNA_BINDING","GOMF_CALCIUM_ION_TRANSMEMBRANE_TRANSPORTER_ACTIVITY","GOMF_PHOSPHATIDYLINOSITOL_4_5_BISPHOSPHATE_BINDING","GOMF_DIOXYGENASE_ACTIVITY","GOMF_NEUROTRANSMITTER_RECEPTOR_ACTIVITY","GOMF_PHOSPHORIC_DIESTER_HYDROLASE_ACTIVITY","GOMF_PSEUDOURIDINE_SYNTHASE_ACTIVITY","GOMF_DNA_N_GLYCOSYLASE_ACTIVITY","GOMF_MYOSIN_V_BINDING","GOMF_VOLTAGE_GATED_CALCIUM_CHANNEL_ACTIVITY","GOMF_OXIDOREDUCTASE_ACTIVITY_ACTING_ON_THE_ALDEHYDE_OR_OXO_GROUP_OF_DONORS_NAD_OR_NADP_AS_ACCEPTOR","GOMF_4_IRON_4_SULFUR_CLUSTER_BINDING","GOMF_L_ASCORBIC_ACID_BINDING","GOMF_MHC_PROTEIN_COMPLEX_BINDING","GOMF_PROTEIN_LIPID_COMPLEX_BINDING","GOMF_PROTEIN_CARRIER_CHAPERONE","GOMF_LIGAND_GATED_ION_CHANNEL_ACTIVITY","GOMF_UNFOLDED_PROTEIN_BINDING"],[0.1574,0.1532,0.1273,0.1196,0.1119,0.0789,0.0733,0.0664,0.037,0.0352,0.0306,0.0266,0.0219,0.1341,0.1304,0.1096,0.0964,0.0833,0.08210000000000001,0.0786,0.078,0.074,0.0721,0.0658,0.06569999999999999],[0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156],[0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618,0.1618]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>variance<\/th>\n      <th>p_group<\/th>\n      <th>padj_group<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,25],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsva-collections-kegg" class="tab-pane fade" role="tabpanel"
+style="padding-top: 1em;">
+<p>
+All 174 sets were scored; heatmap shows the top 50 by Kruskal–Wallis
+p-value vs <code>isotype</code> (table below is the same ranking).
+</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsva_figures/gsva_KEGG_heatmap.pdf" class="btn btn-default btn-sm" download="gsva_KEGG_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="KEGG/gsva_scores.csv" class="btn btn-default btn-sm" download="gsva_scores.csv">
+<i class="fa fa-download"></i> Download scores CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="gsva_figures/fig-114a293d94bf11.png" alt="gsva_KEGG_heatmap" width="629" height="925" style="max-width: none !important; width: 629px; height: 925px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="KEGG/gsva_pathway_stats.csv" class="btn btn-default btn-sm" download="gsva_pathway_stats.csv">
+<i class="fa fa-download"></i> Download pathway stats CSV </a>
+</span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-1550c5ef23df069635e4"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-1550c5ef23df069635e4">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0206\" data-max=\"0.2077\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0115\" data-max=\"0.0272\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"1\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["KEGG_HEMATOPOIETIC_CELL_LINEAGE","KEGG_LONG_TERM_DEPRESSION","KEGG_METABOLISM_OF_XENOBIOTICS_BY_CYTOCHROME_P450","KEGG_PROPANOATE_METABOLISM","KEGG_SPLICEOSOME","KEGG_DNA_REPLICATION","KEGG_NITROGEN_METABOLISM","KEGG_GNRH_SIGNALING_PATHWAY","KEGG_PORPHYRIN_AND_CHLOROPHYLL_METABOLISM","KEGG_DILATED_CARDIOMYOPATHY","KEGG_AMINO_SUGAR_AND_NUCLEOTIDE_SUGAR_METABOLISM","KEGG_PROTEASOME","KEGG_CIRCADIAN_RHYTHM_MAMMAL","KEGG_T_CELL_RECEPTOR_SIGNALING_PATHWAY","KEGG_WNT_SIGNALING_PATHWAY","KEGG_ENDOCYTOSIS","KEGG_HEDGEHOG_SIGNALING_PATHWAY","KEGG_ANTIGEN_PROCESSING_AND_PRESENTATION","KEGG_MAPK_SIGNALING_PATHWAY","KEGG_TERPENOID_BACKBONE_BIOSYNTHESIS","KEGG_PROXIMAL_TUBULE_BICARBONATE_RECLAMATION","KEGG_RENAL_CELL_CARCINOMA","KEGG_GLYCEROPHOSPHOLIPID_METABOLISM","KEGG_TIGHT_JUNCTION","KEGG_CALCIUM_SIGNALING_PATHWAY"],[0.0494,0.0484,0.0354,0.0338,0.0253,0.1597,0.139,0.06859999999999999,0.0684,0.0474,0.0449,0.2077,0.1178,0.0611,0.0309,0.0206,0.0673,0.0578,0.0411,0.1633,0.1073,0.054,0.049,0.0412,0.0401],[0.0116,0.0116,0.0116,0.0116,0.0116,0.0198,0.0198,0.0198,0.0198,0.0198,0.0198,0.022,0.022,0.022,0.022,0.022,0.0238,0.0238,0.0238,0.0272,0.0272,0.0272,0.0272,0.0272,0.0272],[0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255,0.1255]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>variance<\/th>\n      <th>p_group<\/th>\n      <th>padj_group<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,25],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsva-collections-reactome" class="tab-pane fade"
+role="tabpanel" style="padding-top: 1em;">
+<p>
+All 1086 sets were scored; heatmap shows the top 50 by Kruskal–Wallis
+p-value vs <code>isotype</code> (table below is the same ranking).
+</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsva_figures/gsva_REACTOME_heatmap.pdf" class="btn btn-default btn-sm" download="gsva_REACTOME_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="REACTOME/gsva_scores.csv" class="btn btn-default btn-sm" download="gsva_scores.csv">
+<i class="fa fa-download"></i> Download scores CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="gsva_figures/fig-114a292f4e9b24.png" alt="gsva_REACTOME_heatmap" width="627" height="925" style="max-width: none !important; width: 627px; height: 925px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="REACTOME/gsva_pathway_stats.csv" class="btn btn-default btn-sm" download="gsva_pathway_stats.csv">
+<i class="fa fa-download"></i> Download pathway stats CSV </a>
+</span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-2a77d98aebc1ea08ac54"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-2a77d98aebc1ea08ac54">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0264\" data-max=\"0.2023\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0115\" data-max=\"0.0156\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.1274\" data-max=\"0.1275\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["REACTOME_PLATELET_CALCIUM_HOMEOSTASIS","REACTOME_INTERCONVERSION_OF_NUCLEOTIDE_DI_AND_TRIPHOSPHATES","REACTOME_PKA_ACTIVATION_IN_GLUCAGON_SIGNALLING","REACTOME_TRANSLATION_OF_REPLICASE_AND_ASSEMBLY_OF_THE_REPLICATION_TRANSCRIPTION_COMPLEX","REACTOME_TNFS_BIND_THEIR_PHYSIOLOGICAL_RECEPTORS","REACTOME_INTERLEUKIN_15_SIGNALING","REACTOME_NEGATIVE_REGULATION_OF_FGFR2_SIGNALING","REACTOME_NEGATIVE_REGULATION_OF_FGFR3_SIGNALING","REACTOME_NEGATIVE_REGULATION_OF_FGFR4_SIGNALING","REACTOME_MAPK_TARGETS_NUCLEAR_EVENTS_MEDIATED_BY_MAP_KINASES","REACTOME_NUCLEAR_EVENTS_STIMULATED_BY_ALK_SIGNALING_IN_CANCER","REACTOME_CELL_CELL_COMMUNICATION","REACTOME_SIGNALING_BY_FLT3_ITD_AND_TKD_MUTANTS","REACTOME_SIGNALING_BY_ERBB2","REACTOME_CDC6_ASSOCIATION_WITH_THE_ORC_ORIGIN_COMPLEX","REACTOME_ORC1_REMOVAL_FROM_CHROMATIN","REACTOME_ELEVATION_OF_CYTOSOLIC_CA2_LEVELS","REACTOME_SUMOYLATION_OF_IMMUNE_RESPONSE_PROTEINS","REACTOME_SYNTHESIS_OF_PC","REACTOME_RECEPTOR_MEDIATED_MITOPHAGY","REACTOME_CYCLIN_A_CDK2_ASSOCIATED_EVENTS_AT_S_PHASE_ENTRY","REACTOME_UCH_PROTEINASES","REACTOME_ION_HOMEOSTASIS","REACTOME_FOXO_MEDIATED_TRANSCRIPTION_OF_CELL_CYCLE_GENES","REACTOME_REGULATION_OF_HSF1_MEDIATED_HEAT_SHOCK_RESPONSE"],[0.1582,0.1148,0.0951,0.0927,0.0825,0.0708,0.0694,0.0635,0.0635,0.0592,0.0558,0.0452,0.0365,0.0264,0.2023,0.1819,0.1727,0.1441,0.141,0.1082,0.1065,0.1021,0.1012,0.0482,0.0347],[0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0116,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156],[0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274,0.1274]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>variance<\/th>\n      <th>p_group<\/th>\n      <th>padj_group<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,25],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+<div id="gsva-collections-pid" class="tab-pane fade" role="tabpanel"
+style="padding-top: 1em;">
+<p>
+All 188 sets were scored; heatmap shows the top 50 by Kruskal–Wallis
+p-value vs <code>isotype</code> (table below is the same ranking).
+</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="gsva_figures/gsva_PID_heatmap.pdf" class="btn btn-default btn-sm" download="gsva_PID_heatmap.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span> <span
+class="degreports-dl-btn-wrap">
+<a href="PID/gsva_scores.csv" class="btn btn-default btn-sm" download="gsva_scores.csv">
+<i class="fa fa-download"></i> Download scores CSV </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="gsva_figures/fig-114a293c4035ce.png" alt="gsva_PID_heatmap" width="664" height="925" style="max-width: none !important; width: 664px; height: 925px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="PID/gsva_pathway_stats.csv" class="btn btn-default btn-sm" download="gsva_pathway_stats.csv">
+<i class="fa fa-download"></i> Download pathway stats CSV </a>
+</span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-ce806f77443917e250bd"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-ce806f77443917e250bd">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0267\" data-max=\"0.1312\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0.0115\" data-max=\"0.0282\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"1\" data-scale=\"3\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["PID_HDAC_CLASSIII_PATHWAY","PID_INSULIN_PATHWAY","PID_HIV_NEF_PATHWAY","PID_INTEGRIN2_PATHWAY","PID_IL12_STAT4_PATHWAY","PID_IFNG_PATHWAY","PID_EPHA_FWDPATHWAY","PID_CIRCADIAN_PATHWAY","PID_INTEGRIN1_PATHWAY","PID_ATR_PATHWAY","PID_INTEGRIN5_PATHWAY","PID_HEDGEHOG_GLI_PATHWAY","PID_RET_PATHWAY","PID_NCADHERIN_PATHWAY","PID_KIT_PATHWAY","PID_EPHB_FWD_PATHWAY","PID_TOLL_ENDOGENOUS_PATHWAY","PID_FGF_PATHWAY","PID_ERBB2_ERBB3_PATHWAY","PID_IL12_2PATHWAY","PID_RAS_PATHWAY","PID_ERBB4_PATHWAY","PID_PLK1_PATHWAY","PID_BETA_CATENIN_NUC_PATHWAY","PID_VEGFR1_PATHWAY"],[0.0696,0.0672,0.06419999999999999,0.116,0.06809999999999999,0.0677,0.0667,0.0522,0.0498,0.1312,0.07770000000000001,0.0548,0.1115,0.08400000000000001,0.08309999999999999,0.0597,0.1019,0.0878,0.0808,0.0566,0.0582,0.0267,0.1065,0.0509,0.1007],[0.0116,0.0116,0.0116,0.0156,0.0156,0.0156,0.0156,0.0156,0.0156,0.0198,0.0198,0.0198,0.022,0.022,0.022,0.022,0.0224,0.0224,0.0224,0.0224,0.0238,0.0238,0.0272,0.0272,0.0282],[0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117,0.117]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pathway<\/th>\n      <th>variance<\/th>\n      <th>p_group<\/th>\n      <th>padj_group<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,25],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[1,2,3]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+
+</body>
+</html>

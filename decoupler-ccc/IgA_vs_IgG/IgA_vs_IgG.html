@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports – decoupleR-CCC</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="lib/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="lib/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+<link href="lib/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="lib/pagedtable-1.1/js/pagedtable.js"></script>
+<script src="lib/htmlwidgets-1.6.2/htmlwidgets.js"></script>
+<link href="lib/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet" />
+<script src="lib/datatables-binding-0.30/datatables.js"></script>
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="lib/dt-core-1.13.4/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="lib/dt-core-1.13.4/js/jquery.dataTables.min.js"></script>
+<link href="lib/dt-ext-buttons-1.13.4/css/buttons.dataTables.min.css" rel="stylesheet" />
+<script src="lib/dt-ext-buttons-1.13.4/js/dataTables.buttons.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.html5.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.colVis.min.js"></script>
+<script src="lib/dt-ext-buttons-1.13.4/js/buttons.print.min.js"></script>
+<link href="lib/nouislider-7.0.10/jquery.nouislider.min.css" rel="stylesheet" />
+<script src="lib/nouislider-7.0.10/jquery.nouislider.min.js"></script>
+<link href="lib/selectize-0.12.0/selectize.bootstrap3.css" rel="stylesheet" />
+<script src="lib/selectize-0.12.0/selectize.min.js"></script>
+<link href="lib/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet" />
+<script src="lib/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports – decoupleR-CCC</h1>
+<h4 class="date">2026-11-05 10:40</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<a href="../../index.html">Index</a>  | 
+<a href="../../qc/qc.html">QC</a>  | 
+<a href="../../deseq2/deseq2.html">DESeq2</a>  | 
+<a href="../../clusterprofiler/clusterprofiler.html">clusterProfiler</a>
+ |  <a href="../../gsva/gsva.html">GSVA</a>  | 
+<a href="../../wgcna/wgcna.html">WGCNA</a>  | 
+<a href="../../decoupler-tf/decoupleR-TF.html">decoupleR-TF</a>  | 
+<strong>decoupleR-CCC</strong>  | 
+<a href="../../viper/viper.html">VIPER</a>  | 
+<a href="../../multihit/multihit.html">Multihit</a>
+</div>
+<div id="decoupler-ligandreceptor-ccc" class="section level2">
+<h2>decoupleR ligand–receptor (CCC)</h2>
+<p>Ligand–receptor (cell–cell communication) enrichment inferred with <a
+href="https://bioconductor.org/packages/decoupleR/"><code>decoupleR</code></a>
+using a <strong>LIANA / OmniPath</strong> ligand–receptor resource and
+<strong>ULM</strong>, following the <a
+href="https://decoupler.readthedocs.io/en/v1.9.2/notebooks/bulk.html">bulk
+functional analysis tutorial</a>. Each interaction is a small gene set
+(ligand + receptor, complexes exploded); co-regulation of the pair is
+scored from DESeq2 Wald <code>stat</code> values. Organism:
+<strong>mouse</strong>.</p>
+<p>This page is independent of CollecTRI TF activity
+(<strong>decoupleR-TF</strong>).</p>
+<p>Reproduce ligand–receptor ULM with this package module:</p>
+<pre class="r"><code>ccc_out &lt;- run_decoupler_ccc_pipeline(diffexp_out)</code></pre>
+<div id="iga_vs_igg" class="section level3">
+<h3>IgA_vs_IgG</h3>
+<p>
+<a href="../decoupleR-CCC.html">← Back to decoupleR-CCC contrasts</a>
+</p>
+<p>ULM scores from DESeq2 Wald statistics for this contrast. Top
+<strong>10</strong> ligand–receptor pairs per direction by ULM score
+(GSEA-style barplot; stars from BH-adjusted <code>padj</code>).</p>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="IgA_vs_IgG_figures/IgA_vs_IgG_ulm_lr_barplot.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgG_ulm_lr_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="IgA_vs_IgG_figures/fig-11bb1e53db20e.png" alt="IgA_vs_IgG_ulm_lr_barplot" width="540" height="353" style="max-width: none !important; width: 540px; height: 353px;"/></p>
+</div>
+</div>
+</div>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="./ulm_lr.csv" class="btn btn-default btn-sm" download="ulm_lr.csv">
+<i class="fa fa-download"></i> Download full CSV </a> </span></p>
+</div>
+<div style="width: 100%;">
+<div id="htmlwidget-40e4d79b6cbde9b25348"
+class="datatables html-widget html-fill-item-overflow-hidden html-fill-item"
+style="width:100%;height:auto;">
+
+</div>
+<script type="application/json" data-for="htmlwidget-40e4d79b6cbde9b25348">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"-6.5686\" data-max=\"5.7076\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.0033\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\" disabled=\"\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"0.089\" data-scale=\"4\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm","ulm"],["GRN&amp;TNFRSF1A","CD52&amp;SIGLEC10","CCL27&amp;CCR10","GRN&amp;TNFRSF1B","MTMR4&amp;SMAD3","BTLA&amp;CD79A","CCL25&amp;CCR10","INHBB&amp;SMAD3","CD24&amp;SIGLEC10","LAMB2&amp;ITGA7_ITGB1","LAMB2&amp;ITGA9_ITGB1","LAMB2&amp;ITGA3_ITGB1","B2M&amp;CD3G","APOE&amp;LSR","LAMB2&amp;ITGA6_ITGB1","TGFB1&amp;SMAD3","B2M&amp;TFRC","NODAL&amp;SMAD3","TNFSF13B&amp;TNFRSF17","ADAM12&amp;SDC4","CXCL12&amp;SDC4","LAMB2&amp;ITGA2_ITGB1","LTB&amp;CD40","COL1A1&amp;CD36","LAMB2&amp;ITGA6_ITGB4","MIF&amp;CD74_CXCR4","NUCB2&amp;ERAP1","ADAM10&amp;IL6R","THBS1&amp;SDC4","LGALS1&amp;CD69","NRG2&amp;ERBB2_ERBB3","TGM2&amp;SDC4","L1CAM&amp;ITGA4_ITGB7","SELPLG&amp;ITGAM","NAMPT&amp;ADORA2A","TNFSF13B&amp;TNFRSF13B","IL10&amp;IL10RA_IL10RB","LGALS3&amp;LAG3","BTLA&amp;TNFRSF14","B2M&amp;HFE","LAMB2&amp;DAG1","ANGPTL4&amp;SDC3","HMGB1&amp;CXCR4","COL1A1&amp;ITGA3_ITGB1","IZUMO1&amp;CD9","ADO&amp;ADORA2A","HMGB1&amp;TLR4","COL7A1&amp;ITGA11_ITGB1","NID1&amp;ITGB1","ICOSLG&amp;CTLA4"],["stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat","stat"],[-6.5686,-5.8936,5.7076,-5.602,-5.4341,5.4036,5.0998,-5.0355,-4.8089,-4.709,-4.709,-4.6988,-4.6298,-4.3238,-4.2955,-3.964,-3.9608,-3.9471,3.8671,3.7451,3.7436,-3.7424,-3.6973,-3.6102,-3.5983,-3.56,-3.5168,-3.5078,3.3596,3.3237,3.3171,3.3117,3.289,3.2279,3.2177,3.1834,-3.1583,3.1193,3.0685,-3.0611,-3.0599,-3.0492,-3.0301,-3.0183,-3.0152,3.0052,-2.9945,-2.947,-2.9411,2.9357],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0001,0.0001,0.0001,0.0001,0.0002,0.0002,0.0002,0.0002,0.0003,0.0003,0.0004,0.0004,0.0005,0.0008,0.0009,0.0009,0.0009,0.001,0.0012,0.0013,0.0015,0.0016,0.0018,0.0022,0.0022,0.0022,0.0023,0.0024,0.0025,0.0026,0.0027,0.0028,0.0032,0.0033,0.0033],["IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG","IgA_vs_IgG"],[0,0,0,0,0,0,0.0001,0.0001,0.0002,0.0003,0.0003,0.0003,0.0004,0.0015,0.0016,0.0059,0.0059,0.0059,0.0078,0.0111,0.0111,0.0111,0.0127,0.0171,0.0172,0.0191,0.0216,0.0216,0.036,0.0388,0.0388,0.0388,0.0408,0.0491,0.0494,0.0541,0.0574,0.0638,0.0722,0.0722,0.0722,0.0731,0.076,0.07630000000000001,0.07630000000000001,0.0772,0.07820000000000001,0.089,0.089,0.089]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>statistic<\/th>\n      <th>source<\/th>\n      <th>condition<\/th>\n      <th>score<\/th>\n      <th>p_value<\/th>\n      <th>comparison<\/th>\n      <th>padj<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"lengthMenu":[10,25,50,100,50],"scrollX":true,"dom":"Blfrtip","buttons":["csv"],"columnDefs":[{"className":"dt-right","targets":[3,4,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+
+</body>
+</html>

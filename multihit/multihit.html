@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>DEGreports – Multihit</title>
+
+<script src="lib/header-attrs-2.30/header-attrs.js"></script>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="lib/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="lib/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="lib/navigation-1.1/tabsets.js"></script>
+<link href="lib/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="lib/highlightjs-9.12.0/highlight.js"></script>
+<link href="lib/pagedtable-1.1/css/pagedtable.css" rel="stylesheet" />
+<script src="lib/pagedtable-1.1/js/pagedtable.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">DEGreports – Multihit</h1>
+<h4 class="date">2026-11-05 10:40</h4>
+
+</div>
+
+
+<div
+style="margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; font-size: 1.05em;">
+<a href="../index.html">Index</a>  |  <a href="../qc/qc.html">QC</a>  | 
+<a href="../deseq2/deseq2.html">DESeq2</a>  | 
+<a href="../clusterprofiler/clusterprofiler.html">clusterProfiler</a>
+ |  <a href="../gsva/gsva.html">GSVA</a>  | 
+<a href="../wgcna/wgcna.html">WGCNA</a>  | 
+<a href="../decoupler-tf/decoupleR-TF.html">decoupleR-TF</a>  | 
+<a href="../decoupler-ccc/decoupleR-CCC.html">decoupleR-CCC</a>  | 
+<a href="../viper/viper.html">VIPER</a>  |  <strong>Multihit</strong>
+</div>
+<div id="cross-analysis-gene-hits" class="section level2">
+<h2>Cross-analysis gene hits</h2>
+<p>Each gene scores +1 per method it is a hit in (DEG, GSEA, VIPER,
+decoupler-tf, decoupler-ccc, CSPA):</p>
+<ul>
+<li><strong>DEG</strong>: padj &lt; 0.05 and |log2FC| &gt; 0.5</li>
+<li><strong>CSPA</strong>: a DEG (above) that is a CSPA surface
+protein</li>
+<li><strong>decoupleR TF</strong>: padj &lt; 0.05 and |score| &gt;
+1</li>
+<li><strong>decoupleR CCC</strong>: ligand or receptor of a pair with
+padj &lt; 0.05 and |score| &gt; 1</li>
+<li><strong>VIPER</strong>: padj &lt; 0.05 and |NES| &gt; 2</li>
+<li><strong>GSEA LE</strong>: in any significant pathway leading edge
+(padj &lt; 0.05)</li>
+</ul>
+<p><strong>Method overlap</strong> shows how many genes each combination
+of methods shares; <strong>Top genes</strong> shows the top 10 up and 10
+down genes per contrast (direction from DEG log2FoldChange), ranked by
+hit count.</p>
+<p>Reproduce multi-hit ranking with this package module:</p>
+<pre class="r"><code>multihit_out &lt;- run_multihit_pipeline(
+  diffexp_out, gsea_out = gsea_out,
+  viper_out = viper_out, decoupler_tf_out = decoupler_tf_out,
+  decoupler_ccc_out = decoupler_ccc_out, cspa_out = cspa_out
+)</code></pre>
+</div>
+<div id="method-overlap-upset" class="section level2">
+<h2>Method overlap (UpSet)</h2>
+<p>Genes shared by two or more methods; single-method sets are not
+shown. Columns are ordered by the number of methods intersected (most
+first), then by gene count.</p>
+<div id="pairwise" class="section level3 tabset">
+<h3 class="tabset">Pairwise</h3>
+<div id="igg_vs_igm" class="section level4">
+<h4>IgG_vs_IgM</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgG_vs_IgM_upset.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_upset.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a29a97d796.png" alt="IgG_vs_IgM_upset" width="1162" height="720" style="max-width: none !important; width: 1162px; height: 720px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgG_vs_IgM/IgG_vs_IgM_hit_sets.csv" class="btn btn-default btn-sm" download="IgG_vs_IgM_hit_sets.csv">
+<i class="fa fa-download"></i> Download hit sets CSV </a></p>
+</div>
+<div id="iga_vs_igm" class="section level4">
+<h4>IgA_vs_IgM</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgA_vs_IgM_upset.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgM_upset.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a295d93ca86.png" alt="IgA_vs_IgM_upset" width="952" height="720" style="max-width: none !important; width: 952px; height: 720px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgA_vs_IgM/IgA_vs_IgM_hit_sets.csv" class="btn btn-default btn-sm" download="IgA_vs_IgM_hit_sets.csv">
+<i class="fa fa-download"></i> Download hit sets CSV </a></p>
+</div>
+<div id="iga_vs_igg" class="section level4">
+<h4>IgA_vs_IgG</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgA_vs_IgG_upset.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgG_upset.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a2935cd6f84.png" alt="IgA_vs_IgG_upset" width="1162" height="720" style="max-width: none !important; width: 1162px; height: 720px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgA_vs_IgG/IgA_vs_IgG_hit_sets.csv" class="btn btn-default btn-sm" download="IgA_vs_IgG_hit_sets.csv">
+<i class="fa fa-download"></i> Download hit sets CSV </a></p>
+</div>
+</div>
+<div id="one-vs.-all" class="section level3 tabset">
+<h3 class="tabset">One vs. all</h3>
+<div id="igm_vs_iggiga" class="section level4">
+<h4>IgM_vs_IgG+IgA</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgM_vs_IgG+IgA_upset.pdf" class="btn btn-default btn-sm" download="IgM_vs_IgG+IgA_upset.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a2944d7d0f6.png" alt="IgM_vs_IgG+IgA_upset" width="1005" height="720" style="max-width: none !important; width: 1005px; height: 720px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgM_vs_IgG+IgA/IgM_vs_IgG+IgA_hit_sets.csv" class="btn btn-default btn-sm" download="IgM_vs_IgG+IgA_hit_sets.csv">
+<i class="fa fa-download"></i> Download hit sets CSV </a></p>
+</div>
+<div id="igg_vs_igmiga" class="section level4">
+<h4>IgG_vs_IgM+IgA</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgG_vs_IgM+IgA_upset.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM+IgA_upset.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a2943290aaa.png" alt="IgG_vs_IgM+IgA_upset" width="1110" height="720" style="max-width: none !important; width: 1110px; height: 720px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgG_vs_IgM+IgA/IgG_vs_IgM+IgA_hit_sets.csv" class="btn btn-default btn-sm" download="IgG_vs_IgM+IgA_hit_sets.csv">
+<i class="fa fa-download"></i> Download hit sets CSV </a></p>
+</div>
+<div id="iga_vs_igmigg" class="section level4">
+<h4>IgA_vs_IgM+IgG</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgA_vs_IgM+IgG_upset.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgM+IgG_upset.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a293113fdac.png" alt="IgA_vs_IgM+IgG_upset" width="952" height="720" style="max-width: none !important; width: 952px; height: 720px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgA_vs_IgM+IgG/IgA_vs_IgM+IgG_hit_sets.csv" class="btn btn-default btn-sm" download="IgA_vs_IgM+IgG_hit_sets.csv">
+<i class="fa fa-download"></i> Download hit sets CSV </a></p>
+</div>
+</div>
+</div>
+<div id="top-genes-per-contrast" class="section level2">
+<h2>Top genes per contrast</h2>
+<div id="pairwise-1" class="section level3 tabset">
+<h3 class="tabset">Pairwise</h3>
+<div id="igg_vs_igm-1" class="section level4">
+<h4>IgG_vs_IgM</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgG_vs_IgM_multihit_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM_multihit_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a292bf22bfc.png" alt="IgG_vs_IgM_multihit_barplot" width="630" height="578" style="max-width: none !important; width: 630px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgG_vs_IgM/IgG_vs_IgM_top_genes.csv" class="btn btn-default btn-sm" download="IgG_vs_IgM_top_genes.csv">
+<i class="fa fa-download"></i> Download top genes CSV </a></p>
+</div>
+<div id="iga_vs_igm-1" class="section level4">
+<h4>IgA_vs_IgM</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgA_vs_IgM_multihit_barplot.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgM_multihit_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a297f25dc27.png" alt="IgA_vs_IgM_multihit_barplot" width="630" height="578" style="max-width: none !important; width: 630px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgA_vs_IgM/IgA_vs_IgM_top_genes.csv" class="btn btn-default btn-sm" download="IgA_vs_IgM_top_genes.csv">
+<i class="fa fa-download"></i> Download top genes CSV </a></p>
+</div>
+<div id="iga_vs_igg-1" class="section level4">
+<h4>IgA_vs_IgG</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgA_vs_IgG_multihit_barplot.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgG_multihit_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a2965f0ba51.png" alt="IgA_vs_IgG_multihit_barplot" width="630" height="578" style="max-width: none !important; width: 630px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgA_vs_IgG/IgA_vs_IgG_top_genes.csv" class="btn btn-default btn-sm" download="IgA_vs_IgG_top_genes.csv">
+<i class="fa fa-download"></i> Download top genes CSV </a></p>
+</div>
+</div>
+<div id="one-vs.-all-1" class="section level3 tabset">
+<h3 class="tabset">One vs. all</h3>
+<div id="igm_vs_iggiga-1" class="section level4">
+<h4>IgM_vs_IgG+IgA</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgM_vs_IgG+IgA_multihit_barplot.pdf" class="btn btn-default btn-sm" download="IgM_vs_IgG+IgA_multihit_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a2924e15d73.png" alt="IgM_vs_IgG+IgA_multihit_barplot" width="630" height="578" style="max-width: none !important; width: 630px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgM_vs_IgG+IgA/IgM_vs_IgG+IgA_top_genes.csv" class="btn btn-default btn-sm" download="IgM_vs_IgG+IgA_top_genes.csv">
+<i class="fa fa-download"></i> Download top genes CSV </a></p>
+</div>
+<div id="igg_vs_igmiga-1" class="section level4">
+<h4>IgG_vs_IgM+IgA</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgG_vs_IgM+IgA_multihit_barplot.pdf" class="btn btn-default btn-sm" download="IgG_vs_IgM+IgA_multihit_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a292a3a19f6.png" alt="IgG_vs_IgM+IgA_multihit_barplot" width="630" height="578" style="max-width: none !important; width: 630px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgG_vs_IgM+IgA/IgG_vs_IgM+IgA_top_genes.csv" class="btn btn-default btn-sm" download="IgG_vs_IgM+IgA_top_genes.csv">
+<i class="fa fa-download"></i> Download top genes CSV </a></p>
+</div>
+<div id="iga_vs_igmigg-1" class="section level4">
+<h4>IgA_vs_IgM+IgG</h4>
+<div style="width: 100%;">
+<div class="degreports-dl-row">
+<style>.degreports-dl-row {   display: flex !important;   flex-direction: row !important;   justify-content: flex-end !important;   align-items: center !important;   align-content: center !important;   gap: 6px !important;   margin-bottom: 6px !important;   width: 100% !important; } .degreports-dl-btn-wrap {   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   line-height: 0 !important;   margin: 0 !important;   padding: 0 !important; } .degreports-dl-row .btn, .degreports-dl-row a.btn, .degreports-dl-row button.btn, .degreports-dl-row .btn-group, .degreports-dl-row .btn-group > .btn {   padding: 4px 10px !important;   font-size: 12px !important;   line-height: 1.4 !important;   height: 28px !important;   min-height: 28px !important;   max-height: 28px !important;   box-sizing: border-box !important;   display: inline-flex !important;   align-items: center !important;   align-self: center !important;   vertical-align: middle !important;   margin: 0 !important;   white-space: nowrap !important; } .degreports-dl-row .btn i, .degreports-dl-row a.btn i {   font-size: 12px !important;   line-height: 1 !important;   margin: 0 0.35em 0 0 !important;   width: auto !important;   height: auto !important; }</style>
+<p><span class="degreports-dl-btn-wrap">
+<a href="multihit_figures/IgA_vs_IgM+IgG_multihit_barplot.pdf" class="btn btn-default btn-sm" download="IgA_vs_IgM+IgG_multihit_barplot.pdf">
+<i class="fa fa-download"></i> Download PDF </a> </span></p>
+</div>
+<div style="display: flex; justify-content: center; width: 100%;">
+<div style="display: inline-block; text-align: left;">
+<p><img src="multihit_figures/fig-114a295356c59a.png" alt="IgA_vs_IgM+IgG_multihit_barplot" width="630" height="578" style="max-width: none !important; width: 630px; height: 578px;"/></p>
+</div>
+</div>
+</div>
+<p><a href="IgA_vs_IgM+IgG/IgA_vs_IgM+IgG_top_genes.csv" class="btn btn-default btn-sm" download="IgA_vs_IgM+IgG_top_genes.csv">
+<i class="fa fa-download"></i> Download top genes CSV </a></p>
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+
+</body>
+</html>

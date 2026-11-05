@@ -1,0 +1,5 @@
+"step","n_before","n_removed","pct_removed","n_after"
+"Input",14631,0,0,14631
+"Mitochondrial gene removal",14631,20,0.14,14611
+"VDJ gene removal (BCR)",14611,326,2.23,14285
+"Low-expression gene removal (CPM percentile)",14285,715,5.01,13570

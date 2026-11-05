@@ -1,0 +1,6 @@
+"metric","value"
+"genes_input","14631"
+"genes_after_qc","13570"
+"filter_method","cpm"
+"filter_criterion","unexpressed genes plus the bottom 5% of expressed genes by mean CPM removed"
+"samples","11"
