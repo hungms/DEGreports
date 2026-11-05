@@ -5,9 +5,8 @@
 # Outputs: example_run_<dataset>_<engine>_<mode>/ ; console log in its logs/ folder.
 #SBATCH --job-name=degreports-examples
 #SBATCH --partition=ncpu
-#SBATCH --nodes=1
-#SBATCH --ntasks=50
-#SBATCH --mem=100G
+#SBATCH --ntasks=30
+#SBATCH --mem=50G
 #SBATCH --time=2-00:00:00
 #SBATCH --array=0-1
 #SBATCH --chdir=/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DEGreports

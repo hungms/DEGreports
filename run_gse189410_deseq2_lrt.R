@@ -105,7 +105,7 @@ out <- run_deseq2(
   filter_method = "cpm",
   cpm_percentile = 0.05,
   remove_mt = TRUE,
-  remove_xy = FALSE,
+  remove_xy = TRUE,
   remove_vdj = "BCR",
   collections = c("HALLMARK", "GOBP", "GOCC", "GOMF",
                   "KEGG", "REACTOME", "PID"),
