@@ -6,20 +6,8 @@ analytical methods.**
 
 ## Why DEGreports
 
-**Current limitations.** Gene prioritisation in bulk RNA-seq studies
-typically relies on differential expression alone. Downstream analyses, such
-as pathway enrichment, transcription-factor and regulator activity inference,
-and ligand–receptor analysis, are performed separately, each with its own
-scripts, thresholds, gene identifiers and output formats. This has two
-consequences:
-
-1. **Results are not directly comparable.** Individual analyses may be run
-   on slightly different contrasts or at different significance thresholds,
-   so concordance between methods is rarely assessed.
-2. **There is no established framework for integrating them.** Candidates
-   are usually selected from a single DEG list ranked by fold change or
-   p-value. Such lists include many genes that meet the significance
-   threshold but have no corroborating evidence from other analyses.
+**Current limitations.** There is no established framework for selecting
+targets for experimental validation from bulk RNA-seq data.
 
 **Approach.**
 
