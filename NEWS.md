@@ -29,6 +29,8 @@
   tested factor is constant within every unit, or when `batch` is nested in
   `pair`; warns about units seen in only one condition.
 * `batch` accepts several columns in every module.
+* With `pair` set, PCA points are shaped by unit (donor / patient) unless
+  `shape_var` is given. `plot_pca()` supports up to 25 shape levels.
 
 # DEGreports 0.4.0
 

@@ -36,7 +36,9 @@
 #' @param pals Optional character vector of colours, one per level of `var`.
 #'   Default `NULL` uses `ggplot2`'s default discrete palette.
 #' @param shape_var Optional column name in `colData(dds)` to map to point
-#'   shape in the PCA plot (e.g. a secondary grouping factor). Default `NULL`.
+#'   shape in the PCA plot (e.g. a secondary grouping factor, or the `pair`
+#'   column of a paired design). Up to 25 levels; beyond that the plot shows
+#'   colour only. Default `NULL`.
 #' @param ntop Number of most-variable genes to use for PCA. Default `500`.
 #' @param n_scree_pcs Number of leading PCs to show in the scree plot.
 #'   Default `10` (capped to the number of PCs available).
@@ -523,10 +525,21 @@ plot_pca <- function(pca_df, var, shape_var = NULL, pals = NULL, percent_var = N
     xlab_txt <- if (!is.null(percent_var)) paste0("PC1: ", percent_var[1], "% variance") else "PC1"
     ylab_txt <- if (!is.null(percent_var)) paste0("PC2: ", percent_var[2], "% variance") else "PC2"
 
+    # ggplot2's default shape scale stops at 6 levels and silently drops the
+    # rest (a paired design easily has more donors than that), so use a
+    # longer list of distinct shapes, and fall back to colour only beyond it.
+    n_shapes <- if (!is.null(shape_var)) length(unique(pca_df[[shape_var]])) else 0L
+    if (n_shapes > length(.pca_shape_values)) {
+        message("PCA: `", shape_var, "` has ", n_shapes, " levels, more than the ",
+                length(.pca_shape_values), " distinct point shapes; showing colour only.")
+        shape_var <- NULL
+    }
+
     mapping <- if (!is.null(shape_var)) {
         ggplot2::aes(
             x = .data$PC1, y = .data$PC2, colour = .data[[var]], shape = .data[[shape_var]],
-            text = paste0("Sample: ", .data$sample, "<br>", var, ": ", .data[[var]])
+            text = paste0("Sample: ", .data$sample, "<br>", var, ": ", .data[[var]],
+                          "<br>", shape_var, ": ", .data[[shape_var]])
         )
     } else {
         ggplot2::aes(
@@ -552,8 +565,16 @@ plot_pca <- function(pca_df, var, shape_var = NULL, pals = NULL, percent_var = N
     if (!is.null(pals)) {
         p <- p + ggplot2::scale_colour_manual(values = pals)
     }
+    if (n_shapes > 6L && !is.null(shape_var)) {
+        p <- p + ggplot2::scale_shape_manual(values = .pca_shape_values[seq_len(n_shapes)])
+    }
     p
 }
+
+#' Point shapes for up to 25 shape levels, most distinct first
+#' @noRd
+.pca_shape_values <- c(16, 17, 15, 18, 3, 4, 8, 1, 2, 0, 5, 6, 7, 9, 10,
+                       11, 12, 13, 14, 19, 20, 21, 22, 23, 24)
 
 #' Estimate the on-screen pixel width a `ggplotly()` legend will occupy
 #'
