@@ -20,3 +20,4 @@
 ^manifest\.md$
 ^CODE_WALKTHROUGH\.md$
 ^run_examples\.sbatch$
+^LICENSE\.md$
