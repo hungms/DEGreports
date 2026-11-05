@@ -101,7 +101,6 @@ out <- run_deseq2(
   dds = dds,
   var = "isotype",
   batch = "batch",
-  platform = "rnaseq",
   design = NULL,
   comparisons = NULL,
   filter_method = "cpm",

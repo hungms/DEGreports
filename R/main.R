@@ -78,17 +78,20 @@
 #'   but they are the right tool when the strata are not expected to share a
 #'   dispersion. Ignored for single-factor `var`.
 #' @param batch Optional covariate column name(s) in `colData(dds)`. Added
-#'   to the auto design when `design = NULL`, passed through to main-effect
-#'   fits in multi-factor mode, and (when set) used to
-#'   batch-correct the expression matrix behind the PCA and behind WGCNA /
-#'   GSVA / sample-level ULM and VIPER / CSPA heatmaps. DESeq2 itself always
-#'   uses raw counts with `batch` in the design. Default `NULL`.
-#' @param platform Assay platform, `"rnaseq"` (default) or `"microarray"`.
-#'   Selects how `batch` is removed from the expression matrix used by PCA
-#'   and the sample-level modules: `sva::ComBat_seq()` on raw counts then
-#'   VST for RNA-seq, `sva::ComBat()` on the VST matrix for microarray.
-#'   Both protect `var`. Ignored if `batch` is `NULL`; nothing else about
-#'   the pipeline (the DESeq2 model, gene filtering) changes.
+#'   to every model (`~ batch + var`), and removed from the expression matrix
+#'   behind the PCA, sample similarity, count export and the sample-level
+#'   modules (WGCNA / GSVA / sample-level ULM and VIPER / CSPA heatmaps) with
+#'   `limma::removeBatchEffect()` on the VST matrix, protecting `var`.
+#'   DESeq2 itself always uses raw counts with `batch` in the design.
+#'   Default `NULL`.
+#' @param pair Optional `colData(dds)` column naming the unit measured
+#'   under each condition in a paired design -- a donor, patient or animal.
+#'   It is added to every model as a blocking term (`~ [batch +] pair +
+#'   var`), so each comparison is made within units, and it is removed from
+#'   the sample-level matrix together with `batch`. Every tested factor must
+#'   vary within at least one unit (a factor that is constant within every
+#'   unit cannot be estimated in a paired design, and is an error); units
+#'   seen in only one condition trigger a warning. Default `NULL`.
 #' @param export_counts Logical. If `TRUE` (default), also writes raw,
 #'   VST, rlog, and CPM count tables via [run_counts_export()]. If `batch`
 #'   is set, a batch-corrected table is written as well (protecting `var`
@@ -223,7 +226,7 @@ run_deseq2 <- function(
     include_interactions = FALSE,
     stratified = FALSE,
     batch = NULL,
-    platform = "rnaseq",
+    pair = NULL,
     export_counts = TRUE,
     filter_method = "cpm",
     cpm_percentile = 0.05,
@@ -293,8 +296,8 @@ run_deseq2 <- function(
 #' The Wald-style pipeline shared by [run_deseq2()] and [run_limma()]
 #'
 #' `engine = "limma"` expects the carrier from [expr_to_dds()]: the DE stage
-#' becomes limma-trend, and every VST / rlog / ComBat-seq step uses log2
-#' expression / ComBat instead (see R/limma.R). Everything else -- stages,
+#' becomes limma-trend, and every VST / rlog step uses log2 expression
+#' instead (see R/limma.R). Everything else -- stages,
 #' files, report -- is identical.
 #' @param engine `"deseq2"` or `"limma"`.
 #' @param call The user's call, for the run log.
@@ -308,7 +311,7 @@ run_deseq2 <- function(
     include_interactions = FALSE,
     stratified = FALSE,
     batch = NULL,
-    platform = "rnaseq",
+    pair = NULL,
     export_counts = TRUE,
     filter_method = "cpm",
     cpm_percentile = 0.05,
@@ -346,13 +349,15 @@ run_deseq2 <- function(
     engine_params = NULL) {
 
     save_dir <- validate_save_dir(save_dir)
-    platform <- validate_platform(platform)
     opts <- .as_opts(opts)
     alpha <- opts$alpha
     lfc_threshold <- opts$lfc_threshold
+    # Blocking covariates: in every model, and removed from the sample-level
+    # matrix. `pair` sits next to `var` so the design reads `~ batch + pair + var`.
+    covars <- c(batch, pair)
 
     design_resolved <- resolve_design(
-        var, batch = batch, design = design,
+        var, batch = covars, design = design,
         include_interactions = include_interactions
     )
     params <- list(
@@ -361,7 +366,7 @@ run_deseq2 <- function(
         comparisons = comparisons,
         include_interactions = include_interactions,
         stratified = stratified,
-        batch = batch, platform = platform,
+        batch = batch, pair = pair,
         export_counts = export_counts, filter_method = filter_method,
         cpm_percentile = cpm_percentile, min_count = min_count,
         min_samples_per_group = min_samples_per_group,
@@ -381,7 +386,6 @@ run_deseq2 <- function(
     params <- c(params, .opts_diff(opts))
     is_limma <- identical(engine, "limma")
     if (is_limma) {
-        params$platform <- NULL
         params <- c(list(analysis_mode = "limma"), params, engine_params)
     }
 
@@ -394,6 +398,8 @@ run_deseq2 <- function(
 
         dds <- validate_dds(dds)
         dds <- validate_var(dds, var)
+        dds <- validate_batch(dds, batch)
+        dds <- validate_pair(dds, pair, var = var, batch = batch)
         dds <- validate_design(dds, design_resolved)
         contrast_specs <- validate_comparisons(
             dds, var, comparisons,
@@ -433,29 +439,29 @@ run_deseq2 <- function(
             }),
             .stage(NULL, paste0(
                 "Exporting count tables (raw / VST / rlog / CPM",
-                if (!is.null(batch)) {
-                    paste0(" / ", batch_correction_label(.expr_correction_label(platform, dds)))
+                if (!is.null(covars)) {
+                    paste0(" / ", batch_correction_label(.expr_correction_label(dds)))
                 } else "", ")"),
                 enabled = isTRUE(export_counts), run = function(st) {
                 run_counts_export(
-                    dds = st$dds, batch = batch, var = viz_var, platform = platform,
+                    dds = st$dds, batch = covars, var = viz_var,
                     save_dir = file.path(save_dir, "qc", "counts"))
             }),
             .stage("distance", "Sample similarity / PCA", optional = FALSE,
                    run = function(st) {
                 run_distance_pca(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     pals = pals, shape_var = shape_var,
                     n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs,
                     n_top_genes = n_top_genes,
-                    assoc_vars = unique(c(var, batch)),
+                    assoc_vars = unique(c(var, covars)),
                     save_dir = file.path(save_dir, "qc", "distance"))
             }),
             .stage("diffexp", paste0(if (is_limma) "limma-trend" else "DESeq2",
                                      " analysis (", n_contrasts, " contrast(s))"),
                    optional = FALSE, run = function(st) {
                 run_diffexp_pipeline(
-                    dds = st$dds, var = var, comparisons = contrast_specs, batch = batch,
+                    dds = st$dds, var = var, comparisons = contrast_specs, batch = covars,
                     include_interactions = include_interactions, stratified = stratified,
                     shrinkage = opts$shrinkage,
                     alpha = alpha, lfc_threshold = lfc_threshold,
@@ -466,8 +472,8 @@ run_deseq2 <- function(
             .stage("cspa", "CSPA surface-marker heatmaps", enabled = isTRUE(run_cspa),
                    run = function(st) {
                 run_cspa_marker_pipeline(
-                    dds = st$dds, diffexp_out = st$diffexp, var = var, batch = batch,
-                    platform = platform, n_markers = opts$cspa_n_markers,
+                    dds = st$dds, diffexp_out = st$diffexp, var = var, batch = covars,
+                    n_markers = opts$cspa_n_markers,
                     save_dir = file.path(save_dir, "deseq2"))
             }),
             .stage("gsea", "clusterProfiler analysis", run = function(st) {
@@ -485,7 +491,7 @@ run_deseq2 <- function(
             .stage("gsva", "GSVA (sample-level gene-set scores)",
                    enabled = isTRUE(run_gsva), run = function(st) {
                 run_gsva_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     collections = unique(c("HALLMARK", collections)),
                     n_heatmap = opts$gsva_n_heatmap,
                     save_dir = file.path(save_dir, "gsva"))
@@ -493,7 +499,7 @@ run_deseq2 <- function(
             .stage("wgcna", "Weighted gene co-expression network analysis (WGCNA)",
                    enabled = isTRUE(run_wgcna), run = function(st) {
                 run_wgcna_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     min_module_size = opts$wgcna_min_module_size,
                     ora_collection = collections,
                     save_dir = file.path(save_dir, "wgcna"))
@@ -501,7 +507,7 @@ run_deseq2 <- function(
             .stage("decoupler_tf", "DecoupleR (CollecTRI + ULM)",
                    enabled = isTRUE(run_decoupler_tf), run = function(st) {
                 run_decoupler_tf_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     diffexp_out = st$diffexp, n_tfs = opts$decoupler_n_tfs,
                     save_dir = file.path(save_dir, "decoupler-tf"))
             }),
@@ -514,7 +520,7 @@ run_deseq2 <- function(
             .stage("viper", "VIPER (bcellViper)", enabled = isTRUE(run_viper),
                    run = function(st) {
                 run_viper_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     diffexp_out = st$diffexp, n_tfs = opts$viper_n_tfs,
                     save_dir = file.path(save_dir, "viper"))
             }),
@@ -605,7 +611,7 @@ run_deseq2 <- function(
     time,
     include_interactions = FALSE,
     batch = NULL,
-    platform = "rnaseq",
+    pair = NULL,
     export_counts = TRUE,
     filter_method = "cpm",
     cpm_percentile = 0.05,
@@ -642,8 +648,8 @@ run_deseq2 <- function(
     call = NULL) {
 
     save_dir <- validate_save_dir(save_dir)
-    platform <- validate_platform(platform)
     opts <- .as_opts(opts)
+    covars <- c(batch, pair)
     alpha <- opts$alpha
     lfc_threshold <- opts$lfc_threshold
 
@@ -657,7 +663,7 @@ run_deseq2 <- function(
         var = var,
         time = time,
         include_interactions = include_interactions,
-        batch = batch, platform = platform,
+        batch = covars,
         export_counts = export_counts, filter_method = filter_method,
         cpm_percentile = cpm_percentile, min_count = min_count,
         min_samples_per_group = min_samples_per_group,
@@ -689,15 +695,16 @@ run_deseq2 <- function(
         dds <- .lrt_factorize_cols(dds, time, "time")
         dds <- .lrt_factorize_cols(dds, var, "var")
         dds <- .lrt_factorize_cols(dds, batch, "batch")
+        dds <- validate_pair(dds, pair, var = var, batch = batch, time = time)
 
         lrt_specs <- expand_lrt_specs(
-            var = var, time = time, batch = batch,
+            var = var, time = time, batch = covars,
             include_interactions = include_interactions
         )
         n_tests <- nrow(lrt_specs)
-        # Stamp the largest full model (always includes `batch` when set)
-        # onto dds so QC / report / any design-aware downstream step see
-        # `~ batch + time` (or `~ batch + var + time`), not the input
+        # Stamp the largest full model (always includes `batch` / `pair` when
+        # set) onto dds so QC / report / any design-aware downstream step see
+        # `~ batch + pair + time` (or `... + var + time`), not the input
         # formula the caller built the DESeqDataSet with.
         dds <- validate_design(
             dds, stats::as.formula(lrt_specs$full[[1L]], env = baseenv())
@@ -735,23 +742,23 @@ run_deseq2 <- function(
             .stage(NULL, "Exporting count tables", enabled = isTRUE(export_counts),
                    run = function(st) {
                 run_counts_export(
-                    dds = st$dds, batch = batch, var = viz_var, platform = platform,
+                    dds = st$dds, batch = covars, var = viz_var,
                     save_dir = file.path(save_dir, "qc", "counts"))
             }),
             .stage("distance", "Sample similarity / PCA", optional = FALSE,
                    run = function(st) {
                 run_distance_pca(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     pals = pals, shape_var = shape_var,
                     n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs,
                     n_top_genes = n_top_genes,
-                    assoc_vars = unique(c(var, time, batch)),
+                    assoc_vars = unique(c(var, time, covars)),
                     save_dir = file.path(save_dir, "qc", "distance"))
             }),
             .stage("diffexp", paste0("DESeq2 LRT (", n_tests, " test(s))"),
                    optional = FALSE, run = function(st) {
                 run_diffexp_lrt_pipeline(
-                    dds = st$dds, var = var, time = time, batch = batch,
+                    dds = st$dds, var = var, time = time, batch = covars,
                     include_interactions = include_interactions,
                     alpha = alpha,
                     save_dir = file.path(save_dir, "deseq2"))
@@ -768,8 +775,8 @@ run_deseq2 <- function(
                 hm <- run_lrt_cspa_heatmap(
                     dds = st$dds, degpatterns_out = st$degpatterns,
                     lrt_out = st$diffexp, n_per_cluster = opts$cspa_n_markers_lrt,
-                    annotation_var = unique(c(time, var)), batch = batch,
-                    platform = platform, save_dir = file.path(save_dir, "deseq2"))
+                    annotation_var = unique(c(time, var)), batch = covars,
+                    save_dir = file.path(save_dir, "deseq2"))
                 list(
                     source = "lrt_clusters",
                     org = detect_organism(rownames(st$dds)),
@@ -789,14 +796,14 @@ run_deseq2 <- function(
             .stage("gsva", "GSVA (sample-level gene-set scores)",
                    enabled = isTRUE(run_gsva), run = function(st) {
                 run_gsva_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     collections = unique(c("HALLMARK", collections)),
                     n_heatmap = opts$gsva_n_heatmap,
                     save_dir = file.path(save_dir, "gsva"))
             }),
             .stage("wgcna", "WGCNA", enabled = isTRUE(run_wgcna), run = function(st) {
                 run_wgcna_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     min_module_size = opts$wgcna_min_module_size,
                     ora_collection = collections,
                     save_dir = file.path(save_dir, "wgcna"))
@@ -817,7 +824,7 @@ run_deseq2 <- function(
                     return(NULL)
                 }
                 out <- run_decoupler_tf_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     diffexp_out = st$tf_diffexp, n_tfs = opts$decoupler_n_tfs,
                     save_dir = file.path(save_dir, "decoupler-tf"))
                 if (!is.null(out)) out$tf_level <- "lrt_cluster"
@@ -838,7 +845,7 @@ run_deseq2 <- function(
                     return(NULL)
                 }
                 out <- run_viper_pipeline(
-                    dds = st$dds, var = viz_var, batch = batch, platform = platform,
+                    dds = st$dds, var = viz_var, batch = covars,
                     diffexp_out = st$tf_diffexp, n_tfs = opts$viper_n_tfs,
                     save_dir = file.path(save_dir, "viper"))
                 if (!is.null(out)) out$tf_level <- "lrt_cluster"

@@ -133,10 +133,10 @@ Defaults used by the orchestrator: `filter_method = "cpm"`,
 ## 2. Counts export and sample structure
 
 **Counts export** writes raw, VST, rlog, and CPM matrices (plus a
-batch-corrected matrix when `batch` is set: ComBat-seq corrected raw counts
-for `platform = "rnaseq"`, a ComBat-corrected VST matrix for
-`platform = "microarray"`). These are for downstream use; the DE model still
-uses the QC-filtered raw counts.
+batch-corrected VST matrix when `batch` or `pair` is set, from
+`limma::removeBatchEffect()` protecting `var`). These are for downstream use;
+the DE model still uses the QC-filtered raw counts, with `batch` and `pair`
+as terms in the design.
 
 **Distance / PCA** (`run_distance_pca`):
 
@@ -145,7 +145,7 @@ uses the QC-filtered raw counts.
 flowchart TD
   D[QC dds] --> V[VST]
   V --> B{batch set?}
-  B -->|ComBat-seq / ComBat for viz only| P[PCA + scree + loadings]
+  B -->|removeBatchEffect for viz only| P[PCA + scree + loadings]
   B -->|none| P
   P --> A[PC–covariate association heatmap top 15 PCs]
   V --> S[Sample Spearman similarity heatmap]

@@ -111,7 +111,7 @@ safe_vst <- function(dds, blind = TRUE) {
 }
 
 #' Quietly execute an expression, suppressing messages/warnings/console
-#' output (some Bioconductor functions, e.g. `sva::ComBat_seq()`, print
+#' output (some Bioconductor functions print
 #' progress via `cat()` rather than `message()`)
 #'
 #' @param expr An expression to evaluate.
@@ -129,13 +129,14 @@ quiet <- function(expr) {
     result
 }
 
-#' colData column ComBat-seq should protect (`var`, or `A_x_B` if present)
+#' colData column the batch correction should protect (`var`, or `A_x_B`
+#' if present)
 #' @noRd
 .expr_protect_column <- function(dds, var) {
     var <- as.character(var)
     var <- var[!is.na(var) & nzchar(var)]
     if (!length(var)) {
-        stop("`var` must name at least one colData column for ComBat-seq.",
+        stop("`var` must name at least one colData column to protect during batch correction.",
              call. = FALSE)
     }
     if (length(var) == 1L) return(var)
@@ -149,16 +150,15 @@ quiet <- function(expr) {
 #' Used by WGCNA, GSVA, sample ULM, sample VIPER, and CSPA heatmaps.
 #' DESeq2 itself is never given this matrix.
 #'
-#' With `batch` set, `platform` picks the correction: ComBat-seq on raw
-#' counts then VST for `"rnaseq"`, ComBat on the VST matrix for
-#' `"microarray"`. This is the same matrix [run_distance_pca()] uses for the
-#' corrected PCA, so the report never shows one correction while a module
-#' used another.
+#' With `batch` set (batch and/or `pair` columns), the matrix is corrected
+#' by `limma::removeBatchEffect()` on the VST matrix, protecting `var`.
+#' This is the same matrix [run_distance_pca()] uses for the corrected PCA,
+#' so the report never shows one correction while a module used another.
 #'
 #' @return Genes × samples numeric matrix. Attribute `expr_correction` is
-#'   `"vst"`, `"combat_seq_vst"`, or `"combat_vst"`.
+#'   `"vst"` / `"log2expr"` (uncorrected) or `"rbe_vst"` / `"rbe_log2expr"`.
 #' @noRd
-sample_level_expr_matrix <- function(dds, var, batch = NULL, platform = "rnaseq") {
+sample_level_expr_matrix <- function(dds, var, batch = NULL) {
     dds <- validate_dds(dds)
     if (is.null(batch)) {
         message("Sample-level expression: blind VST (no batch correction).")
@@ -167,17 +167,14 @@ sample_level_expr_matrix <- function(dds, var, batch = NULL, platform = "rnaseq"
         attr(mat, "expr_correction") <- if (.is_expr_dds(dds)) "log2expr" else "vst"
         return(mat)
     }
-    platform <- validate_platform(platform)
     protect <- .expr_protect_column(dds, var)
     dds <- validate_batch(dds, batch)
     dds <- validate_var(dds, protect)
     message(
         "Sample-level expression: ",
-        batch_correction_label(.expr_correction_label(platform, dds)),
-        " (batch = \"", batch, "\", protecting \"", protect, "\")."
+        batch_correction_label(.expr_correction_label(dds)),
+        " (removing \"", paste(batch, collapse = "\", \""),
+        "\", protecting \"", protect, "\")."
     )
-    batch_corrected_matrix(
-        dds, batch = batch, var = protect, platform = platform,
-        transform = "vst"
-    )
+    batch_corrected_matrix(dds, batch = batch, var = protect, transform = "vst")
 }

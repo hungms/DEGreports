@@ -169,10 +169,9 @@ plot_soft_threshold <- function(fit_indices, power, rsq_cutoff = 0.85) {
 #' @param dds A `DESeqDataSet` object (typically post-[run_qc()]).
 #' @param var Column name in `colData(dds)` identifying the biological
 #'   group of interest; module eigengenes are correlated against this.
-#' @param batch Optional batch column. When set, the network is built on
+#' @param batch Optional batch column(s), including the `pair` column of a
+#'   paired design. When set, the network is built on
 #'   batch-corrected expression (protecting `var`), not uncorrected VST.
-#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
-#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param power Soft-thresholding power. Default `NULL` auto-selects via
 #'   `pick_wgcna_power()`.
 #' @param power_vector Candidate powers evaluated (and shown on the
@@ -266,7 +265,6 @@ run_wgcna_pipeline <- function(
     top_n_ora = 10,
     gene_col = "gene",
     batch = NULL,
-    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -283,8 +281,7 @@ run_wgcna_pipeline <- function(
     validate_logical(save_plot, "save_plot")
     save_dir <- validate_save_dir(save_dir)
 
-    vst_mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
-                                        platform = platform)
+    vst_mat <- sample_level_expr_matrix(dds, var = var, batch = batch)
     expr_correction <- attr(vst_mat, "expr_correction")
     datExpr <- t(vst_mat)
 

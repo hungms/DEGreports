@@ -12,7 +12,6 @@ run_gsva_pipeline(
   min_size = 10,
   gene_sets = NULL,
   batch = NULL,
-  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -37,11 +36,9 @@ Default \code{10}.}
 of gene-symbol vectors. When supplied, \code{collections} is ignored and
 MSigDB is not queried (used in tests).}
 
-\item{batch}{Optional batch column. When set, GSVA uses batch-corrected
+\item{batch}{Optional batch column(s), including the \code{pair} column of a
+paired design. When set, GSVA uses batch-corrected
 expression (protecting \code{var}) instead of uncorrected VST.}
-
-\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
-\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
 
 \item{save_dir}{Output directory. Default \code{getwd()}.}
 
@@ -56,7 +53,7 @@ pathway × sample matrices), \code{stats} (per-collection ranking tables),
 }
 \description{
 Sample-level gene-set variation analysis (\href{https://doi.org/10.1186/1471-2105-14-7}{GSVA})
-on blind VST counts, or ComBat-seq then VST when \code{batch} is set.
+on blind VST counts, batch-corrected (\code{limma::removeBatchEffect()}) when \code{batch} is set.
 Independent of clusterProfiler / fgsea GSEA (those remain ranked-list
 tests per contrast). \strong{HALLMARK} is always scored
 when present in \code{collections}. Large collections (GO / KEGG / REACTOME /

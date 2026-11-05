@@ -14,7 +14,6 @@ run_decoupler_tf_pipeline(
   gene_col = "gene",
   collectri_file = NULL,
   batch = NULL,
-  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -26,7 +25,7 @@ ULM and run \strong{contrast-level} scoring only (needs
 
 \item{var}{Grouping column in \code{colData(dds)} used only for heatmap
 context when \code{dds} is supplied. Ignored when \code{dds = NULL}. Required
-as ComBat-seq's protected group when \code{batch} is set.}
+as the protected group when \code{batch} is set.}
 
 \item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} or
 \code{\link[=prepare_diffexp_from_deg]{prepare_diffexp_from_deg()}} (needs \verb{$by_comparison} with a \code{stat}
@@ -48,13 +47,11 @@ activity heatmap. Default \code{50}. Ignored when \code{dds = NULL}.}
 shipped under \verb{inst/extdata/} (or downloads it from the GitHub repo),
 then falls back to OmniPath only if that fails.}
 
-\item{batch}{Optional batch column. When set (and \code{dds} is supplied),
+\item{batch}{Optional batch column(s), including the \code{pair} column of a
+paired design. When set (and \code{dds} is supplied),
 sample-level ULM uses batch-corrected expression. Contrast-level ULM
 still uses DESeq2 \code{stat} from the design (batch as a covariate, not
 corrected counts).}
-
-\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
-\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
 
 \item{save_dir}{Output directory. Default \code{getwd()}.}
 
@@ -68,7 +65,7 @@ A list with \code{net}, \code{sample_acts}, \code{contrast_acts} (named list),
 Follows the bulk RNA-seq TF activity vignette for
 \href{https://bioconductor.org/packages/decoupleR/}{\code{decoupleR}}: retrieves the
 CollecTRI network from OmniPath, then runs Univariate Linear Models
-(\code{run_ulm}) on (1) sample-level VST (or ComBat-seq then VST when \code{batch}
+(\code{run_ulm}) on (1) sample-level VST (or batch-corrected VST when \code{batch}
 is set) and (2) each contrast's DESeq2 Wald \code{stat} vector.
 DESeq2 Wald \code{stat} vector. Produces a sample×TF activity heatmap (top
 variable TFs), per-contrast TF activity barplots, and writes CSVs under

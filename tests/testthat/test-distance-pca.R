@@ -72,40 +72,26 @@ test_that("run_distance_pca with batch correction also returns/saves the uncorre
     expect_identical(as.character(DESeq2::design(out$dds))[2], "condition")
     expect_false(is.null(out$similarity_plot_corrected))
     expect_true(is.data.frame(out$similarity_matrix_corrected))
-    expect_equal(out$batch_correction, "ComBat-seq")
+    expect_equal(out$batch_correction, "removeBatchEffect")
     expect_true(file.exists(file.path(save_dir, "sample_similarity_heatmap_batch_corrected.pdf")))
     expect_true(file.exists(file.path(save_dir, "sample_similarity_matrix_batch_corrected.csv")))
-    # VST (before) vs ComBat-seq (after) correlation matrices should differ
+    # VST (before) vs corrected (after) correlation matrices should differ
     expect_false(isTRUE(all.equal(
         as.matrix(out$similarity_matrix[, -1]),
         as.matrix(out$similarity_matrix_corrected[, -1])
     )))
 })
 
-test_that("platform = 'microarray' corrects with ComBat instead of ComBat-seq", {
+test_that("run_distance_pca removes several covariates at once (batch + pair)", {
     dds <- simulate_dds(n_genes = 60, n_per_group = 4, batch = TRUE)
+    SummarizedExperiment::colData(dds)$donor <- factor(rep(paste0("d", 1:4), times = 2))
     save_dir <- withr::local_tempdir()
 
-    out <- run_distance_pca(dds, var = "condition", batch = "batch",
-                            platform = "microarray", save_plot = FALSE,
-                            save_dir = save_dir)
+    out <- run_distance_pca(dds, var = "condition", batch = c("batch", "donor"),
+                            save_plot = FALSE, save_dir = save_dir)
 
-    expect_equal(out$batch_correction, "ComBat")
+    expect_equal(out$batch_correction, "removeBatchEffect")
     expect_true(is.data.frame(out$similarity_matrix_corrected))
-    expect_false(isTRUE(all.equal(
-        as.matrix(out$similarity_matrix[, -1]),
-        as.matrix(out$similarity_matrix_corrected[, -1])
-    )))
-})
-
-test_that("run_distance_pca rejects an unknown platform", {
-    dds <- simulate_dds(n_genes = 40, n_per_group = 3, batch = TRUE)
-    expect_error(
-        run_distance_pca(dds, var = "condition", batch = "batch",
-                         platform = "nanostring", save_plot = FALSE,
-                         save_dir = withr::local_tempdir()),
-        "platform"
-    )
 })
 
 test_that("plot_pca renders a square panel (aspect.ratio = 1)", {

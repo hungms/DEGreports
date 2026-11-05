@@ -154,13 +154,12 @@
 #' @param dds A QC-filtered `DESeqDataSet`, or `NULL` to skip sample-level
 #'   VIPER and run **contrast-level** `msviper()` only (needs
 #'   `diffexp_out$by_comparison` with a `stat` column).
-#' @param var Grouping column (used as ComBat-seq's protected group when
+#' @param var Grouping column (the protected group of the batch correction when
 #'   `batch` is set). Ignored when `dds = NULL`.
-#' @param batch Optional batch column. When set (and `dds` is supplied),
+#' @param batch Optional batch column(s), including the `pair` column of a
+#'   paired design. When set (and `dds` is supplied),
 #'   sample-level VIPER uses batch-corrected expression. Contrast msVIPER
 #'   still uses DESeq2 `stat`.
-#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
-#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param diffexp_out Output of [run_diffexp_pipeline()] or
 #'   [prepare_diffexp_from_deg()] (needs `$by_comparison` with a `stat`
 #'   column per gene).
@@ -187,7 +186,6 @@ run_viper_pipeline <- function(
     minsize = 25,
     gene_col = "gene",
     batch = NULL,
-    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -240,12 +238,11 @@ run_viper_pipeline <- function(
     expr_correction <- NA_character_
     if (!is.null(dds)) {
         if (!is.null(batch) && is.null(var)) {
-            stop("`var` must be supplied when `batch` is set so ComBat-seq can protect the biological group.",
+            stop("`var` must be supplied when `batch` is set so the batch correction can protect the biological group.",
                  call. = FALSE)
         }
         message("Running sample-level VIPER on scaled sample expression ...")
-        mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
-                                        platform = platform)
+        mat <- sample_level_expr_matrix(dds, var = var, batch = batch)
         expr_correction <- attr(mat, "expr_correction")
         storage.mode(mat) <- "double"
         mat_h <- .map_expression_to_human(mat, org)

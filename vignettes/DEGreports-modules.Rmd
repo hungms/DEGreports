@@ -47,9 +47,8 @@ out <- run_deseq2(
   design = NULL,              # NULL → resolve_design(var, batch, include_interactions)
   include_interactions = FALSE, # TRUE → adds difference-of-differences contrasts
   comparisons = NULL,         # NULL → full pairwise + one-vs-rest grid
-  batch = NULL,
-  platform = "rnaseq",        # batch correction: "rnaseq" → ComBat-seq,
-                              #                   "microarray" → ComBat
+  batch = NULL,               # covariate(s): in every model + removeBatchEffect for viz
+  pair = NULL,                # paired design (donor / patient): ~ pair + var
   filter_method = "cpm",
   cpm_percentile = 0.05,
   ranking = "log2FoldChange",
@@ -191,8 +190,7 @@ visualization-only batch correction.
 distance_out <- run_distance_pca(
   dds_qc,
   var = "condition",
-  batch = NULL,
-  platform = "rnaseq",        # "rnaseq" → ComBat-seq | "microarray" → ComBat
+  batch = NULL,               # column(s) removed with limma::removeBatchEffect()
   transform = "vst",          # or "rlog"
   pals = NULL,
   shape_var = NULL,
@@ -347,8 +345,7 @@ gsva_out <- run_gsva_pipeline(
   n_heatmap = 50,             # heatmap rows for non-HALLMARK collections
   min_size = 10,              # min overlapping genes per set
   gene_sets = NULL,           # supply to bypass msigdbr (tests)
-  batch = NULL,
-  platform = "rnaseq",        # ComBat-seq (or ComBat) when batch is set
+  batch = NULL,               # removeBatchEffect on VST when set
   save_dir = "results/gsva",
   save_plot = TRUE
 )
@@ -674,7 +671,7 @@ meaning of a positive `log2FoldChange`.
 | `emit_heatmap_with_download(heatmap, filename, scale = 1, cell_width = 0.28, cell_height = 0.16)` | `pheatmap` + PDF, sized by `gtable_page_size()` |
 | `gtable_page_size(drawable, max_width = 12, max_height = 24)` | Page inches from a gtable's own content (avoids clipped heatmaps) |
 | `figure_img_tag(draw, px_width, px_height, pixelratio = 2)` | Rasterize into `<page>_figures/` and link it (`capture_plot_tag()` wraps it) |
-| `batch_correction_label(...)` / `expr_correction_label(...)` | `"ComBat-seq"` / `"ComBat-seq then VST"` prose for section text |
+| `batch_correction_label(...)` / `expr_correction_label(...)` | `"removeBatchEffect"` / `"removeBatchEffect on VST"` prose for section text |
 | `download_table_button(...)` / `download_plot_button(...)` / `link_output_file(...)` | Offline downloads / on-disk CSV links |
 | `make_interactive(...)` / `make_interactive_ppi(...)` | Interactive widgets |
 

@@ -13,7 +13,6 @@ run_viper_pipeline(
   minsize = 25,
   gene_col = "gene",
   batch = NULL,
-  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -23,7 +22,7 @@ run_viper_pipeline(
 VIPER and run \strong{contrast-level} \code{msviper()} only (needs
 \code{diffexp_out$by_comparison} with a \code{stat} column).}
 
-\item{var}{Grouping column (used as ComBat-seq's protected group when
+\item{var}{Grouping column (the protected group of the batch correction when
 \code{batch} is set). Ignored when \code{dds = NULL}.}
 
 \item{diffexp_out}{Output of \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}} or
@@ -42,12 +41,10 @@ targets -- lower if many regulons are filtered out.}
 
 \item{gene_col}{Gene-id column name in diffexp tables. Default \code{"gene"}.}
 
-\item{batch}{Optional batch column. When set (and \code{dds} is supplied),
+\item{batch}{Optional batch column(s), including the \code{pair} column of a
+paired design. When set (and \code{dds} is supplied),
 sample-level VIPER uses batch-corrected expression. Contrast msVIPER
 still uses DESeq2 \code{stat}.}
-
-\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
-\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
 
 \item{save_dir}{Output directory. Default \code{getwd()}.}
 

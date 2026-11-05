@@ -1,7 +1,7 @@
 #' Run GSVA on VST expression for requested MSigDB collections
 #'
 #' Sample-level gene-set variation analysis ([GSVA](https://doi.org/10.1186/1471-2105-14-7))
-#' on blind VST counts, or ComBat-seq then VST when `batch` is set.
+#' on blind VST counts, batch-corrected (`limma::removeBatchEffect()`) when `batch` is set.
 #' Independent of clusterProfiler / fgsea GSEA (those remain ranked-list
 #' tests per contrast). **HALLMARK** is always scored
 #' when present in `collections`. Large collections (GO / KEGG / REACTOME /
@@ -14,10 +14,9 @@
 #' @param dds A QC-filtered `DESeqDataSet`.
 #' @param var Column in `colData(dds)` used to annotate samples and to
 #'   rank pathways for large-collection heatmaps.
-#' @param batch Optional batch column. When set, GSVA uses batch-corrected
+#' @param batch Optional batch column(s), including the `pair` column of a
+#'   paired design. When set, GSVA uses batch-corrected
 #'   expression (protecting `var`) instead of uncorrected VST.
-#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
-#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param collections MSigDB aliases (see [validate_msigdb_collections()]).
 #'   Default `c("HALLMARK", "GOBP", "GOCC", "GOMF", "KEGG", "REACTOME",
 #'   "PID")`. HALLMARK is prepended by the Wald/LRT runners even when it
@@ -45,7 +44,6 @@ run_gsva_pipeline <- function(
     min_size = 10,
     gene_sets = NULL,
     batch = NULL,
-    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -89,8 +87,7 @@ run_gsva_pipeline <- function(
     }
 
     message("Computing sample-level expression for GSVA ...")
-    expr <- sample_level_expr_matrix(dds, var = var, batch = batch,
-                                     platform = platform)
+    expr <- sample_level_expr_matrix(dds, var = var, batch = batch)
     expr_correction <- attr(expr, "expr_correction")
     storage.mode(expr) <- "double"
     group <- SummarizedExperiment::colData(dds)[[var]]

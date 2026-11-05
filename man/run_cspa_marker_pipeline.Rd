@@ -13,7 +13,6 @@ run_cspa_marker_pipeline(
   gene_col = "gene",
   significant_only = TRUE,
   batch = NULL,
-  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -34,13 +33,11 @@ annotation. Length 1–2; two factors are pasted for annotation.}
 
 \item{significant_only}{Passed to \code{\link[=select_cspa_markers]{select_cspa_markers()}}. Default \code{TRUE}.}
 
-\item{batch}{Optional batch column. When set, heatmaps use
+\item{batch}{Optional batch column(s), including the \code{pair} column of a
+paired design. When set, heatmaps use
 batch-corrected expression (protecting \code{var[1]}, or the \code{A_x_B}
 interaction column if present). Marker \emph{selection} still uses DESeq2
 DEGs.}
-
-\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
-\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
 
 \item{save_dir}{Output root. Per-contrast files go in
 \verb{<save_dir>/<comparison>/cspa/}; combined heatmap/CSV at
@@ -56,7 +53,7 @@ and \code{annotation_col}.
 \description{
 For each DE contrast, selects up to \code{n_markers} CSPA genes among that
 contrast's DEGs, then plots a \strong{row-scaled heatmap across all samples}
-(VST, or ComBat-seq then VST when \code{batch} is set). Also builds a combined
+(VST, batch-corrected when \code{batch} is set). Also builds a combined
 heatmap from the union of per-contrast selections.
 }
 \details{

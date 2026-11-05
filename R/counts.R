@@ -2,9 +2,10 @@
 #'
 #' Writes raw counts, variance-stabilized (VST) counts, regularized-log
 #' (rlog) counts, and counts-per-million (CPM) as CSV files to `save_dir`.
-#' Optionally also writes a batch-corrected table: corrected raw counts from
-#' `sva::ComBat_seq()` for `platform = "rnaseq"`, or a corrected VST matrix
-#' from `sva::ComBat()` for `platform = "microarray"`. TPM is not produced --
+#' Optionally also writes a batch-corrected table: the VST matrix (log2
+#' expression for a limma carrier) after `limma::removeBatchEffect()`,
+#' protecting `var`. It is on the log scale, for clustering and plotting --
+#' not a corrected count matrix to model. TPM is not produced --
 #' it requires a gene-length table that a `DESeqDataSet` does not carry, and
 #' is out of scope for this function; compute it separately if you have gene
 #' lengths available.
@@ -14,16 +15,13 @@
 #' [run_qc()]) and are independent of the differential-expression model.
 #'
 #' @param dds A `DESeqDataSet` object (typically post-[run_qc()]).
-#' @param batch Column name in `colData(dds)` identifying the technical
-#'   batch to correct for, or `NULL` (default) to skip the batch-corrected
-#'   export entirely.
+#' @param batch Column name(s) in `colData(dds)` to correct for (batch
+#'   and/or the `pair` column of a paired design), or `NULL` (default) to
+#'   skip the batch-corrected export entirely.
 #' @param var Column name in `colData(dds)` identifying the biological
 #'   group of interest. Required if `batch` is supplied: the correction
 #'   protects this signal rather than removing it along with the batch
 #'   effect. Ignored if `batch` is `NULL`.
-#' @param platform Assay platform, `"rnaseq"` (default, `ComBat_seq()` on
-#'   raw counts) or `"microarray"` (`ComBat()` on the VST matrix). Ignored
-#'   if `batch` is `NULL`.
 #' @param transform One of `"vst"` (default) or `"rlog"` -- which
 #'   variance-stabilizing transform to use for the VST/rlog export. Both
 #'   are always computed at `blind = TRUE` (i.e. ignoring the design), since
@@ -44,14 +42,12 @@ run_counts_export <- function(
     dds,
     batch = NULL,
     var = NULL,
-    platform = "rnaseq",
     transform = "vst",
     save_dir = getwd()) {
 
     dds <- validate_dds(dds)
     save_dir <- validate_save_dir(save_dir)
     transform <- validate_choice(transform, c("vst", "rlog"), "transform")
-    platform <- validate_platform(platform)
     if (!is.null(batch)) {
         dds <- validate_batch(dds, batch)
         if (is.null(var) || !is.character(var) || length(var) != 1) {
@@ -94,33 +90,14 @@ run_counts_export <- function(
     write_output(result$cpm,  file.path(save_dir, "counts_cpm.csv"))
 
     if (!is.null(batch)) {
-        if (.is_expr_dds(dds)) {
-            # TPM / FPKM: ComBat-seq needs integer counts, so correct the
-            # log2 expression matrix with ComBat instead.
-            message("Running ComBat batch correction on log2 expression (batch = \"", batch,
-                    "\", protecting \"", var, "\")...")
-            corrected <- combat_transformed_matrix(dds, batch = batch, var = var,
-                                                   transform = transform)
-            outfile <- "counts_combat_log2expr.csv"
-        } else if (identical(platform, "microarray")) {
-            # ComBat works on the log-scale matrix, so this export is on the
-            # VST scale rather than the count scale that ComBat-seq returns.
-            message("Running ComBat batch correction (batch = \"", batch,
-                    "\", protecting \"", var, "\")...")
-            corrected <- combat_transformed_matrix(dds, batch = batch, var = var,
-                                                   transform = transform)
-            outfile <- "counts_combat_vst.csv"
+        message("Running removeBatchEffect (removing \"", paste(batch, collapse = "\", \""),
+                "\", protecting \"", var, "\")...")
+        corrected <- batch_corrected_matrix(dds, batch = batch, var = var,
+                                            transform = transform)
+        outfile <- if (.is_expr_dds(dds)) {
+            "counts_batch_corrected_log2expr.csv"
         } else {
-            message("Running ComBat_seq batch correction (batch = \"", batch,
-                    "\", protecting \"", var, "\")...")
-            batch_f <- SummarizedExperiment::colData(dds)[[batch]]
-            group_f <- SummarizedExperiment::colData(dds)[[var]]
-            corrected <- quiet(sva::ComBat_seq(
-                counts = as.matrix(raw_counts),
-                batch = batch_f,
-                group = group_f
-            ))
-            outfile <- "counts_combat_seq.csv"
+            paste0("counts_batch_corrected_", transform, ".csv")
         }
         result$batch_corrected <- to_df(corrected)
         write_output(result$batch_corrected, file.path(save_dir, outfile))

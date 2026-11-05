@@ -14,7 +14,7 @@ run_deseq2(
   include_interactions = FALSE,
   stratified = FALSE,
   batch = NULL,
-  platform = "rnaseq",
+  pair = NULL,
   export_counts = TRUE,
   filter_method = "cpm",
   cpm_percentile = 0.05,
@@ -102,18 +102,20 @@ but they are the right tool when the strata are not expected to share a
 dispersion. Ignored for single-factor \code{var}.}
 
 \item{batch}{Optional covariate column name(s) in \code{colData(dds)}. Added
-to the auto design when \code{design = NULL}, passed through to main-effect
-fits in multi-factor mode, and (when set) used to
-batch-correct the expression matrix behind the PCA and behind WGCNA /
-GSVA / sample-level ULM and VIPER / CSPA heatmaps. DESeq2 itself always
-uses raw counts with \code{batch} in the design. Default \code{NULL}.}
+to every model (\code{~ batch + var}), and removed from the expression matrix
+behind the PCA, sample similarity, count export and the sample-level
+modules (WGCNA / GSVA / sample-level ULM and VIPER / CSPA heatmaps) with
+\code{limma::removeBatchEffect()} on the VST matrix, protecting \code{var}.
+DESeq2 itself always uses raw counts with \code{batch} in the design.
+Default \code{NULL}.}
 
-\item{platform}{Assay platform, \code{"rnaseq"} (default) or \code{"microarray"}.
-Selects how \code{batch} is removed from the expression matrix used by PCA
-and the sample-level modules: \code{sva::ComBat_seq()} on raw counts then
-VST for RNA-seq, \code{sva::ComBat()} on the VST matrix for microarray.
-Both protect \code{var}. Ignored if \code{batch} is \code{NULL}; nothing else about
-the pipeline (the DESeq2 model, gene filtering) changes.}
+\item{pair}{Optional \code{colData(dds)} column naming the unit measured
+under each condition in a paired design -- a donor, patient or animal.
+It is added to every model as a blocking term (\verb{~ [batch +] pair + var}), so each comparison is made within units, and it is removed from
+the sample-level matrix together with \code{batch}. Every tested factor must
+vary within at least one unit (a factor that is constant within every
+unit cannot be estimated in a paired design, and is an error); units
+seen in only one condition trigger a warning. Default \code{NULL}.}
 
 \item{export_counts}{Logical. If \code{TRUE} (default), also writes raw,
 VST, rlog, and CPM count tables via \code{\link[=run_counts_export]{run_counts_export()}}. If \code{batch}
