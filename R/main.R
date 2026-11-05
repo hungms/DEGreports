@@ -440,31 +440,35 @@ run_deseq2 <- function(
                     remove_vdj = remove_vdj,
                     save_dir = file.path(save_dir, "qc"))
             }),
-            .stage(NULL, paste0(
-                "Exporting count tables (raw / VST / rlog / CPM",
-                if (!is.null(covars)) {
-                    paste0(" / ", batch_correction_label(.expr_correction_label(dds)))
-                } else "", ")"),
+            # Covariates for every later model and the batch-corrected matrix:
+            # batch / pair, plus imputed sex when it is not confounded.
+            .stage("model", "Model covariates", optional = FALSE, silent = TRUE,
+                   run = function(st) {
+                .model_covariates(st$dds, var = var, covars = covars,
+                                  include_interactions = include_interactions)
+            }),
+            .stage(NULL, "Exporting count tables (raw / VST / rlog / CPM / batch-corrected)",
                 enabled = isTRUE(export_counts), run = function(st) {
                 run_counts_export(
-                    dds = st$dds, batch = covars, var = viz_var,
+                    dds = st$dds, batch = st$model$covars, var = viz_var,
                     save_dir = file.path(save_dir, "qc", "counts"))
             }),
             .stage("distance", "Sample similarity / PCA", optional = FALSE,
                    run = function(st) {
                 run_distance_pca(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     pals = pals, shape_var = shape_var,
                     n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs,
                     n_top_genes = n_top_genes,
-                    assoc_vars = unique(c(var, covars)),
+                    assoc_vars = unique(c(var, st$model$covars, .sex_assoc_col(st$dds))),
+                    colour_vars = .pca_colour_vars(st$dds, viz_var, pair, batch),
                     save_dir = file.path(save_dir, "qc", "distance"))
             }),
             .stage("diffexp", paste0(if (is_limma) "limma-trend" else "DESeq2",
                                      " analysis (", n_contrasts, " contrast(s))"),
                    optional = FALSE, run = function(st) {
                 run_diffexp_pipeline(
-                    dds = st$dds, var = var, comparisons = contrast_specs, batch = covars,
+                    dds = st$dds, var = var, comparisons = contrast_specs, batch = st$model$covars,
                     include_interactions = include_interactions, stratified = stratified,
                     shrinkage = opts$shrinkage,
                     alpha = alpha, lfc_threshold = lfc_threshold,
@@ -475,7 +479,7 @@ run_deseq2 <- function(
             .stage("cspa", "CSPA surface-marker heatmaps", enabled = isTRUE(run_cspa),
                    run = function(st) {
                 run_cspa_marker_pipeline(
-                    dds = st$dds, diffexp_out = st$diffexp, var = var, batch = covars,
+                    dds = st$dds, diffexp_out = st$diffexp, var = var, batch = st$model$covars,
                     n_markers = opts$cspa_n_markers,
                     save_dir = file.path(save_dir, "deseq2"))
             }),
@@ -494,7 +498,7 @@ run_deseq2 <- function(
             .stage("gsva", "GSVA (sample-level gene-set scores)",
                    enabled = isTRUE(run_gsva), run = function(st) {
                 run_gsva_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     collections = unique(c("HALLMARK", collections)),
                     n_heatmap = opts$gsva_n_heatmap,
                     save_dir = file.path(save_dir, "gsva"))
@@ -502,7 +506,7 @@ run_deseq2 <- function(
             .stage("wgcna", "Weighted gene co-expression network analysis (WGCNA)",
                    enabled = isTRUE(run_wgcna), run = function(st) {
                 run_wgcna_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     min_module_size = opts$wgcna_min_module_size,
                     ora_collection = collections,
                     save_dir = file.path(save_dir, "wgcna"))
@@ -510,7 +514,7 @@ run_deseq2 <- function(
             .stage("decoupler_tf", "DecoupleR (CollecTRI + ULM)",
                    enabled = isTRUE(run_decoupler_tf), run = function(st) {
                 run_decoupler_tf_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     diffexp_out = st$diffexp, n_tfs = opts$decoupler_n_tfs,
                     save_dir = file.path(save_dir, "decoupler-tf"))
             }),
@@ -523,7 +527,7 @@ run_deseq2 <- function(
             .stage("viper", "VIPER (bcellViper)", enabled = isTRUE(run_viper),
                    run = function(st) {
                 run_viper_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     diffexp_out = st$diffexp, n_tfs = opts$viper_n_tfs,
                     save_dir = file.path(save_dir, "viper"))
             }),
@@ -548,6 +552,7 @@ run_deseq2 <- function(
 
         st <- .run_stages(stages, list(dds = dds))
         dds <- st$dds
+        params$imputed_sex <- st$model$sex_reason
         distance_out <- st$distance
         diffexp_out <- st$diffexp
         cspa_out <- st$cspa
@@ -743,26 +748,34 @@ run_deseq2 <- function(
                     remove_vdj = remove_vdj,
                     save_dir = file.path(save_dir, "qc"))
             }),
+            # Covariates for every later model and the batch-corrected matrix:
+            # batch / pair, plus imputed sex when it is not confounded.
+            .stage("model", "Model covariates", optional = FALSE, silent = TRUE,
+                   run = function(st) {
+                .model_covariates(st$dds, var = var, covars = covars,
+                                  include_interactions = include_interactions, time = time)
+            }),
             .stage(NULL, "Exporting count tables", enabled = isTRUE(export_counts),
                    run = function(st) {
                 run_counts_export(
-                    dds = st$dds, batch = covars, var = viz_var,
+                    dds = st$dds, batch = st$model$covars, var = viz_var,
                     save_dir = file.path(save_dir, "qc", "counts"))
             }),
             .stage("distance", "Sample similarity / PCA", optional = FALSE,
                    run = function(st) {
                 run_distance_pca(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     pals = pals, shape_var = shape_var,
                     n_scree_pcs = n_scree_pcs, n_loading_pcs = n_loading_pcs,
                     n_top_genes = n_top_genes,
-                    assoc_vars = unique(c(var, time, covars)),
+                    assoc_vars = unique(c(var, time, st$model$covars, .sex_assoc_col(st$dds))),
+                    colour_vars = .pca_colour_vars(st$dds, viz_var, pair, batch),
                     save_dir = file.path(save_dir, "qc", "distance"))
             }),
             .stage("diffexp", paste0("DESeq2 LRT (", n_tests, " test(s))"),
                    optional = FALSE, run = function(st) {
                 run_diffexp_lrt_pipeline(
-                    dds = st$dds, var = var, time = time, batch = covars,
+                    dds = st$dds, var = var, time = time, batch = st$model$covars,
                     include_interactions = include_interactions,
                     alpha = alpha,
                     save_dir = file.path(save_dir, "deseq2"))
@@ -779,7 +792,7 @@ run_deseq2 <- function(
                 hm <- run_lrt_cspa_heatmap(
                     dds = st$dds, degpatterns_out = st$degpatterns,
                     lrt_out = st$diffexp, n_per_cluster = opts$cspa_n_markers_lrt,
-                    annotation_var = unique(c(time, var)), batch = covars,
+                    annotation_var = unique(c(time, var)), batch = st$model$covars,
                     save_dir = file.path(save_dir, "deseq2"))
                 list(
                     source = "lrt_clusters",
@@ -800,14 +813,14 @@ run_deseq2 <- function(
             .stage("gsva", "GSVA (sample-level gene-set scores)",
                    enabled = isTRUE(run_gsva), run = function(st) {
                 run_gsva_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     collections = unique(c("HALLMARK", collections)),
                     n_heatmap = opts$gsva_n_heatmap,
                     save_dir = file.path(save_dir, "gsva"))
             }),
             .stage("wgcna", "WGCNA", enabled = isTRUE(run_wgcna), run = function(st) {
                 run_wgcna_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     min_module_size = opts$wgcna_min_module_size,
                     ora_collection = collections,
                     save_dir = file.path(save_dir, "wgcna"))
@@ -828,7 +841,7 @@ run_deseq2 <- function(
                     return(NULL)
                 }
                 out <- run_decoupler_tf_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     diffexp_out = st$tf_diffexp, n_tfs = opts$decoupler_n_tfs,
                     save_dir = file.path(save_dir, "decoupler-tf"))
                 if (!is.null(out)) out$tf_level <- "lrt_cluster"
@@ -849,7 +862,7 @@ run_deseq2 <- function(
                     return(NULL)
                 }
                 out <- run_viper_pipeline(
-                    dds = st$dds, var = viz_var, batch = covars,
+                    dds = st$dds, var = viz_var, batch = st$model$covars,
                     diffexp_out = st$tf_diffexp, n_tfs = opts$viper_n_tfs,
                     save_dir = file.path(save_dir, "viper"))
                 if (!is.null(out)) out$tf_level <- "lrt_cluster"
@@ -915,6 +928,7 @@ run_deseq2 <- function(
 
         st <- .run_stages(stages, list(dds = dds))
         dds <- st$dds
+        params$imputed_sex <- st$model$sex_reason
         distance_out <- st$distance
         diffexp_out <- st$diffexp
         degpatterns_out <- st$degpatterns

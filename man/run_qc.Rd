@@ -79,8 +79,11 @@ can display them without recomputation; also written to
 \code{qc_steps_summary.csv} in \code{save_dir}.
 }
 \description{
-Optionally filters lowly-expressed genes, optionally removes
-mitochondrial and/or sex-chromosome genes, and writes a library-size
+Filters lowly-expressed genes, imputes each sample's sex from the
+sex-chromosome marker genes (\code{\link[=impute_sample_sex]{impute_sample_sex()}}, stored as
+\code{colData(dds)$imputed_sex}), then optionally removes mitochondrial,
+sex-chromosome and VDJ genes -- in that order, so sex is imputed before
+its marker genes can be removed -- and writes a library-size
 distribution plot, a gene-filtering diagnostic plot, and a filtering
 summary CSV. Returns the filtered \code{dds} object so it can be fed into
 \code{\link[=run_distance_pca]{run_distance_pca()}} and \code{\link[=run_diffexp_pipeline]{run_diffexp_pipeline()}}.

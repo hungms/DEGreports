@@ -1503,3 +1503,34 @@ render_report <- function(
             " linked section page(s) in per-module folders)")
     invisible(out_paths)
 }
+
+#' Emit one PCA per colour variable as a Bootstrap tabset
+#'
+#' Used by the QC page for the before / after batch-correction PCA, with one
+#' tab per variable (group, pair, sex, batch). Each tab shows the interactive
+#' plot when available, else the static one, with a PDF download.
+#'
+#' @param pca_by Named list from [run_distance_pca()]'s `pca_by_uncorrected`
+#'   / `pca_by_corrected`: `list(static, interactive)` per tab.
+#' @param tabset_id Unique HTML id for the tabset.
+#' @param filename Stem for the downloaded PDFs (the tab label is appended).
+#' @return Invisibly `NULL`; called for its output.
+#' @export
+emit_pca_tabs <- function(pca_by, tabset_id, filename = "pca_plot") {
+    if (!length(pca_by)) return(invisible(NULL))
+    ids <- bs_tabset_start(tabset_id, names(pca_by))
+    for (i in seq_along(pca_by)) {
+        bs_tab_pane_start(ids[i], active = (i == 1L))
+        x <- pca_by[[i]]
+        fn <- paste0(filename, "_", .html_id(names(pca_by)[i]))
+        if (is.null(x$interactive)) {
+            emit_plot_with_download(x$static, filename = fn, width = 5, height = 5)
+        } else {
+            btn <- download_plot_button(x$static, filename = fn, widget = x$interactive)
+            emit_widget_with_download(x$interactive, btn, center = TRUE)
+        }
+        bs_tab_pane_end()
+    }
+    bs_tabset_end()
+    invisible(NULL)
+}

@@ -27,9 +27,11 @@ test_that("run_qc() tracks genes removed at each step and adds up correctly", {
     steps <- qc_meta$steps_summary
 
     expect_true(all(c("step", "n_before", "n_removed", "n_after", "pct_removed") %in% colnames(steps)))
+    # Expression filter first, then (after sex imputation) the gene-category
+    # removals, so sex markers on X/Y are still present when sex is imputed.
     expect_identical(steps$step,
-                      c("Input", "Mitochondrial gene removal", "X/Y chromosome gene removal",
-                        "Low-expression gene removal (raw count, per-group)"))
+                      c("Input", "Low-expression gene removal (raw count, per-group)",
+                        "Mitochondrial gene removal", "X/Y chromosome gene removal"))
     # n_removed = n_before - n_after at every step
     expect_equal(steps$n_removed, steps$n_before - steps$n_after)
     # each step's n_before matches the previous step's n_after (chained correctly)

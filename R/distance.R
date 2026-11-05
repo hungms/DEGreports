@@ -52,6 +52,10 @@
 #'   for association with leading PC scores (e.g. `c("condition", "batch")`,
 #'   or `c("genotype", "time", "batch")` for LRT). Default `NULL` uses
 #'   `unique(c(var, batch))` when those columns exist.
+#' @param colour_vars Optional named character vector of `colData` columns
+#'   to draw one PCA each for, coloured by that column (names are the report
+#'   tab labels), e.g. `c(Group = "condition", Pair = "donor", Sex =
+#'   "imputed_sex", Batch = "batch")`. Default `NULL`: `var` only.
 #' @param n_assoc_pcs Number of leading PCs to include in the covariate
 #'   association heatmap. Default `15` (capped to PCs available).
 #' @param save_dir Directory to write outputs to. Default `getwd()`.
@@ -74,7 +78,10 @@
 #'   on uncorrected VST/rlog), `similarity_plot_corrected` /
 #'   `similarity_matrix_corrected` (the same after batch correction, or
 #'   `NULL` if `batch` is `NULL`), `batch_correction`
-#'   (`"removeBatchEffect"` or `"none"`), and `percent_var`. The `*_uncorrected` PCA
+#'   (`"removeBatchEffect"` or `"none"`), `pca_by_uncorrected` /
+#'   `pca_by_corrected` (named lists, one per `colour_vars` entry, of
+#'   `static` / `interactive` PCA plots; the corrected list is `NULL` without
+#'   batch correction), and `percent_var`. The `*_uncorrected` PCA
 #'   elements are `NULL` unless batch correction was applied.
 #' @examples
 #' \dontrun{
@@ -93,6 +100,7 @@ run_distance_pca <- function(
     n_loading_pcs = 6,
     n_top_genes = 10,
     assoc_vars = NULL,
+    colour_vars = NULL,
     n_assoc_pcs = 15,
     save_dir = getwd(),
     save_plot = TRUE) {
@@ -169,6 +177,22 @@ run_distance_pca <- function(
     pca_plot_interactive <- make_interactive(pca_plot, base_size = 344)
     pca_plot_uncorrected_interactive <- if (!is.null(pca_plot_uncorrected)) {
         make_interactive(pca_plot_uncorrected, base_size = 344)
+    } else {
+        NULL
+    }
+
+    # One PCA per colour variable (group, pair, sex, batch), before and after
+    # correction, for the report's two tabsets.
+    if (is.null(colour_vars)) colour_vars <- c(Group = var)
+    colour_vars <- colour_vars[colour_vars %in% colnames(coldata_df)]
+    pca_by_uncorrected <- .pca_plots_by(
+        if (batch_corrected) pca_df_raw else pca_df,
+        if (batch_corrected) percent_var_raw else percent_var,
+        colour_vars, var, shape_var, pals,
+        title = if (batch_corrected) before_title else NULL)
+    pca_by_corrected <- if (batch_corrected) {
+        .pca_plots_by(pca_df, percent_var, colour_vars, var, shape_var, pals,
+                      title = after_title)
     } else {
         NULL
     }
@@ -311,6 +335,8 @@ run_distance_pca <- function(
         pca_plot_uncorrected = pca_plot_uncorrected,
         pca_plot_interactive = pca_plot_interactive,
         pca_plot_uncorrected_interactive = pca_plot_uncorrected_interactive,
+        pca_by_uncorrected = pca_by_uncorrected,
+        pca_by_corrected = pca_by_corrected,
         scree_plot = scree_plot,
         scree_plot_uncorrected = scree_plot_uncorrected,
         loadings = loadings_df,
@@ -569,6 +595,28 @@ plot_pca <- function(pca_df, var, shape_var = NULL, pals = NULL, percent_var = N
         p <- p + ggplot2::scale_shape_manual(values = .pca_shape_values[seq_len(n_shapes)])
     }
     p
+}
+
+#' One PCA scatter per colour variable
+#'
+#' The group variable keeps `pals`; other variables use the default
+#' palette. Points keep `shape_var` unless it is the variable being coloured.
+#' @return Named list (by tab label) of `list(static, interactive)`.
+#' @noRd
+.pca_plots_by <- function(pca_df, percent_var, colour_vars, var, shape_var, pals,
+                          title = NULL) {
+    out <- lapply(names(colour_vars), function(lbl) {
+        cv <- colour_vars[[lbl]]
+        df <- pca_df
+        df[[cv]] <- factor(df[[cv]])
+        sv <- if (!is.null(shape_var) && !identical(shape_var, cv)) shape_var else NULL
+        p <- plot_pca(df, var = cv, shape_var = sv,
+                      pals = if (identical(cv, var)) pals else NULL,
+                      percent_var = percent_var)
+        if (!is.null(title)) p <- p + ggplot2::ggtitle(title)
+        list(static = p, interactive = make_interactive(p, base_size = 344))
+    })
+    stats::setNames(out, names(colour_vars))
 }
 
 #' Point shapes for up to 25 shape levels, most distinct first

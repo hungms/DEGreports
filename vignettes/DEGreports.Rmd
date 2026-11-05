@@ -301,6 +301,15 @@ design and is reported as an error. Donors seen in only one condition trigger
 a warning, since they add nothing to the within-donor comparison. `pair` works
 the same way in `run_limma()` and `run_deseq2(mode = "lrt")`.
 
+## Imputed sex
+
+`run_qc()` imputes each sample's sex from the sex-chromosome marker genes on
+every run (after low-expression filtering, before any X/Y gene removal) and
+stores it as `colData(dds)$imputed_sex`. The pipeline adds it to every model
+when it is not confounded with `var`, `pair` or `batch`; the QC page says
+whether it was used. A single-sex cohort is reported as undetermined and sex
+is left out. Call `impute_sample_sex(dds)` to run the step on its own.
+
 ## Customising the comparisons
 
 Every run writes `deseq2/contrasts.csv` and shows the same table at the top of

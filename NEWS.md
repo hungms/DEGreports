@@ -13,6 +13,9 @@
   `run_limma()`), replacing ComBat-seq / ComBat. DE models are unchanged.
 * `platform` is removed from every function (it only chose the ComBat
   variant). `sva` is no longer a dependency.
+* QC order: the expression filter now runs before MT / X/Y / VDJ removal
+  (sex is imputed in between), so gene counts per step can differ slightly.
+* New dependency: biowrenchR (GitHub, `Remotes: hungms/biowrenchR`).
 * The batch-corrected count export is now `counts_batch_corrected_vst.csv`
   (log scale), replacing `counts_combat_seq.csv` / `counts_combat_vst.csv`.
 
@@ -29,6 +32,14 @@
   tested factor is constant within every unit, or when `batch` is nested in
   `pair`; warns about units seen in only one condition.
 * `batch` accepts several columns in every module.
+* **Sex imputation.** `run_qc()` always imputes each sample's sex
+  (`impute_sample_sex()`, via biowrenchR) and stores it as
+  `colData(dds)$imputed_sex`. Single-sex cohorts are reported as
+  undetermined. New QC report section and `qc_imputed_sex.csv`.
+* Imputed sex is added to every model (and removed with the batch
+  correction) when it is not confounded with `var`, `pair` or `batch`.
+* QC PCA shows one tab per variable (group, pair, sex, batch), before and
+  after batch correction.
 * With `pair` set, PCA points are shaped by unit (donor / patient) unless
   `shape_var` is given. `plot_pca()` supports up to 25 shape levels.
 

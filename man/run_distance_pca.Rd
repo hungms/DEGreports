@@ -16,6 +16,7 @@ run_distance_pca(
   n_loading_pcs = 6,
   n_top_genes = 10,
   assoc_vars = NULL,
+  colour_vars = NULL,
   n_assoc_pcs = 15,
   save_dir = getwd(),
   save_plot = TRUE
@@ -61,6 +62,10 @@ for association with leading PC scores (e.g. \code{c("condition", "batch")},
 or \code{c("genotype", "time", "batch")} for LRT). Default \code{NULL} uses
 \code{unique(c(var, batch))} when those columns exist.}
 
+\item{colour_vars}{Optional named character vector of \code{colData} columns
+to draw one PCA each for, coloured by that column (names are the report
+tab labels), e.g. \code{c(Group = "condition", Pair = "donor", Sex = "imputed_sex", Batch = "batch")}. Default \code{NULL}: \code{var} only.}
+
 \item{n_assoc_pcs}{Number of leading PCs to include in the covariate
 association heatmap. Default \code{15} (capped to PCs available).}
 
@@ -87,7 +92,10 @@ on uncorrected PCs, or \code{NULL} if no batch correction was applied),
 on uncorrected VST/rlog), \code{similarity_plot_corrected} /
 \code{similarity_matrix_corrected} (the same after batch correction, or
 \code{NULL} if \code{batch} is \code{NULL}), \code{batch_correction}
-(\code{"removeBatchEffect"} or \code{"none"}), and \code{percent_var}. The \verb{*_uncorrected} PCA
+(\code{"removeBatchEffect"} or \code{"none"}), \code{pca_by_uncorrected} /
+\code{pca_by_corrected} (named lists, one per \code{colour_vars} entry, of
+\code{static} / \code{interactive} PCA plots; the corrected list is \code{NULL} without
+batch correction), and \code{percent_var}. The \verb{*_uncorrected} PCA
 elements are \code{NULL} unless batch correction was applied.
 }
 \description{
