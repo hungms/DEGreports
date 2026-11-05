@@ -88,11 +88,14 @@
 #' @param mt_pattern Regular expression used to identify mitochondrial genes
 #'   by name when `remove_mt = TRUE`. Default matches common human/mouse
 #'   mitochondrial gene symbol prefixes (`"^MT-"` / `"^mt-"`).
-#' @param remove_xy Logical. If `TRUE`, removes genes on X/Y chromosomes,
-#'   using `gene_chr` to determine chromosome membership. Default `FALSE`.
+#' @param remove_xy Logical. If `TRUE`, removes genes on X/Y chromosomes
+#'   (after sex has been imputed), using `gene_chr` when supplied, else
+#'   biowrenchR's packaged BioMart X/Y gene list for the detected organism.
+#'   Default `FALSE`.
 #' @param gene_chr Optional data frame with columns `gene` and `chr` mapping
 #'   `rownames(dds)` to chromosome names (e.g. from `biomaRt` or a GTF).
-#'   Required if `remove_xy = TRUE`; ignored otherwise.
+#'   Default `NULL`: use `biowrenchR::xy_genes()`. Ignored unless
+#'   `remove_xy = TRUE`.
 #' @param remove_vdj VDJ gene removal: `NULL`/`FALSE` (default, off),
 #'   `TRUE`/`"both"` (BCR + TCR), or one or more of `"BCR"` / `"TCR"`.
 #'   Matches immunoglobulin / T-cell receptor gene-symbol conventions for
@@ -275,15 +278,27 @@ run_qc <- function(
     }
 
     if (remove_xy) {
-        if (is.null(gene_chr)) {
-            warning("`remove_xy = TRUE` but `gene_chr` was not supplied; skipping X/Y gene removal. ",
-                    "Provide a data.frame(gene, chr) via `gene_chr` to enable this step.", call. = FALSE)
-        } else {
+        xy_genes <- NULL
+        if (!is.null(gene_chr)) {
             if (!all(c("gene", "chr") %in% colnames(gene_chr))) {
                 stop("`gene_chr` must be a data.frame with columns `gene` and `chr`.", call. = FALSE)
             }
-            n_before <- nrow(dds)
             xy_genes <- gene_chr$gene[gene_chr$chr %in% c("X", "Y", "chrX", "chrY")]
+        } else {
+            # No annotation supplied: use biowrenchR's packaged BioMart X/Y list.
+            org <- tryCatch(detect_organism(rownames(dds)), error = function(e) NA_character_)
+            if (is.na(org)) {
+                warning("`remove_xy = TRUE` but `gene_chr` was not supplied and the organism could not ",
+                        "be detected from gene symbols; skipping X/Y gene removal. Provide a ",
+                        "data.frame(gene, chr) via `gene_chr`.", call. = FALSE)
+            } else {
+                xy_genes <- biowrenchR::xy_genes(org)
+                message("Using biowrenchR's ", org, " X/Y gene list (", length(xy_genes),
+                        " genes) for X/Y removal.")
+            }
+        }
+        if (!is.null(xy_genes)) {
+            n_before <- nrow(dds)
             keep_xy <- !rownames(dds) %in% xy_genes
             message("Removing ", sum(!keep_xy), " X/Y chromosome gene(s)...")
             dds <- dds[keep_xy, ]

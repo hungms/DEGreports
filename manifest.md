@@ -66,6 +66,9 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
   Imports with `Remotes: hungms/biowrenchR` (breaks the "no Remotes" convention by
   user request). Installed into renv with `remotes::install_github(dependencies =
   FALSE)` (renv::install failed upgrading dbplyr); recorded in renv.lock.
+- `remove_xy = TRUE` without `gene_chr` now uses `biowrenchR::xy_genes(org)`
+  (before, it warned and skipped). User set `remove_xy = TRUE` and reduced Slurm
+  resources (30 tasks, 50G, no --nodes) in the runners; committed as-is.
 - Tests: new test-sex.R; qc-steps order test updated. Full suite 294 tests, same 7
   pre-existing failures. E2E render on simulated paired two-sex data OK (sex
   correctly not modelled: nested in donor).

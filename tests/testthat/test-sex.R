@@ -130,3 +130,12 @@ test_that(".pca_colour_vars lists group, pair, sex and batch when present", {
     SummarizedExperiment::colData(dds)$imputed_sex <- NULL
     expect_equal(.pca_colour_vars(dds, "condition"), c(Group = "condition"))
 })
+
+test_that("remove_xy without gene_chr uses biowrenchR's X/Y list, after sex imputation", {
+    dds <- simulate_sexed_dds()
+    qc <- run_qc(dds, var = "condition", remove_xy = TRUE, save_plot = FALSE,
+                 save_dir = withr::local_tempdir())
+    expect_false(any(c("Xist", "Ddx3y", "Kdm5d") %in% rownames(qc)))
+    expect_equal(as.character(SummarizedExperiment::colData(qc)$imputed_sex),
+                 rep(c("female", "male"), 4))
+})
