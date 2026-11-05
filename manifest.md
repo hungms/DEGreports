@@ -8,7 +8,7 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
 ## Repo / workflow facts
 
 - GitHub: https://github.com/hungms/DEGreports (branch `main`).
-- Working copy on NEMO: `/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DESeq2Reports`
+- Working copy on NEMO: `/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DEGreports`
   is a git checkout of `main` (since 2026-11-03) — commit and push from here.
   Files on NEMO are `rwxrwx` while the repo stores `644`; if `git status` lists
   every file as modified, run `git config core.fileMode false`.
@@ -23,11 +23,42 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
   Contents: write on this repo gives a 403 — re-run `gh auth login` (web browser) if so.
 - **Running tests:** no R on the default PATH. Use the conda R
   `/nemo/lab/caladod/working/Matthew/.conda/envs/seurat5/bin/Rscript` (R 4.3.2, all
-  deps present) **but** it has plotly 4.10.3 (< required 4.12.0): prepend a library
-  with plotly ≥ 4.12 to `.libPaths()` before `devtools::test()`. Run tests on a copy
-  of the tree — some tests write output into the working dir.
+  deps present; DESCRIPTION now requires plotly >= 4.10.3, which it has). Run tests
+  on a copy of the tree — some tests write output into the working dir.
+- **Example report hosting:** the GSE189410 Wald report is on the orphan branch
+  `gh-pages` (built in a scratch dir from `example_run_GSE189410_deseq2_wald/`,
+  minus `*.rds` and `logs/`, plus `.nojekyll`). README button links to
+  https://hungms.github.io/DEGreports/. Re-run the example → rebuild and push the
+  branch by hand.
+- **Conventions skill:** `~/.claude/skills/r-pipeline-package/` (in
+  `/nemo/lab/caladod/working/Matthew/.claude/`) records this package's layout,
+  style, README/NEWS templates and release steps for future packages.
 
 ## Current version: 0.4.0
+
+### 2026-11-05 — examples trimmed, README rewrite, licence, hosted report (pushed)
+
+- Commits `b57521a` and `017ef79` on `main`. `b57521a` also committed the earlier
+  "uncommitted" entries below (rename, `run_deseq2(mode=)`, `run_limma()`,
+  `reproduce/`, multihit UpSet, parallel-render tmpfile fix, renv/Slurm setup).
+- **Examples:** removed GSE224465 and GSE116971 (data + runners). Only
+  `run_gse189410_deseq2_wald.R` and `run_gse189410_deseq2_lrt.R` remain;
+  `run_examples.sbatch` is now `--array=0-1`. The GSE116971 entry below is
+  historical. Local output dirs `example_run_GSE224465_deseq2_wald/` and
+  `example_run_GSE116971_deseq2_wald/` were left on disk (gitignored).
+- **README:** restructured to Why DEGreports (current limitations → approach →
+  additional features → example-report button) / Analyses table / Install (with
+  `renv.lock` exact versions) / Quick start / Citations / License. Removed the
+  design-notes, documentation and contrast-customisation sections (the vignette
+  covers them). User prefers professional, succinct wording.
+- **Licence:** added `LICENSE.md` (full MIT text, in `.Rbuildignore`); CRAN
+  `LICENSE` stub kept. `inst/extdata/DATA_SOURCES.md` now says CSPA (CC BY 4.0)
+  and CollecTRI (OmniPath terms) keep their own licences.
+- `renv.lock` committed; `.Rprofile` and `renv/` deliberately not.
+- **NEWS.md** condensed from 688 to ~170 lines: one-line bullets under Breaking
+  changes / New features / Bug fixes per release. User finds long NEWS hard to read;
+  root-cause detail belongs in commits or here.
+
 
 ### 2026-11-04 — fix: random page failures under `parallel_render` (uncommitted)
 
@@ -181,6 +212,16 @@ Local edits dated 2026-11-02/03 were pushed as one commit. Summary (full text in
 - Docs regenerated (`man/`, `NAMESPACE`), README + vignette updated.
 
 ### Open / to check next session
+
+- Enable GitHub Pages (Settings → Pages → `gh-pages` / root) if not done; check
+  the README button renders.
+- `DESCRIPTION` `Description:` still names the removed `run_deseq2_wald()` /
+  `run_deseq2_lrt()` / `run_deseq2_deg()`; update to `run_deseq2()` / `run_limma()`
+  / `run_deg()`.
+- Test spill is untracked in `inst/rmarkdown/` and `tests/testthat/` (PDF/CSV and
+  `group*_vs_*` dirs): delete and/or gitignore; fix the tests that write there.
+- Confirm with the Crick whether the institute should be the copyright holder.
+- `CODE_WALKTHROUGH.md` is untracked: decide whether to commit it.
 
 - [ ] 11 pre-existing test failures (present before the cleanup):
   - `test-comparisons.R` ×2 — stale: expect `validate_comparisons()` to return a
