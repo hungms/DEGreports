@@ -144,8 +144,8 @@ DEGreports::emit_code_block(
 # Keyed on the static plot, since the interactive one is NULL whenever plotly
 # could not convert it (see make_interactive()).
 pca_has_batch <- !is.null(params$distance_out$pca_plot_uncorrected)
-# Name the method in the tab labels, so a reader can tell a ComBat-seq report
-# from a ComBat one. Falls back to the generic wording when no batch was given.
+# Name the method in the tab labels. Falls back to the generic wording when
+# no batch / pair correction was applied.
 corr_method <- params$distance_out$batch_correction
 if (is.null(corr_method) || !nzchar(corr_method) || identical(corr_method, "none")) {
   corr_method <- "batch correction"
@@ -340,7 +340,7 @@ similar, darker blue = less similar). The self-correlation diagonal carries no
 information and is blanked out (dark grey).
 
 ```{r sim-helpers, include=FALSE}
-sim_has_combat <- !is.null(params$distance_out$similarity_plot_corrected)
+sim_has_corrected <- !is.null(params$distance_out$similarity_plot_corrected)
 sim_method <- corr_method
 
 emit_sample_similarity_heatmap <- function(hm, cor_df, filename, table_filename) {
@@ -361,7 +361,7 @@ cat("\n\n#### ", after_tab, "\n\n", sep = "")
 ```
 
 ```{r dist-heatmap-after, results='asis'}
-if (sim_has_combat) {
+if (sim_has_corrected) {
   cat("\n\nSpearman correlation after **", sim_method, "** (protecting the ",
       "biological grouping variable). This is the same corrected matrix used for ",
       "the PCA above and for the sample-level modules (WGCNA, GSVA, VIPER, ",
@@ -389,7 +389,7 @@ cat("\n\n#### ", before_tab, "\n\n", sep = "")
 ```
 
 ```{r dist-heatmap-before, results='asis'}
-if (sim_has_combat) {
+if (sim_has_corrected) {
   cat("\n\nSpearman correlation on the **uncorrected** variance-stabilized matrix ",
       "(no ", sim_method, ").\n\n", sep = "")
 } else {

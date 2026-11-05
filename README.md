@@ -10,9 +10,9 @@
 
 **Additional features:**
 
-* **Experimental designs:** one to three factors, interaction contrasts,
-  balanced one-vs-rest comparisons and likelihood-ratio tests for time
-  courses.
+* **Experimental designs:** one to three factors, paired samples (e.g.
+  donor-matched), interaction contrasts, balanced one-vs-rest comparisons
+  and likelihood-ratio tests for time courses.
 * **Input types:** raw counts (DESeq2), TPM/FPKM or microarray data
   (limma), or a precomputed DEG table.
 * **Reporting:** a self-contained, multi-page HTML report that can be viewed
@@ -34,7 +34,7 @@
 
 | Report page | What it shows | Default thresholds |
 |---|---|---|
-| **QC** | Sample and library QC, PCA (with PC–covariate association), sample similarity | Genes with zero counts in every sample removed, then the bottom 5% by mean CPM. With `batch`: ComBat-seq (RNA-seq) or ComBat (microarray) |
+| **QC** | Sample and library QC, PCA (with PC–covariate association), sample similarity | Genes with zero counts in every sample removed, then the bottom 5% by mean CPM. With `batch` / `pair`: `limma::removeBatchEffect()` on VST, for plots and sample-level modules only |
 | **DESeq2** | Up/down DEG summary; per-contrast MA plot, volcano plot and tables | Wald: `padj < 0.05` and \|log2FC\| > 0.5 (ashr-shrunken). LRT: `padj < 0.05`; degPatterns clusters ≥ 15 genes |
 | ↳ STRING PPI | Interaction networks of significant DEGs | STRING combined score ≥ 400; top 10 hubs labelled |
 | ↳ CSPA | Cell-surface proteins among the DEGs | Top 25 surface DEGs per contrast (10 per LRT cluster) |
@@ -85,6 +85,9 @@ dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~c
 
 # Group contrasts (Wald)
 out <- run_deseq2(dds, var = "condition", save_dir = "results")
+
+# Paired samples, e.g. each donor measured under every condition (~ donor + condition)
+# out <- run_deseq2(dds, var = "condition", pair = "donor", save_dir = "results_paired")
 
 # Time course / ordered trajectory (LRT + degPatterns)
 # out <- run_deseq2(dds, mode = "lrt", var = NULL, time = "day", save_dir = "results_lrt")

@@ -8,7 +8,6 @@ run_counts_export(
   dds,
   batch = NULL,
   var = NULL,
-  platform = "rnaseq",
   transform = "vst",
   save_dir = getwd()
 )
@@ -16,18 +15,14 @@ run_counts_export(
 \arguments{
 \item{dds}{A \code{DESeqDataSet} object (typically post-\code{\link[=run_qc]{run_qc()}}).}
 
-\item{batch}{Column name in \code{colData(dds)} identifying the technical
-batch to correct for, or \code{NULL} (default) to skip the batch-corrected
-export entirely.}
+\item{batch}{Column name(s) in \code{colData(dds)} to correct for (batch
+and/or the \code{pair} column of a paired design), or \code{NULL} (default) to
+skip the batch-corrected export entirely.}
 
 \item{var}{Column name in \code{colData(dds)} identifying the biological
 group of interest. Required if \code{batch} is supplied: the correction
 protects this signal rather than removing it along with the batch
 effect. Ignored if \code{batch} is \code{NULL}.}
-
-\item{platform}{Assay platform, \code{"rnaseq"} (default, \code{ComBat_seq()} on
-raw counts) or \code{"microarray"} (\code{ComBat()} on the VST matrix). Ignored
-if \code{batch} is \code{NULL}.}
 
 \item{transform}{One of \code{"vst"} (default) or \code{"rlog"} -- which
 variance-stabilizing transform to use for the VST/rlog export. Both
@@ -45,9 +40,10 @@ each with genes as rows (first column \code{gene}) and samples as columns.
 \description{
 Writes raw counts, variance-stabilized (VST) counts, regularized-log
 (rlog) counts, and counts-per-million (CPM) as CSV files to \code{save_dir}.
-Optionally also writes a batch-corrected table: corrected raw counts from
-\code{sva::ComBat_seq()} for \code{platform = "rnaseq"}, or a corrected VST matrix
-from \code{sva::ComBat()} for \code{platform = "microarray"}. TPM is not produced --
+Optionally also writes a batch-corrected table: the VST matrix (log2
+expression for a limma carrier) after \code{limma::removeBatchEffect()},
+protecting \code{var}. It is on the log scale, for clustering and plotting --
+not a corrected count matrix to model. TPM is not produced --
 it requires a gene-length table that a \code{DESeqDataSet} does not carry, and
 is out of scope for this function; compute it separately if you have gene
 lengths available.

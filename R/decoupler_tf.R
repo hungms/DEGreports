@@ -3,7 +3,7 @@
 #' Follows the bulk RNA-seq TF activity vignette for
 #' [`decoupleR`](https://bioconductor.org/packages/decoupleR/): retrieves the
 #' CollecTRI network from OmniPath, then runs Univariate Linear Models
-#' (`run_ulm`) on (1) sample-level VST (or ComBat-seq then VST when `batch`
+#' (`run_ulm`) on (1) sample-level VST (or batch-corrected VST when `batch`
 #' is set) and (2) each contrast's DESeq2 Wald `stat` vector.
 #' DESeq2 Wald `stat` vector. Produces a sample×TF activity heatmap (top
 #' variable TFs), per-contrast TF activity barplots, and writes CSVs under
@@ -16,13 +16,12 @@
 #'   `diffexp_out$by_comparison` with a `stat` column).
 #' @param var Grouping column in `colData(dds)` used only for heatmap
 #'   context when `dds` is supplied. Ignored when `dds = NULL`. Required
-#'   as ComBat-seq's protected group when `batch` is set.
-#' @param batch Optional batch column. When set (and `dds` is supplied),
+#'   as the protected group when `batch` is set.
+#' @param batch Optional batch column(s), including the `pair` column of a
+#'   paired design. When set (and `dds` is supplied),
 #'   sample-level ULM uses batch-corrected expression. Contrast-level ULM
 #'   still uses DESeq2 `stat` from the design (batch as a covariate, not
 #'   corrected counts).
-#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
-#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param diffexp_out Output of [run_diffexp_pipeline()] or
 #'   [prepare_diffexp_from_deg()] (needs `$by_comparison` with a `stat`
 #'   column per gene).
@@ -52,7 +51,6 @@ run_decoupler_tf_pipeline <- function(
     gene_col = "gene",
     collectri_file = NULL,
     batch = NULL,
-    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -95,12 +93,11 @@ run_decoupler_tf_pipeline <- function(
     expr_correction <- NA_character_
     if (!is.null(dds)) {
         if (!is.null(batch) && is.null(var)) {
-            stop("`var` must be supplied when `batch` is set so ComBat-seq can protect the biological group.",
+            stop("`var` must be supplied when `batch` is set so the batch correction can protect the biological group.",
                  call. = FALSE)
         }
         message("Running sample-level ULM on sample expression ...")
-        mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
-                                        platform = platform)
+        mat <- sample_level_expr_matrix(dds, var = var, batch = batch)
         expr_correction <- attr(mat, "expr_correction")
         storage.mode(mat) <- "double"
         sample_acts <- as.data.frame(decoupleR::run_ulm(

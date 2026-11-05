@@ -15,9 +15,9 @@
 #'     explained per PC, and a top-loadings plot/CSV showing the genes that
 #'     contribute most to each of the leading PCs.
 #' }
-#' When `batch` is set, PCA uses the batch-corrected matrix -- ComBat-seq on
-#' raw counts then VST for `platform = "rnaseq"`, ComBat on the VST matrix
-#' for `platform = "microarray"` -- and an additional *uncorrected* PCA plot
+#' When `batch` is set, PCA uses the batch-corrected matrix
+#' (`limma::removeBatchEffect()` on the VST matrix, protecting `var`) and an
+#' additional *uncorrected* PCA plot
 #' (interactive + static), scree plot, top-loadings plot/CSV, and
 #' PC–covariate association heatmap/CSV are returned/saved for comparison.
 #' Sample-similarity heatmaps are always computed on **uncorrected VST**;
@@ -27,11 +27,9 @@
 #' @param dds A `DESeqDataSet` object (typically post-[run_qc()]).
 #' @param var Column name in `colData(dds)` used to colour points/rows by
 #'   group.
-#' @param batch Column name in `colData(dds)` to correct for, or `NULL`
-#'   (default) to skip batch correction.
-#' @param platform Assay platform, `"rnaseq"` (default) or `"microarray"`.
-#'   Selects `sva::ComBat_seq()` on raw counts or `sva::ComBat()` on the
-#'   VST matrix. Ignored if `batch` is `NULL`.
+#' @param batch Column name(s) in `colData(dds)` to correct for (batch
+#'   and/or the `pair` column of a paired design), or `NULL` (default) to
+#'   skip batch correction.
 #' @param transform One of `"vst"` (default, `DESeq2::vst()`) or `"rlog"`
 #'   (`DESeq2::rlog()`) -- the variance-stabilizing transform used for PCA
 #'   and the similarity heatmap.
@@ -73,8 +71,8 @@
 #'   `similarity_plot` / `similarity_matrix` (Spearman heatmap and matrix
 #'   on uncorrected VST/rlog), `similarity_plot_corrected` /
 #'   `similarity_matrix_corrected` (the same after batch correction, or
-#'   `NULL` if `batch` is `NULL`), `batch_correction` (`"ComBat-seq"`,
-#'   `"ComBat"`, or `"none"`), and `percent_var`. The `*_uncorrected` PCA
+#'   `NULL` if `batch` is `NULL`), `batch_correction`
+#'   (`"removeBatchEffect"` or `"none"`), and `percent_var`. The `*_uncorrected` PCA
 #'   elements are `NULL` unless batch correction was applied.
 #' @examples
 #' \dontrun{
@@ -85,7 +83,6 @@ run_distance_pca <- function(
     dds,
     var,
     batch = NULL,
-    platform = "rnaseq",
     transform = "vst",
     pals = NULL,
     shape_var = NULL,
@@ -101,7 +98,6 @@ run_distance_pca <- function(
     dds <- validate_dds(dds)
     dds <- validate_var(dds, var)
     if (!is.null(batch)) dds <- validate_batch(dds, batch)
-    platform <- validate_platform(platform)
     if (!is.null(pals)) pals <- validate_pals(dds, var, pals)
     validate_logical(save_plot, "save_plot")
     save_dir <- validate_save_dir(save_dir)
@@ -116,20 +112,18 @@ run_distance_pca <- function(
     mat_corrected <- NULL
     correction_label <- "none"
     if (batch_corrected) {
-        correction_label <- batch_correction_label(.expr_correction_label(platform, dds))
+        correction_label <- batch_correction_label(.expr_correction_label(dds))
         message("Batch correction for PCA / sample similarity: ", correction_label,
-                " (batch = \"", batch, "\", protecting \"", var, "\")...")
+                " (removing \"", paste(batch, collapse = "\", \""),
+                "\", protecting \"", var, "\")...")
         mat_corrected <- batch_corrected_matrix(
-            dds, batch = batch, var = var, platform = platform,
-            transform = transform
+            dds, batch = batch, var = var, transform = transform
         )
         mat_primary <- mat_corrected
     }
 
-    # Name the method rather than saying "batch correction", so a reader can
-    # tell a ComBat-seq figure from a ComBat one without checking the log. The
-    # uncorrected side is the same VST matrix either way, so it stays generic;
-    # both must match report_qc.Rmd's tab labels, which its prose references.
+    # Name the method rather than saying "batch correction". Both titles must
+    # match report_qc.Rmd's tab labels, which its prose references.
     after_title <- paste0("After ", correction_label)
     before_title <- "Before batch correction"
 
@@ -221,7 +215,7 @@ run_distance_pca <- function(
 
     # --- Sample similarity (Spearman): uncorrected VST, then corrected ------
     # Reuses `mat_corrected` from the PCA step: correcting twice would run
-    # ComBat(-seq) a second time for an identical matrix.
+    # the batch correction a second time for an identical matrix.
     similarity_plot <- plot_sample_similarity(mat, dds, var = var)
     cor_df <- similarity_cor_df(similarity_plot)
 
@@ -373,146 +367,105 @@ transformed_matrix <- function(dds, transform = "vst") {
     as.matrix(SummarizedExperiment::assay(vsd))
 }
 
-#' ComBat (microarray) on a VST/rlog matrix, protecting the biological group
+#' Remove batch / pairing effects from a VST (or log2) matrix
 #'
-#' The RNA-seq counterpart ([combat_seq_transformed_matrix()]) protects the
-#' group of interest via `ComBat_seq(group = )`; the equivalent for
-#' `sva::ComBat()` is a design matrix passed as `mod`. That fails when the
-#' group is confounded with batch, so fall back to a batch-only fit rather
-#' than aborting the run.
+#' `limma::removeBatchEffect()` on the blind VST (rlog, or log2 expression
+#' for a limma carrier) matrix, protecting the biological group with a
+#' `design` of `~ protect`. This is the correction the DESeq2 authors
+#' recommend for visualisation: it is a plain linear fit, so it copes with
+#' several covariates at once and with many small blocks -- e.g. a `pair`
+#' column with two samples per donor -- where ComBat-seq's per-batch
+#' empirical Bayes estimates become unstable.
+#'
+#' Factor covariates are coded with sum-to-zero contrasts, so the corrected
+#' matrix stays centred on the overall mean rather than on one reference
+#' batch. A coefficient that is not estimable (a covariate confounded with
+#' the protected group) is left uncorrected by limma rather than failing.
+#'
 #' @param dds A `DESeqDataSet`.
-#' @param batch Batch column name in `colData(dds)`.
-#' @param var Biological group column protected by ComBat.
+#' @param batch Character vector of `colData(dds)` columns to remove
+#'   (batch and/or pair).
+#' @param var Biological group column to protect.
 #' @param transform `"vst"` or `"rlog"`.
-#' @return Genes × samples numeric matrix.
+#' @return Genes x samples numeric matrix.
 #' @noRd
-combat_transformed_matrix <- function(dds, batch, var, transform = "vst") {
+rbe_transformed_matrix <- function(dds, batch, var, transform = "vst") {
     mat <- transformed_matrix(dds, transform = transform)
-    coldata <- as.data.frame(SummarizedExperiment::colData(dds))
-    batch_factor <- factor(coldata[[batch]])
-    group_factor <- factor(coldata[[var]])
-    mod <- NULL
-    if (nlevels(group_factor) > 1L) {
-        mod <- stats::model.matrix(~group_factor)
+    cd <- as.data.frame(SummarizedExperiment::colData(dds))
+    covars <- cd[, batch, drop = FALSE]
+    covars[] <- lapply(covars, function(x) droplevels(factor(x)))
+    covars <- covars[, vapply(covars, nlevels, integer(1)) > 1L, drop = FALSE]
+    if (!ncol(covars)) return(mat)
+    X <- stats::model.matrix(
+        stats::as.formula(paste("~", paste(names(covars), collapse = " + "))),
+        data = covars,
+        contrasts.arg = stats::setNames(rep(list("contr.sum"), ncol(covars)),
+                                        names(covars))
+    )[, -1L, drop = FALSE]
+    group <- droplevels(factor(cd[[var]]))
+    design <- if (nlevels(group) > 1L) {
+        stats::model.matrix(~group)
+    } else {
+        matrix(1, ncol(mat), 1L)
     }
-    corrected <- NULL
-    if (!is.null(mod)) {
-        corrected <- tryCatch(
-            quiet(sva::ComBat(dat = mat, batch = batch_factor, mod = mod,
-                              par.prior = TRUE, mean.only = FALSE)),
-            error = function(e) {
-                warning("ComBat could not protect \"", var, "\" (",
-                        conditionMessage(e),
-                        "); correcting for batch only.", call. = FALSE)
-                NULL
-            }
-        )
-    }
-    if (is.null(corrected)) {
-        corrected <- quiet(sva::ComBat(dat = mat, batch = batch_factor,
-                                       par.prior = TRUE, mean.only = FALSE))
-    }
+    corrected <- limma::removeBatchEffect(mat, covariates = X, design = design)
     dimnames(corrected) <- dimnames(mat)
     as.matrix(corrected)
 }
 
-#' ComBat-seq on raw counts, then VST/rlog for visualization
-#' @param dds A `DESeqDataSet`.
-#' @param batch Batch column name in `colData(dds)`.
-#' @param var Biological group column protected by ComBat-seq.
-#' @param transform `"vst"` or `"rlog"`.
-#' @return Genes × samples numeric matrix.
-#' @noRd
-combat_seq_transformed_matrix <- function(dds, batch, var, transform = "vst") {
-    raw_counts <- DESeq2::counts(dds, normalized = FALSE)
-    coldata <- SummarizedExperiment::colData(dds)
-    combat_mat <- quiet(sva::ComBat_seq(
-        counts = as.matrix(raw_counts),
-        batch = coldata[[batch]],
-        group = coldata[[var]]
-    ))
-    combat_int <- pmax(round(combat_mat), 0)
-    storage.mode(combat_int) <- "integer"
-    dimnames(combat_int) <- dimnames(raw_counts)
-    dds_c <- DESeq2::DESeqDataSetFromMatrix(
-        countData = combat_int,
-        colData = as.data.frame(coldata),
-        design = ~1
-    )
-    vsd <- if (identical(transform, "rlog")) {
-        DESeq2::rlog(dds_c, blind = TRUE)
-    } else {
-        safe_vst(dds_c, blind = TRUE)
-    }
-    SummarizedExperiment::assay(vsd)
-}
-
-#' Batch-corrected expression matrix for the given assay platform
+#' Batch- (and pair-) corrected expression matrix
 #'
-#' The single place that decides *how* `batch` is removed. RNA-seq goes
-#' through ComBat-seq on raw counts (then VST); microarray goes through
-#' ComBat on the VST matrix. PCA, the QC similarity heatmap, and every
-#' sample-level module ([sample_level_expr_matrix()]) share this so the
-#' report never shows one correction while a module used another.
+#' The single place that decides *how* `batch` / `pair` are removed:
+#' [rbe_transformed_matrix()] on the blind VST matrix (log2 expression for a
+#' limma carrier). PCA, the QC similarity heatmap, the count export and
+#' every sample-level module ([sample_level_expr_matrix()]) share this, so
+#' the report never shows one correction while a module used another.
+#' DESeq2 / limma never see this matrix: they model the covariates instead.
 #'
 #' @param dds A `DESeqDataSet`.
-#' @param batch Batch column name in `colData(dds)`.
+#' @param batch Character vector of covariate columns to remove.
 #' @param var Biological group column to protect.
-#' @param platform `"rnaseq"` or `"microarray"`.
 #' @param transform `"vst"` or `"rlog"`.
-#' @return Genes × samples numeric matrix, with an `expr_correction`
-#'   attribute of `"combat_seq_vst"` or `"combat_vst"`.
+#' @return Genes x samples numeric matrix, with an `expr_correction`
+#'   attribute of `"rbe_vst"` or `"rbe_log2expr"`.
 #' @noRd
-batch_corrected_matrix <- function(dds, batch, var, platform = "rnaseq",
-                                   transform = "vst") {
-    platform <- validate_platform(platform)
-    # TPM / FPKM are not integer counts, so ComBat-seq is out: ComBat on
-    # log2 expression, whatever `platform` says.
-    mat <- if (identical(platform, "microarray") || .is_expr_dds(dds)) {
-        combat_transformed_matrix(dds, batch = batch, var = var,
+batch_corrected_matrix <- function(dds, batch, var, transform = "vst") {
+    mat <- rbe_transformed_matrix(dds, batch = batch, var = var,
                                   transform = transform)
-    } else {
-        combat_seq_transformed_matrix(dds, batch = batch, var = var,
-                                      transform = transform)
-    }
-    mat <- as.matrix(mat)
-    attr(mat, "expr_correction") <- .expr_correction_label(platform, dds)
+    attr(mat, "expr_correction") <- .expr_correction_label(dds)
     mat
 }
 
-#' `expr_correction` tag for a platform's batch correction
+#' `expr_correction` tag for a corrected matrix
 #' @noRd
-.expr_correction_label <- function(platform, dds = NULL) {
-    if (!is.null(dds) && .is_expr_dds(dds)) return("combat_log2expr")
-    if (identical(platform, "microarray")) "combat_vst" else "combat_seq_vst"
+.expr_correction_label <- function(dds = NULL) {
+    if (!is.null(dds) && .is_expr_dds(dds)) "rbe_log2expr" else "rbe_vst"
 }
 
 #' Name the batch-correction method behind an expression matrix
 #'
 #' Both of these turn the `expr_correction` tag carried by module outputs
-#' (`"vst"`, `"combat_seq_vst"`, `"combat_vst"`, the limma `"log2expr"` /
-#' `"combat_log2expr"`, or `NA`) into prose, so the
-#' HTML report can describe what a module actually scored without
-#' re-deriving it from `platform` and `batch`.
+#' (`"vst"`, `"rbe_vst"`, the limma `"log2expr"` / `"rbe_log2expr"`, or
+#' `NA`) into prose, so the HTML report can describe what a module actually
+#' scored without re-deriving it from `batch` and `pair`.
 #'
 #' @param expr_correction The `expr_correction` element of a module output
 #'   (e.g. `wgcna_out$expr_correction`), or the attribute of the same name
 #'   on a sample-level expression matrix.
-#' @return `batch_correction_label()` returns the method name (`"ComBat-seq"`,
-#'   `"ComBat"`, or `"none"`); `expr_correction_label()` returns the full
-#'   transform description (`"ComBat-seq then VST"`, `"ComBat on VST"`, or
+#' @return `batch_correction_label()` returns the method name
+#'   (`"removeBatchEffect"` or `"none"`); `expr_correction_label()` returns
+#'   the full transform description (e.g. `"removeBatchEffect on VST"` or
 #'   `"blind VST"`).
 #' @examples
-#' batch_correction_label("combat_seq_vst")
-#' expr_correction_label("combat_vst")
+#' batch_correction_label("rbe_vst")
+#' expr_correction_label("rbe_vst")
 #' expr_correction_label("vst")
 #' @export
 batch_correction_label <- function(expr_correction) {
     switch(
         as.character(expr_correction)[1L],
-        combat_vst = "ComBat",
-        combat_log2expr = "ComBat",
-        combat_seq_vst = "ComBat-seq",
+        rbe_vst = ,
+        rbe_log2expr = "removeBatchEffect",
         "none"
     )
 }
@@ -522,9 +475,8 @@ batch_correction_label <- function(expr_correction) {
 expr_correction_label <- function(expr_correction) {
     switch(
         as.character(expr_correction)[1L],
-        combat_vst = "ComBat on VST",
-        combat_log2expr = "ComBat on log2 expression",
-        combat_seq_vst = "ComBat-seq then VST",
+        rbe_vst = "removeBatchEffect on VST",
+        rbe_log2expr = "removeBatchEffect on log2 expression",
         log2expr = "log2 expression (limma)",
         "blind VST"
     )

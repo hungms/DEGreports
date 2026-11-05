@@ -8,7 +8,6 @@ run_distance_pca(
   dds,
   var,
   batch = NULL,
-  platform = "rnaseq",
   transform = "vst",
   pals = NULL,
   shape_var = NULL,
@@ -28,12 +27,9 @@ run_distance_pca(
 \item{var}{Column name in \code{colData(dds)} used to colour points/rows by
 group.}
 
-\item{batch}{Column name in \code{colData(dds)} to correct for, or \code{NULL}
-(default) to skip batch correction.}
-
-\item{platform}{Assay platform, \code{"rnaseq"} (default) or \code{"microarray"}.
-Selects \code{sva::ComBat_seq()} on raw counts or \code{sva::ComBat()} on the
-VST matrix. Ignored if \code{batch} is \code{NULL}.}
+\item{batch}{Column name(s) in \code{colData(dds)} to correct for (batch
+and/or the \code{pair} column of a paired design), or \code{NULL} (default) to
+skip batch correction.}
 
 \item{transform}{One of \code{"vst"} (default, \code{DESeq2::vst()}) or \code{"rlog"}
 (\code{DESeq2::rlog()}) -- the variance-stabilizing transform used for PCA
@@ -88,8 +84,8 @@ on uncorrected PCs, or \code{NULL} if no batch correction was applied),
 \code{similarity_plot} / \code{similarity_matrix} (Spearman heatmap and matrix
 on uncorrected VST/rlog), \code{similarity_plot_corrected} /
 \code{similarity_matrix_corrected} (the same after batch correction, or
-\code{NULL} if \code{batch} is \code{NULL}), \code{batch_correction} (\code{"ComBat-seq"},
-\code{"ComBat"}, or \code{"none"}), and \code{percent_var}. The \verb{*_uncorrected} PCA
+\code{NULL} if \code{batch} is \code{NULL}), \code{batch_correction}
+(\code{"removeBatchEffect"} or \code{"none"}), and \code{percent_var}. The \verb{*_uncorrected} PCA
 elements are \code{NULL} unless batch correction was applied.
 }
 \description{
@@ -108,9 +104,9 @@ scatterplot (PC1 vs PC2, square panel), a scree plot of variance
 explained per PC, and a top-loadings plot/CSV showing the genes that
 contribute most to each of the leading PCs.
 }
-When \code{batch} is set, PCA uses the batch-corrected matrix -- ComBat-seq on
-raw counts then VST for \code{platform = "rnaseq"}, ComBat on the VST matrix
-for \code{platform = "microarray"} -- and an additional \emph{uncorrected} PCA plot
+When \code{batch} is set, PCA uses the batch-corrected matrix
+(\code{limma::removeBatchEffect()} on the VST matrix, protecting \code{var}) and an
+additional \emph{uncorrected} PCA plot
 (interactive + static), scree plot, top-loadings plot/CSV, and
 PC–covariate association heatmap/CSV are returned/saved for comparison.
 Sample-similarity heatmaps are always computed on \strong{uncorrected VST};

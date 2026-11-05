@@ -83,7 +83,7 @@ validate_design <- function(dds, design) {
 #' Validate that a single string is one of a fixed set of allowed choices
 #'
 #' Shared by every "pick one of these options" argument (`org`, `shrinkage`,
-#' `ranking`, `platform`, `output_format`) so the same check and error
+#' `ranking`, `output_format`) so the same check and error
 #' wording isn't repeated five times over.
 #'
 #' @param x The value to validate.
@@ -185,37 +185,108 @@ validate_ranking <- function(ranking) {
     validate_choice(ranking, c("pxfc", "padj", "log2FoldChange", "stat"), "ranking", lower = FALSE)
 }
 
-#' Validate the batch-correction column
+#' Validate the batch-correction column(s)
 #' @param dds A `DESeqDataSet` object.
-#' @param batch Column name in `colData(dds)`, or `NULL`.
-#' @return `dds` with `colData(dds)[[batch]]` coerced to a factor (if not `NULL`).
+#' @param batch Column name(s) in `colData(dds)`, or `NULL`.
+#' @return `dds` with each `colData(dds)[[batch]]` coerced to a factor (if
+#'   not `NULL`).
 #' @noRd
 validate_batch <- function(dds, batch) {
     if (is.null(batch)) return(dds)
-    if (!is.character(batch) || length(batch) != 1) {
-        stop("`batch` must be `NULL` or a single character string naming a column in colData(dds).", call. = FALSE)
+    if (!is.character(batch) || !length(batch) || anyNA(batch) ||
+            any(!nzchar(batch)) || anyDuplicated(batch)) {
+        stop("`batch` must be `NULL` or a character vector of distinct column names in colData(dds).",
+             call. = FALSE)
     }
-    if (!batch %in% colnames(SummarizedExperiment::colData(dds))) {
-        stop("`batch` (\"", batch, "\") is not a column of colData(dds).", call. = FALSE)
+    cd_names <- colnames(SummarizedExperiment::colData(dds))
+    missing <- setdiff(batch, cd_names)
+    if (length(missing)) {
+        stop("`batch` column(s) not in colData(dds): ", paste(missing, collapse = ", "),
+             ". Available columns: ", paste(cd_names, collapse = ", "), call. = FALSE)
     }
-    b <- SummarizedExperiment::colData(dds)[[batch]]
-    if (!is.factor(b)) b <- factor(b)
-    if (nlevels(b) < 2) {
-        stop("`batch` (\"", batch, "\") must have at least 2 levels to be worth correcting for.", call. = FALSE)
+    for (b in batch) {
+        x <- SummarizedExperiment::colData(dds)[[b]]
+        if (!is.factor(x)) x <- factor(x)
+        if (nlevels(x) < 2) {
+            stop("`batch` (\"", b, "\") must have at least 2 levels to be worth correcting for.",
+                 call. = FALSE)
+        }
+        SummarizedExperiment::colData(dds)[[b]] <- x
     }
-    SummarizedExperiment::colData(dds)[[batch]] <- b
     dds
 }
 
-#' Validate the assay platform
+#' Validate the pairing column of a paired design
 #'
-#' Selects the batch-correction method: `sva::ComBat_seq()` on raw counts
-#' for `"rnaseq"`, `sva::ComBat()` on the VST matrix for `"microarray"`.
-#' @param platform One of "rnaseq", "microarray".
-#' @return The validated, lower-cased `platform` string.
+#' `pair` names the unit measured under several conditions -- a donor,
+#' patient or animal. It enters every model as a blocking term
+#' (`~ pair + var`), so each comparison is made within units, and it is
+#' removed from the sample-level matrix alongside `batch`.
+#'
+#' A paired design only estimates factors that vary *within* a unit, so
+#' this errors when every unit sits in a single level of a tested factor
+#' (the factor is between-unit and would be aliased with `pair`), warns
+#' about units that contribute nothing to a comparison, and errors when a
+#' `batch` column is constant within every unit (it is then already
+#' absorbed by `pair`).
+#'
+#' @param dds A `DESeqDataSet` object.
+#' @param pair Column name in `colData(dds)`, or `NULL`.
+#' @param var,time Tested factor column(s) (`time` in LRT mode).
+#' @param batch Batch column name(s), or `NULL`.
+#' @return `dds` with `colData(dds)[[pair]]` coerced to a factor.
 #' @noRd
-validate_platform <- function(platform) {
-    validate_choice(platform, c("rnaseq", "microarray"), "platform")
+validate_pair <- function(dds, pair, var = NULL, batch = NULL, time = NULL) {
+    if (is.null(pair)) return(dds)
+    if (!is.character(pair) || length(pair) != 1L || is.na(pair) || !nzchar(pair)) {
+        stop("`pair` must be `NULL` or a single column name in colData(dds).", call. = FALSE)
+    }
+    cd <- SummarizedExperiment::colData(dds)
+    if (!pair %in% colnames(cd)) {
+        stop("`pair` (\"", pair, "\") is not a column of colData(dds). Available columns: ",
+             paste(colnames(cd), collapse = ", "), call. = FALSE)
+    }
+    if (pair %in% c(var, batch, time)) {
+        stop("`pair` (\"", pair, "\") must not also be given in `var`, `batch` or `time`.",
+             call. = FALSE)
+    }
+    p <- cd[[pair]]
+    if (anyNA(p)) {
+        stop("`pair` (\"", pair, "\") has missing values; every sample needs a ", pair, ".",
+             call. = FALSE)
+    }
+    p <- droplevels(factor(p))
+    if (nlevels(p) < 2L) {
+        stop("`pair` (\"", pair, "\") must have at least 2 levels.", call. = FALSE)
+    }
+    levels_per_unit <- function(col) {
+        vapply(split(as.character(cd[[col]]), p), function(x) length(unique(x)), integer(1))
+    }
+    for (f in c(var, time)) {
+        n_lv <- levels_per_unit(f)
+        if (all(n_lv <= 1L)) {
+            stop("`pair` (\"", pair, "\") is nested within `", f, "`: every ", pair,
+                 " has samples in a single level of ", f, ", so a paired design cannot estimate the ",
+                 f, " effect. Use `pair` only for factors measured within each ", pair,
+                 " (e.g. before/after treatment); otherwise leave `pair` unset.", call. = FALSE)
+        }
+        single <- names(n_lv)[n_lv <= 1L]
+        if (length(single)) {
+            warning(length(single), " ", pair, " level(s) have samples in only one level of `", f,
+                    "` and add nothing to its within-", pair, " comparison: ",
+                    paste(utils::head(single, 10L), collapse = ", "),
+                    if (length(single) > 10L) ", ..." else "", call. = FALSE)
+        }
+    }
+    for (b in batch) {
+        if (all(levels_per_unit(b) == 1L)) {
+            stop("`batch` (\"", b, "\") is constant within every `pair` (\"", pair,
+                 "\") level, so `pair` already accounts for it. Drop \"", b, "\" from `batch`.",
+                 call. = FALSE)
+        }
+    }
+    SummarizedExperiment::colData(dds)[[pair]] <- p
+    dds
 }
 
 #' Validate a custom colour palette against the number of group levels

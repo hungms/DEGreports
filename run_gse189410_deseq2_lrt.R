@@ -100,7 +100,6 @@ out <- run_deseq2(
   var = NULL,
   time = "isotype",
   batch = "batch",
-  platform = "rnaseq",
   include_interactions = FALSE,
   filter_method = "cpm",
   cpm_percentile = 0.05,

@@ -64,7 +64,6 @@ Imports:
     stats,
     STRINGdb,
     SummarizedExperiment,
-    sva,
     tidyr,
     utils,
     viper,

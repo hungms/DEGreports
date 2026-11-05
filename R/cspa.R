@@ -184,7 +184,7 @@ plot_cspa_marker_heatmap <- function(mat,
 #'
 #' For each DE contrast, selects up to `n_markers` CSPA genes among that
 #' contrast's DEGs, then plots a **row-scaled heatmap across all samples**
-#' (VST, or ComBat-seq then VST when `batch` is set). Also builds a combined
+#' (VST, batch-corrected when `batch` is set). Also builds a combined
 #' heatmap from the union of per-contrast selections.
 #'
 #' Requires Imports package `readxl` to read the CSPA workbook.
@@ -193,12 +193,11 @@ plot_cspa_marker_heatmap <- function(mat,
 #' @param diffexp_out Output of [run_diffexp_pipeline()].
 #' @param var Column name(s) in `colData(dds)` used for heatmap column
 #'   annotation. Length 1–2; two factors are pasted for annotation.
-#' @param batch Optional batch column. When set, heatmaps use
+#' @param batch Optional batch column(s), including the `pair` column of a
+#'   paired design. When set, heatmaps use
 #'   batch-corrected expression (protecting `var[1]`, or the `A_x_B`
 #'   interaction column if present). Marker *selection* still uses DESeq2
 #'   DEGs.
-#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
-#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param n_markers Top CSPA markers per contrast. Default `25`.
 #' @param cspa_file Optional override path to the CSPA Excel file.
 #' @param gene_col Gene ID column in DE tables. Default `"gene"`.
@@ -220,7 +219,6 @@ run_cspa_marker_pipeline <- function(
     gene_col = "gene",
     significant_only = TRUE,
     batch = NULL,
-    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -252,8 +250,7 @@ run_cspa_marker_pipeline <- function(
     message("  ", length(cspa_symbols), " CSPA gene symbols loaded (all categories).")
 
     message("Computing sample-level expression for marker heatmaps ...")
-    mat <- sample_level_expr_matrix(dds, var = var, batch = batch,
-                                    platform = platform)
+    mat <- sample_level_expr_matrix(dds, var = var, batch = batch)
     expr_correction <- attr(mat, "expr_correction")
     storage.mode(mat) <- "double"
 

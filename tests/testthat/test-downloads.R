@@ -510,7 +510,7 @@ test_that("gtable_page_size leaves room for a title wider than the matrix column
                 dimnames = list(c("condition", "batch"), paste0("PC", 1:10)))
     hm <- pheatmap::pheatmap(
         m, cluster_rows = FALSE, cluster_cols = FALSE, silent = TRUE,
-        main = "-log10(p) PC\u2013covariate association (after ComBat-seq)"
+        main = "-log10(p) PC\u2013covariate association (after removeBatchEffect)"
     )
     bare <- pheatmap::pheatmap(m, cluster_rows = FALSE, cluster_cols = FALSE,
                                silent = TRUE)

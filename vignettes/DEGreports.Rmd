@@ -229,7 +229,7 @@ its pairwise (and, with ≥ 3 levels, one-vs-rest) comparisons across all levels
 of the other factors. So for `var = c("v1", "v2", "v3")` you get
 `v1l1_vs_v1l2+v1l3` regardless of `v2` and `v3`, `v2l1_vs_v2l2` regardless of
 `v1` and `v3`, and so on. These are fitted on every sample with an additive
-design (`~ [batch +] other factors + tested factor`), so the factors not under
+design (`~ [batch +] [pair +] other factors + tested factor`), so the factors not under
 test are adjusted for rather than left in the residual. The design is additive
 and the labels flat:
 
@@ -279,6 +279,27 @@ out <- run_deseq2(
   save_dir = "results_3factor"
 )
 ```
+
+## Paired designs
+
+When the same donor, patient or animal is measured under each condition, name
+that column in `pair`. It is added to every model as a blocking term, so each
+comparison is made within donors:
+
+```{r}
+# coldata: donor = d1 d1 d2 d2 d3 d3 ..., condition = Control Treated ...
+out <- run_deseq2(dds, var = "condition", pair = "donor",
+                  save_dir = "results_paired")
+# design: ~ donor + condition   (with batch: ~ batch + donor + condition)
+```
+
+The donor effect is also removed from the PCA, sample-similarity heatmap and
+sample-level modules with `limma::removeBatchEffect()`. Every tested factor
+must vary within donors: a factor that is constant within every donor (e.g.
+genotype when each donor has one genotype) cannot be estimated in a paired
+design and is reported as an error. Donors seen in only one condition trigger
+a warning, since they add nothing to the within-donor comparison. `pair` works
+the same way in `run_limma()` and `run_deseq2(mode = "lrt")`.
 
 ## Customising the comparisons
 

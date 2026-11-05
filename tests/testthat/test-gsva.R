@@ -77,37 +77,23 @@ test_that("run_gsva_pipeline scores supplied gene sets and heatmaps HALLMARK ful
     expect_equal(out$expr_correction, "vst")
 })
 
-test_that("sample_level_expr_matrix uses ComBat-seq then VST when batch is set", {
-    skip_if_not_installed("sva")
+test_that("sample_level_expr_matrix applies removeBatchEffect on VST when batch is set", {
     dds <- simulate_dds(n_genes = 40, n_per_group = 4, batch = TRUE)
     raw <- sample_level_expr_matrix(dds, var = "condition", batch = NULL)
     cor <- sample_level_expr_matrix(dds, var = "condition", batch = "batch")
     expect_equal(dim(raw), dim(cor))
     expect_equal(colnames(raw), colnames(cor))
     expect_equal(attr(raw, "expr_correction"), "vst")
-    expect_equal(attr(cor, "expr_correction"), "combat_seq_vst")
+    expect_equal(attr(cor, "expr_correction"), "rbe_vst")
     expect_false(isTRUE(all.equal(unname(raw), unname(cor), check.attributes = FALSE)))
 })
 
-test_that("sample_level_expr_matrix uses ComBat on VST for platform = 'microarray'", {
-    skip_if_not_installed("sva")
-    dds <- simulate_dds(n_genes = 40, n_per_group = 4, batch = TRUE)
-    seq_mat <- sample_level_expr_matrix(dds, var = "condition", batch = "batch",
-                                       platform = "rnaseq")
-    arr_mat <- sample_level_expr_matrix(dds, var = "condition", batch = "batch",
-                                       platform = "microarray")
-    expect_equal(attr(arr_mat, "expr_correction"), "combat_vst")
-    expect_equal(dim(seq_mat), dim(arr_mat))
-    expect_false(isTRUE(all.equal(unname(seq_mat), unname(arr_mat),
-                                  check.attributes = FALSE)))
-})
-
 test_that("expression-correction labels describe each correction", {
-    expect_equal(batch_correction_label("combat_seq_vst"), "ComBat-seq")
-    expect_equal(batch_correction_label("combat_vst"), "ComBat")
+    expect_equal(batch_correction_label("rbe_vst"), "removeBatchEffect")
+    expect_equal(batch_correction_label("rbe_log2expr"), "removeBatchEffect")
     expect_equal(batch_correction_label("vst"), "none")
     expect_equal(batch_correction_label(NA_character_), "none")
-    expect_equal(expr_correction_label("combat_seq_vst"), "ComBat-seq then VST")
-    expect_equal(expr_correction_label("combat_vst"), "ComBat on VST")
+    expect_equal(expr_correction_label("rbe_vst"), "removeBatchEffect on VST")
+    expect_equal(expr_correction_label("rbe_log2expr"), "removeBatchEffect on log2 expression")
     expect_equal(expr_correction_label("vst"), "blind VST")
 })

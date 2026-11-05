@@ -8,6 +8,13 @@
 * Arguments that belong to the other mode now raise an error (`design`,
   `comparisons`, `stratified` for Wald; `time`, `degpatterns_minc` for LRT).
 * `ranking` defaults to `"log2FoldChange"` (Wald) or `"stat"` (LRT).
+* Batch correction for plots and sample-level modules is now
+  `limma::removeBatchEffect()` on the VST matrix (log2 expression for
+  `run_limma()`), replacing ComBat-seq / ComBat. DE models are unchanged.
+* `platform` is removed from every function (it only chose the ComBat
+  variant). `sva` is no longer a dependency.
+* The batch-corrected count export is now `counts_batch_corrected_vst.csv`
+  (log scale), replacing `counts_combat_seq.csv` / `counts_combat_vst.csv`.
 
 ## New features
 
@@ -16,6 +23,12 @@
 * Every run writes `reproduce/reproduce_run.R` and `reproduce/inputs.rds`,
   linked from the index page.
 * Multihit UpSet plots show only genes shared by two or more methods.
+* **Paired designs.** New `pair` argument on `run_deseq2()` (Wald and LRT)
+  and `run_limma()`: adds a blocking term (`~ [batch +] pair + var`) to
+  every model and removes it from the sample-level matrix. Errors when a
+  tested factor is constant within every unit, or when `batch` is nested in
+  `pair`; warns about units seen in only one condition.
+* `batch` accepts several columns in every module.
 
 # DEGreports 0.4.0
 

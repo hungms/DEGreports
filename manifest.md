@@ -40,6 +40,29 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
 
 ## Current version: 0.4.0
 
+### 2026-11-05 — `pair` argument + removeBatchEffect replaces ComBat (branch `feature/pair-design`)
+
+- **`pair`** on `run_deseq2()` (Wald + LRT) and `run_limma()`. Internally
+  `covars <- c(batch, pair)` is passed as `batch` to every module, so pair enters
+  every design (`~ batch + pair + var`, LRT full and reduced) and the sample-level
+  correction. `validate_pair()` (R/validate_args.R): errors if a tested factor is
+  constant within every unit (between-subject factor; nested designs not supported),
+  or if a `batch` column is constant within every unit; warns for units in one
+  condition only.
+- **Correction:** user chose to switch *all* ComBat-seq/ComBat to
+  `limma::removeBatchEffect()` on VST (sum-to-zero covariates, `design = ~protect`),
+  in `rbe_transformed_matrix()` / `batch_corrected_matrix()` (R/distance.R).
+  Tags are now `rbe_vst` / `rbe_log2expr`. `platform` removed everywhere; `sva`
+  dropped from Imports. Count export: `counts_batch_corrected_vst.csv`.
+- `validate_batch()` accepts several columns.
+- Tests: new `test-pair.R`; ComBat/platform tests rewritten. Full suite: 283 tests,
+  7 failures, all **pre-existing on devel** (test-comparisons x2, test-diffexp-plots
+  x2, test-square-panels x2, test-wgcna x1 — plot/ORA-dotplot expectations).
+- End-to-end check on simulated paired data: design `~donor + condition`, PCA
+  corrected, export written.
+- Not done: `CODE_WALKTHROUGH.md` still lists the removed combat_* /
+  validate_platform functions (file is untracked).
+
 ### 2026-11-05 — examples trimmed, README rewrite, licence, hosted report (pushed)
 
 - Commits `b57521a` and `017ef79` on `main`. `b57521a` also committed the earlier
@@ -217,6 +240,10 @@ Local edits dated 2026-11-02/03 were pushed as one commit. Summary (full text in
 
 ### Open / to check next session
 
+- Fix the 7 pre-existing test failures (comparisons, diffexp-plots arrows,
+  square-panels / wgcna ORA dotplot).
+- Re-run both GSE189410 examples after the removeBatchEffect switch and rebuild
+  `gh-pages` (the hosted report still shows ComBat-seq).
 - Enable GitHub Pages (Settings → Pages → `gh-pages` / root) if not done; check
   the README button renders.
 - `DESCRIPTION` `Description:` still names the removed `run_deseq2_wald()` /

@@ -9,8 +9,8 @@
 # * `"expr_values"` holds the values as supplied; QC, the count export and
 #   limma read this ([.raw_count_matrix()]);
 # * where a module would take a VST / rlog it gets log2(x + prior_count)
-#   ([safe_vst()], [safe_rlog()]), and batch correction is ComBat on that
-#   matrix, since ComBat-seq needs integer counts.
+#   ([safe_vst()], [safe_rlog()]), and batch correction is
+#   limma::removeBatchEffect() on that matrix, as for counts.
 #
 # DE is limma-trend, returned in the DESeq2 column schema so GSEA, decoupleR,
 # VIPER, PPI, CSPA, multihit and the report run unchanged.
@@ -262,8 +262,8 @@ run_limma_diffexp_coef <- function(dds, coef = NULL, coef_subtract = NULL,
 #'   \item{Sample-level expression}{The same log2(x + `prior_count`) matrix
 #'     wherever the DESeq2 pipeline uses a blind VST or rlog: QC, PCA, GSVA,
 #'     WGCNA, decoupleR / VIPER sample scores, CSPA heatmaps, count exports.}
-#'   \item{Batch correction}{With `batch`, ComBat on that matrix (ComBat-seq
-#'     needs integer counts); `batch` also enters every limma design.}
+#'   \item{Batch correction}{With `batch` / `pair`, `limma::removeBatchEffect()`
+#'     on that matrix; both also enter every limma design.}
 #' }
 #'
 #' There is no LRT / time-course mode; use [`run_deseq2(mode = "lrt")`][run_deseq2] on counts.
@@ -289,6 +289,7 @@ run_limma <- function(
     include_interactions = FALSE,
     stratified = FALSE,
     batch = NULL,
+    pair = NULL,
     export_counts = TRUE,
     filter_method = "cpm",
     cpm_percentile = 0.05,
@@ -332,7 +333,7 @@ run_limma <- function(
     dds <- expr_to_dds(object, assay = assay, prior_count = prior_count)
     engine_args <- args[setdiff(names(args), c("object", "assay", "prior_count"))]
     do.call(.run_wald_engine, c(
-        list(dds = dds, platform = "rnaseq"), engine_args,
+        list(dds = dds), engine_args,
         list(engine = "limma", call = call,
              engine_params = list(prior_count = prior_count))
     ), quote = TRUE)

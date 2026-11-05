@@ -15,20 +15,19 @@ expr_correction_label(expr_correction)
 on a sample-level expression matrix.}
 }
 \value{
-\code{batch_correction_label()} returns the method name (\code{"ComBat-seq"},
-\code{"ComBat"}, or \code{"none"}); \code{expr_correction_label()} returns the full
-transform description (\code{"ComBat-seq then VST"}, \code{"ComBat on VST"}, or
+\code{batch_correction_label()} returns the method name
+(\code{"removeBatchEffect"} or \code{"none"}); \code{expr_correction_label()} returns
+the full transform description (e.g. \code{"removeBatchEffect on VST"} or
 \code{"blind VST"}).
 }
 \description{
 Both of these turn the \code{expr_correction} tag carried by module outputs
-(\code{"vst"}, \code{"combat_seq_vst"}, \code{"combat_vst"}, the limma \code{"log2expr"} /
-\code{"combat_log2expr"}, or \code{NA}) into prose, so the
-HTML report can describe what a module actually scored without
-re-deriving it from \code{platform} and \code{batch}.
+(\code{"vst"}, \code{"rbe_vst"}, the limma \code{"log2expr"} / \code{"rbe_log2expr"}, or
+\code{NA}) into prose, so the HTML report can describe what a module actually
+scored without re-deriving it from \code{batch} and \code{pair}.
 }
 \examples{
-batch_correction_label("combat_seq_vst")
-expr_correction_label("combat_vst")
+batch_correction_label("rbe_vst")
+expr_correction_label("rbe_vst")
 expr_correction_label("vst")
 }

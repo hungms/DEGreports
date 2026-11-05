@@ -844,10 +844,9 @@ lrt_clusters_as_wgcna_like <- function(degpatterns_out, gene_col = "gene") {
 #'   Default `10`.
 #' @param annotation_var Optional `colData(dds)` column name(s) used as
 #'   column annotation (e.g. the time variable). Default `NULL`.
-#' @param batch Optional batch column. When set, heatmaps use
+#' @param batch Optional batch column(s), including the `pair` column of a
+#'   paired design. When set, heatmaps use
 #'   batch-corrected expression (protecting `annotation_var`).
-#' @param platform Assay platform, `"rnaseq"` (default, ComBat-seq) or
-#'   `"microarray"` (ComBat). Ignored if `batch` is `NULL`.
 #' @param gene_col Name of the gene-identifier column in the cluster tables.
 #'   Default `"gene"`.
 #' @param save_dir Directory for per-LRT outputs. Files go in
@@ -870,7 +869,6 @@ run_lrt_cspa_heatmap <- function(
     annotation_var = NULL,
     gene_col = "gene",
     batch = NULL,
-    platform = "rnaseq",
     save_dir = getwd(),
     save_plot = TRUE) {
 
@@ -916,8 +914,7 @@ run_lrt_cspa_heatmap <- function(
     } else {
         colnames(SummarizedExperiment::colData(dds))[[1L]]
     }
-    mat <- sample_level_expr_matrix(dds, var = protect, batch = batch,
-                                    platform = platform)
+    mat <- sample_level_expr_matrix(dds, var = protect, batch = batch)
     expr_correction <- attr(mat, "expr_correction")
     storage.mode(mat) <- "double"
 

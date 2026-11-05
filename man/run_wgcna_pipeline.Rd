@@ -21,7 +21,6 @@ run_wgcna_pipeline(
   top_n_ora = 10,
   gene_col = "gene",
   batch = NULL,
-  platform = "rnaseq",
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -85,11 +84,9 @@ module shown in the ORA dot plot. Default \code{10}.}
 \item{gene_col}{Name of the gene-identifier column in output tables.
 Default \code{"gene"}.}
 
-\item{batch}{Optional batch column. When set, the network is built on
+\item{batch}{Optional batch column(s), including the \code{pair} column of a
+paired design. When set, the network is built on
 batch-corrected expression (protecting \code{var}), not uncorrected VST.}
-
-\item{platform}{Assay platform, \code{"rnaseq"} (default, ComBat-seq) or
-\code{"microarray"} (ComBat). Ignored if \code{batch} is \code{NULL}.}
 
 \item{save_dir}{Directory to write outputs to. Default \code{getwd()}.}
 
