@@ -52,12 +52,15 @@ against \code{rownames(dds)}. Default \code{FALSE}.}
 by name when \code{remove_mt = TRUE}. Default matches common human/mouse
 mitochondrial gene symbol prefixes (\code{"^MT-"} / \code{"^mt-"}).}
 
-\item{remove_xy}{Logical. If \code{TRUE}, removes genes on X/Y chromosomes,
-using \code{gene_chr} to determine chromosome membership. Default \code{FALSE}.}
+\item{remove_xy}{Logical. If \code{TRUE}, removes genes on X/Y chromosomes
+(after sex has been imputed), using \code{gene_chr} when supplied, else
+biowrenchR's packaged BioMart X/Y gene list for the detected organism.
+Default \code{FALSE}.}
 
 \item{gene_chr}{Optional data frame with columns \code{gene} and \code{chr} mapping
 \code{rownames(dds)} to chromosome names (e.g. from \code{biomaRt} or a GTF).
-Required if \code{remove_xy = TRUE}; ignored otherwise.}
+Default \code{NULL}: use \code{biowrenchR::xy_genes()}. Ignored unless
+\code{remove_xy = TRUE}.}
 
 \item{remove_vdj}{VDJ gene removal: \code{NULL}/\code{FALSE} (default, off),
 \code{TRUE}/\code{"both"} (BCR + TCR), or one or more of \code{"BCR"} / \code{"TCR"}.

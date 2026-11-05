@@ -38,6 +38,8 @@
   undetermined. New QC report section and `qc_imputed_sex.csv`.
 * Imputed sex is added to every model (and removed with the batch
   correction) when it is not confounded with `var`, `pair` or `batch`.
+* `remove_xy = TRUE` no longer needs `gene_chr`: it defaults to biowrenchR's
+  X/Y gene list for the detected organism.
 * QC PCA shows one tab per variable (group, pair, sex, batch), before and
   after batch correction.
 * With `pair` set, PCA points are shaped by unit (donor / patient) unless
