@@ -1,7 +1,8 @@
 # Wald pipeline on example_data/GSE189410_counts.txt (mouse BM plasma cells).
 # Sample names encode tissue_isotype_replicate, e.g. BM_IgA_1, BM_IgM_3.
-# Single-factor mode on isotype (this matrix is BM-only). Replicate number is
-# used as batch (IgA/IgG/IgM from the same rep share one batch).
+# Single-factor mode on isotype (this matrix is BM-only). Paired design:
+# IgA/IgG/IgM from the same replicate are matched, so replicate (`batch`
+# column) is passed as `pair` (~ batch + isotype; PCA shaped by replicate).
 #
 # Usage (Slurm, all examples): sbatch run_examples.sbatch
 # Single run:  <conda seurat5>/bin/Rscript run_gse189410_deseq2_wald.R
@@ -100,7 +101,7 @@ dds <- summarize_genes_dds(dds, gene_sym_col = "gene_name")
 out <- run_deseq2(
   dds = dds,
   var = "isotype",
-  batch = "batch",
+  pair = "batch",
   design = NULL,
   comparisons = NULL,
   filter_method = "cpm",

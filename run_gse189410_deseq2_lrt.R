@@ -1,7 +1,8 @@
 # LRT pipeline on example_data/GSE189410_counts.txt (mouse BM plasma cells).
 # Demo: treat isotype (IgM → IgG → IgA) as the discrete `time` axis
-# (time-only LRT; no secondary `var`). Replicate number is used as batch
-# (IgA/IgG/IgM from the same rep share one batch). For true genotype × time
+# (time-only LRT; no secondary `var`). Paired design: IgA/IgG/IgM from the
+# same replicate are matched, so replicate (`batch` column) is passed as
+# `pair` (full ~ batch + isotype, reduced ~ batch). For true genotype × time
 # designs, pass var = "genotype", time = "day", include_interactions = TRUE.
 #
 # Usage (Slurm, all examples): sbatch run_examples.sbatch
@@ -99,7 +100,7 @@ out <- run_deseq2(
   dds = dds,
   var = NULL,
   time = "isotype",
-  batch = "batch",
+  pair = "batch",
   include_interactions = FALSE,
   filter_method = "cpm",
   cpm_percentile = 0.05,
