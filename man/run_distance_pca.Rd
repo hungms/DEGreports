@@ -39,7 +39,9 @@ and the similarity heatmap.}
 Default \code{NULL} uses \code{ggplot2}'s default discrete palette.}
 
 \item{shape_var}{Optional column name in \code{colData(dds)} to map to point
-shape in the PCA plot (e.g. a secondary grouping factor). Default \code{NULL}.}
+shape in the PCA plot (e.g. a secondary grouping factor, or the \code{pair}
+column of a paired design). Up to 25 levels; beyond that the plot shows
+colour only. Default \code{NULL}.}
 
 \item{ntop}{Number of most-variable genes to use for PCA. Default \code{500}.}
 

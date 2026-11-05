@@ -120,7 +120,8 @@
 #' @param pals Optional colour palette (character vector), one colour per
 #'   level of the visualization grouping factor. Default `NULL`.
 #' @param shape_var Optional column name for a second grouping variable
-#'   mapped to point shape in the PCA plot. Default `NULL`.
+#'   mapped to point shape in the PCA plot. Default `NULL`: the `pair`
+#'   column when `pair` is set, else the first `var` in multi-factor mode.
 #' @param n_scree_pcs,n_loading_pcs,n_top_genes See [run_distance_pca()].
 #' @param top_label_n Number of top **up** and top **down** genes (by
 #'   `rank_score`) labelled per volcano plot. Default `5`.
@@ -420,8 +421,10 @@ run_deseq2 <- function(
                     list(sep = "_", drop = TRUE)
                 )
             )
-            if (is.null(shape_var)) shape_var <- var[1]
+            if (is.null(shape_var) && is.null(pair)) shape_var <- var[1]
         }
+        # Paired design: shape the PCA points by unit (donor / patient).
+        if (is.null(shape_var) && !is.null(pair)) shape_var <- pair
 
         # The run as data: one descriptor per stage, in order. The driver
         # owns the progress counter and the failure policy, so a module can be
@@ -720,10 +723,11 @@ run_deseq2 <- function(
                 as.data.frame(SummarizedExperiment::colData(dds))[viz_cols],
                 sep = "_", drop = TRUE
             )
-            if (is.null(shape_var)) shape_var <- var[[1L]]
+            if (is.null(shape_var) && is.null(pair)) shape_var <- var[[1L]]
         } else {
             viz_var <- time
         }
+        if (is.null(shape_var) && !is.null(pair)) shape_var <- pair
 
         # The LRT run as data; see .stage() / .run_stages(). Same driver,
         # same failure policy and progress counter as the Wald pipeline --

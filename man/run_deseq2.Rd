@@ -151,7 +151,8 @@ comparison. Organism (human/mouse) is auto-detected from gene symbols
 level of the visualization grouping factor. Default \code{NULL}.}
 
 \item{shape_var}{Optional column name for a second grouping variable
-mapped to point shape in the PCA plot. Default \code{NULL}.}
+mapped to point shape in the PCA plot. Default \code{NULL}: the \code{pair}
+column when \code{pair} is set, else the first \code{var} in multi-factor mode.}
 
 \item{n_scree_pcs, n_loading_pcs, n_top_genes}{See \code{\link[=run_distance_pca]{run_distance_pca()}}.}
 

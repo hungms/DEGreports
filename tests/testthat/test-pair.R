@@ -101,3 +101,22 @@ test_that("platform is no longer an argument", {
     expect_true("pair" %in% names(formals(run_deseq2)))
     expect_true("pair" %in% names(formals(run_limma)))
 })
+
+test_that("plot_pca draws every point when shape_var has more than 6 levels", {
+    pca_df <- data.frame(PC1 = rnorm(20), PC2 = rnorm(20), sample = paste0("s", 1:20),
+                         condition = rep(c("A", "B"), 10),
+                         donor = factor(rep(paste0("d", 1:10), each = 2)))
+    p <- plot_pca(pca_df, var = "condition", shape_var = "donor")
+    built <- expect_silent(ggplot2::ggplot_build(p))
+    expect_equal(sum(!is.na(built$data[[3]]$shape)), 20)
+    expect_length(unique(built$data[[3]]$shape), 10)
+})
+
+test_that("plot_pca falls back to colour only beyond 25 shape levels", {
+    pca_df <- data.frame(PC1 = rnorm(60), PC2 = rnorm(60), sample = paste0("s", 1:60),
+                         condition = rep(c("A", "B"), 30),
+                         donor = factor(rep(paste0("d", 1:30), each = 2)))
+    expect_message(p <- plot_pca(pca_df, var = "condition", shape_var = "donor"),
+                   "colour only")
+    expect_null(p$mapping$shape)
+})
