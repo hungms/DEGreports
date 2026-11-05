@@ -62,6 +62,12 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
   corrected, export written.
 - Not done: `CODE_WALKTHROUGH.md` still lists the removed combat_* /
   validate_platform functions (file is untracked).
+- PCA shapes points by `pair` when set (unless `shape_var` given); `plot_pca()`
+  uses up to 25 distinct shapes, colour only beyond that (merged f931feb).
+- Example runs resubmitted on `devel` @ f931feb: Slurm array **63189435** (0 = Wald,
+  1 = LRT). Logs in `example_run_logs/` (folder had been deleted; recreated).
+  Outputs overwrite `example_run_GSE189410_deseq2_{wald,lrt}/`. Runners load the
+  working tree, so keep it on `devel` until both finish; then rebuild `gh-pages`.
 
 ### 2026-11-05 — examples trimmed, README rewrite, licence, hosted report (pushed)
 
