@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-library(deseq2reports)
+library(DEGreports)
 library(DESeq2)
 ```
 
@@ -12,14 +12,14 @@ library(DESeq2)
 # Build a DESeqDataSet from your count matrix and sample metadata, e.g.:
 # dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
 
-out <- run_deseq2_pipeline(
+out <- run_deseq2(
   dds = dds,
   var = "condition",
   save_dir = "results"
 )
 ```
 
-See `vignette("deseq2reports")` for the full argument reference.
+See `vignette("DEGreports")` for the full argument reference.
 The pipeline writes per-module folders under `save_dir` (`qc/` incl. `counts/` and
 `distance/`, `deseq2/`, `clusterprofiler/`; optional `gsva/` / `wgcna/` incl.
 per-module `ppi/` / `decoupler-tf/` / `decoupler-ccc/` / `viper/`) plus `index.html`.

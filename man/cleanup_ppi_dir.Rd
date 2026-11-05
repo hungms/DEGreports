@@ -13,8 +13,8 @@ cleanup_ppi_dir(save_dir)
 Invisibly \code{NULL}.
 }
 \description{
-Called automatically at the end of \code{\link[=run_deseq2_wald]{run_deseq2_wald()}} and
-\code{\link[=run_deseq2_lrt]{run_deseq2_lrt()}} after HTML rendering. Contrast PPI under
+Called automatically at the end of \code{\link[=run_deseq2]{run_deseq2()}} and
+\code{\link[=run_deseq2]{run_deseq2(mode = "lrt")}} after HTML rendering. Contrast PPI under
 \verb{deseq2/<contrast>/ppi/} and WGCNA module PPI under
 \verb{wgcna/<Module_N>/ppi/} are kept.
 }

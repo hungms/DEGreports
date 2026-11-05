@@ -1,4 +1,4 @@
-# Claude progress log — deseq2reports
+# Claude progress log — DEGreports
 
 Running notes for picking work back up in a later session. Newest entries first.
 Release-level detail lives in `NEWS.md`; this file records *state, decisions and loose ends*.
@@ -7,7 +7,7 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
 
 ## Repo / workflow facts
 
-- GitHub: https://github.com/hungms/deseq2reports (branch `main`).
+- GitHub: https://github.com/hungms/DEGreports (branch `main`).
 - Working copy on NEMO: `/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DESeq2Reports`
   is a git checkout of `main` (since 2026-11-03) — commit and push from here.
   Files on NEMO are `rwxrwx` while the repo stores `644`; if `git status` lists
@@ -132,7 +132,7 @@ Removed (all verified unused by parsing R/, report Rmds, vignettes, tests):
 - `R/report.R`: the old `future.apply` parallel-render path —
   `.as_isolated_future_fun`, `.parallel_hub_worker`, `.parallel_contrast_worker`,
   `.parallel_render_packages`, `.with_parallel_plan`, `.parallel_render_apply` —
-  plus `.deseq2reports_src_dir`. Contrast pages already render via
+  plus `.degreports_src_dir`. Contrast pages already render via
   `parallel::mclapply()`. Deleted `tests/testthat/test-parallel-render.R`.
 - `R/contrast_spec.R`: `.contrast_spec_fields()`; `R/contrasts.R`: `.contrast_up_to_module()`.
 - DESCRIPTION: `wordcloud` (Imports; never used), `future.apply` and `pkgload`
@@ -176,7 +176,7 @@ Local edits dated 2026-11-02/03 were pushed as one commit. Summary (full text in
 - **Fix:** optional modules (CSPA, etc.) can no longer destroy a finished analysis.
 - **Shared orchestration** — new `R/pipeline_driver.R`; the three entry points no
   longer duplicate it.
-- **Settable analysis settings** — new `R/options.R`: `deseq2reports_opts()`.
+- **Settable analysis settings** — new `R/options.R`: `degreports_opts()`.
 - Unsafe factor levels (`_vs_`, `+`, path separators) fail at grid build.
 - Docs regenerated (`man/`, `NAMESPACE`), README + vignette updated.
 
@@ -189,5 +189,5 @@ Local edits dated 2026-11-02/03 were pushed as one commit. Summary (full text in
   - plot assertions ×5 — stale tests (see 2026-11-04 entry), update them.
 - [ ] Decide whether to drop unused exported functions (breaking API change).
 - [ ] No new tests yet for `contrast_spec()`, `contrast_manifest()`,
-      `deseq2reports_opts()`, `pipeline_driver.R`, >3-factor grids.
+      `degreports_opts()`, `pipeline_driver.R`, >3-factor grids.
 - [ ] Run `devtools::check()` before tagging a 0.4.0 release.

@@ -12,7 +12,7 @@
 #'   `file.path(save_dir, "_targets.R")`.
 #' @return Invisibly, the same named path vector as [render_report()], or
 #'   `NULL` when pandoc is unavailable.
-#' @seealso [render_report()], [run_deseq2_wald()]
+#' @seealso [render_report()], [run_deseq2()]
 #' @export
 render_report_targets <- function(
     dds,
@@ -55,7 +55,7 @@ render_report_targets <- function(
         script_path <- file.path(save_dir, "_targets.R")
     }
 
-    meta_rds <- file.path(save_dir, ".deseq2reports_render_meta.rds")
+    meta_rds <- file.path(save_dir, ".degreports_render_meta.rds")
     meta <- list(
         dds = dds,
         var = var,
@@ -84,7 +84,7 @@ render_report_targets <- function(
     repo_q <- dQuote(normalizePath(file.path(save_dir, "_targets"), mustWork = FALSE), q = FALSE)
     script_lines <- c(
         "library(targets)",
-        "library(deseq2reports)",
+        "library(DEGreports)",
         sprintf("meta <- readRDS(%s)", meta_q),
         "render_order <- local({",
         "  ord <- character(0)",
@@ -101,7 +101,7 @@ render_report_targets <- function(
         "hub_keys <- render_order",
         "idx <- which(hub_keys == \"index\")",
         "if (length(idx)) hub_keys <- c(hub_keys[-idx], \"index\")",
-        sprintf("tar_option_set(packages = \"deseq2reports\", format = \"rds\", repository = %s)", repo_q),
+        sprintf("tar_option_set(packages = \"DEGreports\", format = \"rds\", repository = %s)", repo_q),
         ".render_hub_page <- function(page_key) {",
         "  disabled <- character(0)",
         "  if (is.null(meta$dds)) disabled <- c(disabled, \"QC\")",
@@ -111,7 +111,7 @@ render_report_targets <- function(
         "  if (is.null(meta$decoupler_ccc_out)) disabled <- c(disabled, \"decoupleR-CCC\")",
         "  if (is.null(meta$viper_out)) disabled <- c(disabled, \"VIPER\")",
         "  if (is.null(meta$multihit_out)) disabled <- c(disabled, \"Multihit\")",
-        "  shared <- deseq2reports:::.report_shared_params(",
+        "  shared <- DEGreports:::.report_shared_params(",
         "    meta$dds, meta$var, meta$distance_out, meta$diffexp_out, meta$gsea_out,",
         "    meta$wgcna_out, meta$decoupler_tf_out, meta$ppi_out, meta$viper_out, meta$cspa_out,",
         "    meta$alpha, meta$lfc_threshold, meta$run_args, disabled,",
@@ -119,8 +119,8 @@ render_report_targets <- function(
         "    degpatterns_out = meta$degpatterns_out, cluster_ora_out = meta$cluster_ora_out,",
         "    gsva_out = meta$gsva_out, decoupler_ccc_out = meta$decoupler_ccc_out",
         "  )",
-        "  params <- deseq2reports:::.report_params_for_page(page_key, shared)",
-        "  deseq2reports:::.render_report_page(page_key, params, meta$save_dir)",
+        "  params <- DEGreports:::.report_params_for_page(page_key, shared)",
+        "  DEGreports:::.render_report_page(page_key, params, meta$save_dir)",
         "}",
         "list(",
         "  tar_target(render_meta, meta, format = \"object\"),",

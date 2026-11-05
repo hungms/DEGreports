@@ -101,7 +101,7 @@
 #' @return The filtered `DESeqDataSet` object. The number/percent of genes
 #'   removed at each step, the count-distribution and library-size plots,
 #'   and the filtering parameters used are attached as
-#'   `S4Vectors::metadata(dds)$deseq2reports_qc` so that [render_report()]
+#'   `S4Vectors::metadata(dds)$degreports_qc` so that [render_report()]
 #'   can display them without recomputation; also written to
 #'   `qc_steps_summary.csv` in `save_dir`.
 #' @examples
@@ -161,7 +161,7 @@ run_qc <- function(
 
     # Per-sample detection / depth on the input count matrix (before gene
     # filtering). Reported under Sample QC ahead of Library QC.
-    counts_input <- DESeq2::counts(dds)
+    counts_input <- .raw_count_matrix(dds)
     sample_qc_table <- data.frame(
         sample = colnames(counts_input),
         n_detected_genes = as.integer(colSums(counts_input > 0)),
@@ -210,7 +210,7 @@ run_qc <- function(
         step_n_after <- c(step_n_after, nrow(dds))
     }
 
-    raw_counts <- DESeq2::counts(dds)
+    raw_counts <- .raw_count_matrix(dds)
     n_before_expr_filter <- nrow(dds)
 
     # Always compute the mean-CPM distribution for the diagnostic plot, even
@@ -335,7 +335,7 @@ run_qc <- function(
         count_dist_plot = count_dist_plot,
         library_size_plot = p
     )
-    S4Vectors::metadata(dds)$deseq2reports_qc <- qc_meta
+    S4Vectors::metadata(dds)$degreports_qc <- qc_meta
 
     dds
 }
@@ -418,5 +418,5 @@ plot_library_size <- function(dds) {
         square_panel_theme() +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1)) +
         ggplot2::xlab(NULL) +
-        ggplot2::ylab("VST expression")
+        ggplot2::ylab(if (.is_expr_dds(dds)) "log2 expression" else "VST expression")
 }

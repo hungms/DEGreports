@@ -1,5 +1,0 @@
-name: deseq2reports Analysis Report
-description: >
-  Skeleton R Markdown document showing how to call run_deseq2_pipeline()
-  and render_report() for a new RNA-seq analysis.
-create_dir: false

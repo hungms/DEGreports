@@ -36,7 +36,7 @@ link_output_file <- function(path, label = "Download CSV") {
 #' Wrap a download button for consistent flex-row alignment
 #' @noRd
 .normalize_dl_button <- function(button) {
-    htmltools::tags$span(class = "deseq2reports-dl-btn-wrap", button)
+    htmltools::tags$span(class = "degreports-dl-btn-wrap", button)
 }
 
 #' Create a download button for a data frame (CSV)
@@ -217,8 +217,8 @@ download_grid_plot_button <- function(drawable, filename = "plot", button_label 
 #'   no asset directory is configured (caller should inline instead).
 #' @noRd
 .move_report_asset <- function(path, stem, ext) {
-    dir <- getOption("deseq2reports.figure_dir")
-    href_base <- getOption("deseq2reports.figure_href")
+    dir <- getOption("degreports.figure_dir")
+    href_base <- getOption("degreports.figure_href")
     if (is.null(dir) || is.null(href_base) || !file.exists(path)) return(NULL)
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
     stem <- gsub("[^A-Za-z0-9._+-]+", "_", basename(as.character(stem)[1]))
@@ -817,8 +817,8 @@ figure_img_tag <- function(draw, px_width, px_height, pixelratio = 2, alt = "",
 #'   no figure directory is configured (caller should inline instead).
 #' @noRd
 .write_report_figure <- function(draw, px_width, px_height, pixelratio) {
-    fig_dir <- getOption("deseq2reports.figure_dir")
-    fig_href <- getOption("deseq2reports.figure_href")
+    fig_dir <- getOption("degreports.figure_dir")
+    fig_href <- getOption("degreports.figure_href")
     if (is.null(fig_dir) || is.null(fig_href)) return(NULL)
     dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
     dest <- tempfile("fig-", tmpdir = fig_dir, fileext = ".png")
@@ -871,7 +871,7 @@ wrap_with_corner_button <- function(content, button, center = TRUE) {
     buttons <- if (inherits(button, "list") && !inherits(button, "shiny.tag")) button else list(button)
     buttons <- lapply(buttons, .normalize_dl_button)
     style_tag <- htmltools::tags$style(htmltools::HTML(paste(
-        ".deseq2reports-dl-row {",
+        ".degreports-dl-row {",
         "  display: flex !important;",
         "  flex-direction: row !important;",
         "  justify-content: flex-end !important;",
@@ -881,7 +881,7 @@ wrap_with_corner_button <- function(content, button, center = TRUE) {
         "  margin-bottom: 6px !important;",
         "  width: 100% !important;",
         "}",
-        ".deseq2reports-dl-btn-wrap {",
+        ".degreports-dl-btn-wrap {",
         "  display: inline-flex !important;",
         "  align-items: center !important;",
         "  align-self: center !important;",
@@ -890,11 +890,11 @@ wrap_with_corner_button <- function(content, button, center = TRUE) {
         "  margin: 0 !important;",
         "  padding: 0 !important;",
         "}",
-        ".deseq2reports-dl-row .btn,",
-        ".deseq2reports-dl-row a.btn,",
-        ".deseq2reports-dl-row button.btn,",
-        ".deseq2reports-dl-row .btn-group,",
-        ".deseq2reports-dl-row .btn-group > .btn {",
+        ".degreports-dl-row .btn,",
+        ".degreports-dl-row a.btn,",
+        ".degreports-dl-row button.btn,",
+        ".degreports-dl-row .btn-group,",
+        ".degreports-dl-row .btn-group > .btn {",
         "  padding: 4px 10px !important;",
         "  font-size: 12px !important;",
         "  line-height: 1.4 !important;",
@@ -909,8 +909,8 @@ wrap_with_corner_button <- function(content, button, center = TRUE) {
         "  margin: 0 !important;",
         "  white-space: nowrap !important;",
         "}",
-        ".deseq2reports-dl-row .btn i,",
-        ".deseq2reports-dl-row a.btn i {",
+        ".degreports-dl-row .btn i,",
+        ".degreports-dl-row a.btn i {",
         "  font-size: 12px !important;",
         "  line-height: 1 !important;",
         "  margin: 0 0.35em 0 0 !important;",
@@ -919,7 +919,7 @@ wrap_with_corner_button <- function(content, button, center = TRUE) {
         "}"
     )))
     button_row <- htmltools::tags$div(
-        class = "deseq2reports-dl-row",
+        class = "degreports-dl-row",
         style_tag,
         buttons
     )

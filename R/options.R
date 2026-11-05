@@ -10,9 +10,9 @@
 #' Analysis settings for the pipeline entry points
 #'
 #' Collects the statistical and per-module settings that
-#' [run_deseq2_wald()], [run_deseq2_lrt()] and [run_deseq2_deg()] apply. The
+#' [run_deseq2()], [`run_deseq2(mode = "lrt")`][run_deseq2] and [run_deg()] apply. The
 #' defaults are the values those functions used to hard-code, so
-#' `opts = deseq2reports_opts()` reproduces previous behaviour exactly; pass a
+#' `opts = degreports_opts()` reproduces previous behaviour exactly; pass a
 #' modified object to deviate deliberately.
 #'
 #' Only the settings that differ from the defaults are listed in the report's
@@ -35,13 +35,13 @@
 #'   modes). Default `25`.
 #' @param cspa_n_markers_lrt Surface markers per degPatterns cluster (LRT
 #'   mode, where there are many more groups). Default `10`.
-#' @return A validated list of class `deseq2reports_opts`.
+#' @return A validated list of class `degreports_opts`.
 #' @examples
-#' opts <- deseq2reports_opts(alpha = 0.01, shrinkage = "apeglm")
+#' opts <- degreports_opts(alpha = 0.01, shrinkage = "apeglm")
 #' opts$alpha
-#' @seealso [run_deseq2_wald()]
+#' @seealso [run_deseq2()]
 #' @export
-deseq2reports_opts <- function(shrinkage = "ashr",
+degreports_opts <- function(shrinkage = "ashr",
                                alpha = 0.05,
                                lfc_threshold = 0.5,
                                gsva_n_heatmap = 50L,
@@ -72,7 +72,7 @@ deseq2reports_opts <- function(shrinkage = "ashr",
         cspa_n_markers = count(cspa_n_markers, "cspa_n_markers"),
         cspa_n_markers_lrt = count(cspa_n_markers_lrt, "cspa_n_markers_lrt")
     )
-    class(out) <- c("deseq2reports_opts", "list")
+    class(out) <- c("degreports_opts", "list")
     out
 }
 
@@ -81,17 +81,17 @@ deseq2reports_opts <- function(shrinkage = "ashr",
 #' Accepts the object, a plain list of overrides, or `NULL`.
 #' @noRd
 .as_opts <- function(opts) {
-    if (is.null(opts)) return(deseq2reports_opts())
-    if (inherits(opts, "deseq2reports_opts")) return(opts)
+    if (is.null(opts)) return(degreports_opts())
+    if (inherits(opts, "degreports_opts")) return(opts)
     if (is.list(opts)) {
-        unknown <- setdiff(names(opts), names(deseq2reports_opts()))
+        unknown <- setdiff(names(opts), names(degreports_opts()))
         if (length(unknown)) {
             stop("Unknown setting(s) in `opts`: ", paste(unknown, collapse = ", "),
-                 ". See deseq2reports_opts().", call. = FALSE)
+                 ". See degreports_opts().", call. = FALSE)
         }
-        return(do.call(deseq2reports_opts, opts))
+        return(do.call(degreports_opts, opts))
     }
-    stop("`opts` must be a deseq2reports_opts() object, a named list, or `NULL`.",
+    stop("`opts` must be a degreports_opts() object, a named list, or `NULL`.",
          call. = FALSE)
 }
 
@@ -102,7 +102,7 @@ deseq2reports_opts <- function(shrinkage = "ashr",
 #' @return Named list of the differing settings (empty when all are default).
 #' @noRd
 .opts_diff <- function(opts) {
-    def <- deseq2reports_opts()
+    def <- degreports_opts()
     changed <- vapply(names(def), function(nm) !identical(def[[nm]], opts[[nm]]),
                       logical(1))
     if (!any(changed)) return(list())
@@ -111,9 +111,9 @@ deseq2reports_opts <- function(shrinkage = "ashr",
 }
 
 #' @export
-print.deseq2reports_opts <- function(x, ...) {
-    def <- deseq2reports_opts()
-    cat("<deseq2reports_opts>\n")
+print.degreports_opts <- function(x, ...) {
+    def <- degreports_opts()
+    cat("<degreports_opts>\n")
     for (nm in names(def)) {
         marker <- if (identical(def[[nm]], x[[nm]])) "" else "   (changed)"
         cat(sprintf("  %-22s %s%s\n", nm, format(x[[nm]]), marker))

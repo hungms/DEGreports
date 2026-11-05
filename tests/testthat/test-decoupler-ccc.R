@@ -31,7 +31,7 @@ test_that(".ccc_sig_genes expands significant pairs to ligand and receptor", {
             )
         )
     )
-    genes <- deseq2reports:::.ccc_sig_genes(ccc_out, "A_vs_B", alpha = 0.05)
+    genes <- DEGreports:::.ccc_sig_genes(ccc_out, "A_vs_B", alpha = 0.05)
     expect_setequal(genes, c("TP53", "MDM2"))
 })
 
@@ -88,10 +88,10 @@ test_that("rank_multihit_genes_contrast scores CCC separately from TF decoupleR"
 })
 
 test_that(".ccc_cluster_location splits a cluster label into test and folder", {
-    loc <- deseq2reports:::.ccc_cluster_location("lrt__full_a_vs_reduced_b cluster 3")
+    loc <- DEGreports:::.ccc_cluster_location("lrt__full_a_vs_reduced_b cluster 3")
     expect_equal(loc$test, "lrt__full_a_vs_reduced_b")
     expect_equal(loc$dir, "cluster_3")
-    plain <- deseq2reports:::.ccc_cluster_location("A_vs_B")
+    plain <- DEGreports:::.ccc_cluster_location("A_vs_B")
     expect_equal(plain$test, "A_vs_B")
 })
 

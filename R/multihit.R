@@ -129,23 +129,31 @@ multihit_hit_sets <- function(contrast, diffexp_out, gsea_out = NULL,
 
 #' UpSet plot of how many genes each combination of methods shares
 #'
+#' Only genes shared by two or more methods are shown: single-method
+#' combinations are dropped. Columns run left to right from the most methods
+#' intersected to the fewest, with ties broken by gene count.
+#'
 #' @param sets Named list from [multihit_hit_sets()]. Empty methods are dropped.
 #' @param title Optional plot title (the contrast label).
 #' @return A `ggplot` wrapping the drawn ComplexHeatmap UpSet, with
-#'   `attr(, "plot_size")` (inches) -- or `NULL` when no method has hits.
+#'   `attr(, "plot_size")` (inches) -- or `NULL` when no gene is a hit in
+#'   more than one method.
 #' @export
 plot_multihit_upset <- function(sets, title = NULL) {
     sets <- sets[lengths(sets) > 0L]
-    if (!length(sets)) return(NULL)
+    if (length(sets) < 2L) return(NULL)
     names(sets) <- unname(.multihit_layer_labels[names(sets)])
     m <- ComplexHeatmap::make_comb_mat(sets)
+    m <- m[ComplexHeatmap::comb_degree(m) >= 2L]
     n_comb <- length(ComplexHeatmap::comb_size(m))
+    if (!n_comb) return(NULL)
     width <- max(4.5, min(11, 2.5 + 0.35 * n_comb))
     height <- 1.6 + 0.3 * length(sets) + 1.4
     ht <- ComplexHeatmap::UpSet(
         m,
         set_order = names(sets),
-        comb_order = order(-ComplexHeatmap::comb_size(m)),
+        comb_order = order(-ComplexHeatmap::comb_degree(m),
+                           -ComplexHeatmap::comb_size(m)),
         top_annotation = ComplexHeatmap::upset_top_annotation(m, add_numbers = TRUE),
         right_annotation = ComplexHeatmap::upset_right_annotation(m, add_numbers = TRUE),
         column_title = title

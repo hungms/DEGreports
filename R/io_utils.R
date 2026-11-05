@@ -61,6 +61,8 @@ save_ggplot <- function(plot, path, width = 7, height = 5) {
 #' @return A `DESeqTransform` object (as returned by either underlying function).
 #' @noRd
 safe_vst <- function(dds, blind = TRUE) {
+    # limma carrier: its sample-level scale is log2(x + 1) (see R/limma.R).
+    if (.is_expr_dds(dds)) return(.log_expr_transform(dds))
     dds_sf <- if (is.null(DESeq2::sizeFactors(dds)) && is.null(DESeq2::normalizationFactors(dds))) {
         DESeq2::estimateSizeFactors(dds)
     } else {
@@ -162,7 +164,7 @@ sample_level_expr_matrix <- function(dds, var, batch = NULL, platform = "rnaseq"
         message("Sample-level expression: blind VST (no batch correction).")
         vsd <- quiet(safe_vst(dds, blind = TRUE))
         mat <- as.matrix(SummarizedExperiment::assay(vsd))
-        attr(mat, "expr_correction") <- "vst"
+        attr(mat, "expr_correction") <- if (.is_expr_dds(dds)) "log2expr" else "vst"
         return(mat)
     }
     platform <- validate_platform(platform)
@@ -171,7 +173,7 @@ sample_level_expr_matrix <- function(dds, var, batch = NULL, platform = "rnaseq"
     dds <- validate_var(dds, protect)
     message(
         "Sample-level expression: ",
-        batch_correction_label(.expr_correction_label(platform)),
+        batch_correction_label(.expr_correction_label(platform, dds)),
         " (batch = \"", batch, "\", protecting \"", protect, "\")."
     )
     batch_corrected_matrix(

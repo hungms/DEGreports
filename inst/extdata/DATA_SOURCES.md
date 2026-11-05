@@ -4,12 +4,12 @@ These files ship with the GitHub package and are the **default** inputs for
 CSPA and decoupleR CollecTRI when you install via:
 
 ```r
-devtools::install_github("hungms/deseq2reports")
+devtools::install_github("hungms/DEGreports")
 ```
 
 If a file is missing locally (e.g. a partial install), helpers download it
 from this repository’s `main` branch into the user cache
-(`tools::R_user_dir("deseq2reports", "data")`).
+(`tools::R_user_dir("DEGreports", "data")`).
 
 | File | Retrieved | Source |
 |---|---|---|
@@ -18,4 +18,4 @@ from this repository’s `main` branch into the user cache
 | `collectri_mouse_2026-08-06.csv` | 2026-08-06 | Same, taxid 10090 |
 
 Override at call time with `cspa_file=` or `collectri_file=`, or point
-`DESEQ2REPORTS_GITHUB_RAW` at another raw GitHub base URL.
+`DEGREPORTS_GITHUB_RAW` at another raw GitHub base URL.

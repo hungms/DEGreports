@@ -1,5 +1,5 @@
 ---
-title: "DESeq2Reports -- decoupleR-TF"
+title: "DEGreports -- decoupleR-TF"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -50,7 +50,7 @@ has_wald_tf <- !is_lrt && !is.null(params$decoupler_tf_out) &&
 ```
 
 ```{r nav, results='asis'}
-cat(deseq2reports::report_nav_links(
+cat(DEGreports::report_nav_links(
   params$current_page,
   disabled = params$disabled_labels,
   hrefs = params$page_hrefs
@@ -66,7 +66,7 @@ cat("\n\nTranscription-factor (TF) activities inferred with ",
     "method, following the bulk RNA-seq TF activity vignette. Organism for CollecTRI: **",
     params$decoupler_tf_out$org, "**.\n\n",
     "Sample-level scores use ",
-    paste0(deseq2reports::expr_correction_label(params$decoupler_tf_out$expr_correction),
+    paste0(DEGreports::expr_correction_label(params$decoupler_tf_out$expr_correction),
            " expression"),
     if (is_lrt) {
       paste0("; cluster-level scores use each degPatterns cluster's LRT `stat` ",
@@ -76,7 +76,7 @@ cat("\n\nTranscription-factor (TF) activities inferred with ",
              "as the gene-level statistic.")
     },
     "\n\n", sep = "")
-deseq2reports::emit_code_block(
+DEGreports::emit_code_block(
   caption = "Reproduce decoupleR-TF analysis with this package module:",
   "decoupler_tf_out <- run_decoupler_tf_pipeline(",
   "  dds_qc, var = \"condition\", diffexp_out = diffexp_out",
@@ -98,10 +98,10 @@ cat("\n\nTop **", n_heat,
     "** most variable TFs across samples (rows = samples, columns = TFs; ",
     "scores scaled per sample). Dark blue = inactive, red = active.\n\n", sep = "")
 
-deseq2reports::emit_heatmap_with_download(
+DEGreports::emit_heatmap_with_download(
   params$decoupler_tf_out$sample_heatmap,
   filename = "ulm_sample_tf_heatmap",
-  buttons = list(deseq2reports::link_output_file(
+  buttons = list(DEGreports::link_output_file(
     "ulm_sample_activities.csv", label = "Download sample activities CSV"
   ))
 )
@@ -115,7 +115,7 @@ emit_tf_contrast <- function(comp, bp, acts, n_tfs, cluster_mode = FALSE) {
       ". Top **", n_tfs,
       "** TFs by signed rank (most activated and most deactivated).\n\n", sep = "")
   if (!is.null(bp)) {
-    deseq2reports::emit_plot_with_download(
+    DEGreports::emit_plot_with_download(
       bp, filename = paste0(gsub("[^A-Za-z0-9]+", "_", comp), "_ulm_tf_barplot"),
       width = 3.5, height = 1.9, dpi = 150
     )
@@ -123,12 +123,12 @@ emit_tf_contrast <- function(comp, bp, acts, n_tfs, cluster_mode = FALSE) {
   if (!is.null(acts) && nrow(acts) > 0) {
     show <- acts[order(acts$p_value), , drop = FALSE]
     show <- utils::head(show, 50L)
-    btn <- deseq2reports::link_output_file(
+    btn <- DEGreports::link_output_file(
       file.path(comp, "ulm_contrast.csv"),
       label = "Download full CSV"
     )
-    deseq2reports::emit_widget_with_download(
-      deseq2reports::make_gsea_datatable(show, page_length = 15), btn
+    DEGreports::emit_widget_with_download(
+      DEGreports::make_gsea_datatable(show, page_length = 15), btn
     )
   }
   cat("\n\n")
@@ -142,7 +142,7 @@ if (!is.null(params$diffexp_out) && !is_lrt) {
     specs <- data.frame(
       label = comps,
       class = "single",
-      type = deseq2reports::classify_comparison_type(comps),
+      type = DEGreports::classify_comparison_type(comps),
       stratum_var = NA_character_,
       stratum_level = NA_character_,
       stringsAsFactors = FALSE
@@ -174,10 +174,10 @@ short_labs <- sub("^.* cluster ", "cluster ", cluster_tf_labels)
 if (anyDuplicated(short_labs) || any(!nzchar(short_labs))) {
   short_labs <- cluster_tf_labels
 }
-pane_ids <- deseq2reports::bs_tabset_start("decoupler-lrt-clusters", short_labs)
+pane_ids <- DEGreports::bs_tabset_start("decoupler-lrt-clusters", short_labs)
 for (i in seq_along(cluster_tf_labels)) {
   comp <- cluster_tf_labels[i]
-  deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+  DEGreports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
   emit_tf_contrast(
     comp,
     params$decoupler_tf_out$contrast_barplots[[comp]],
@@ -185,9 +185,9 @@ for (i in seq_along(cluster_tf_labels)) {
     n_tfs,
     cluster_mode = TRUE
   )
-  deseq2reports::bs_tab_pane_end()
+  DEGreports::bs_tab_pane_end()
 }
-deseq2reports::bs_tabset_end()
+DEGreports::bs_tabset_end()
 ```
 
 ```{r tf-contrast-heading, results='asis', eval=has_wald_tf}
@@ -232,7 +232,7 @@ n_tfs <- params$decoupler_tf_out$n_tfs
 for (cls in c("main", "within_A", "within_B", "within_C", "interaction")) {
   sub <- specs[specs$class == cls, , drop = FALSE]
   if (nrow(sub) == 0) next
-  title <- deseq2reports::contrast_class_title(cls, var)
+  title <- DEGreports::contrast_class_title(cls, var)
   cat("\n\n#### ", title, " {.tabset}\n\n", sep = "")
 
   if (identical(cls, "main")) {
@@ -251,7 +251,7 @@ for (cls in c("main", "within_A", "within_B", "within_C", "interaction")) {
   if (identical(cls, "interaction")) {
     # Interaction rows are grouped by the factor level they hold fixed;
     # three-way rows hold nothing fixed and sit at the top level.
-    held <- deseq2reports::contrast_stratum_labels(sub)
+    held <- DEGreports::contrast_stratum_labels(sub)
     for (comp in sub$label[is.na(held)]) {
       cat("\n\n##### ", comp, "\n\n", sep = "")
       emit_tf_contrast(comp,

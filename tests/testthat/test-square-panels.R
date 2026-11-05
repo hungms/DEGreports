@@ -107,7 +107,7 @@ test_that("pheatmap_cell_size sizes a single dimension independently (no cross-a
     # together with the WGCNA/GSEA squaring convention; only the
     # single-dimension pheatmap_cell_size() remains, applied independently
     # per axis (see plot_module_eigengene_heatmap below).
-    expect_false(exists("pheatmap_square_cell_size", where = asNamespace("deseq2reports"), inherits = FALSE))
+    expect_false(exists("pheatmap_square_cell_size", where = asNamespace("DEGreports"), inherits = FALSE))
 
     cell_w <- pheatmap_cell_size(30)
     cell_h <- pheatmap_cell_size(3)

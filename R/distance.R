@@ -116,7 +116,7 @@ run_distance_pca <- function(
     mat_corrected <- NULL
     correction_label <- "none"
     if (batch_corrected) {
-        correction_label <- batch_correction_label(.expr_correction_label(platform))
+        correction_label <- batch_correction_label(.expr_correction_label(platform, dds))
         message("Batch correction for PCA / sample similarity: ", correction_label,
                 " (batch = \"", batch, "\", protecting \"", var, "\")...")
         mat_corrected <- batch_corrected_matrix(
@@ -366,7 +366,7 @@ similarity_cor_df <- function(similarity_plot) {
 #' @noRd
 transformed_matrix <- function(dds, transform = "vst") {
     vsd <- if (identical(transform, "rlog")) {
-        DESeq2::rlog(dds, blind = TRUE)
+        safe_rlog(dds, blind = TRUE)
     } else {
         safe_vst(dds, blind = TRUE)
     }
@@ -466,7 +466,9 @@ combat_seq_transformed_matrix <- function(dds, batch, var, transform = "vst") {
 batch_corrected_matrix <- function(dds, batch, var, platform = "rnaseq",
                                    transform = "vst") {
     platform <- validate_platform(platform)
-    mat <- if (identical(platform, "microarray")) {
+    # TPM / FPKM are not integer counts, so ComBat-seq is out: ComBat on
+    # log2 expression, whatever `platform` says.
+    mat <- if (identical(platform, "microarray") || .is_expr_dds(dds)) {
         combat_transformed_matrix(dds, batch = batch, var = var,
                                   transform = transform)
     } else {
@@ -474,20 +476,22 @@ batch_corrected_matrix <- function(dds, batch, var, platform = "rnaseq",
                                       transform = transform)
     }
     mat <- as.matrix(mat)
-    attr(mat, "expr_correction") <- .expr_correction_label(platform)
+    attr(mat, "expr_correction") <- .expr_correction_label(platform, dds)
     mat
 }
 
 #' `expr_correction` tag for a platform's batch correction
 #' @noRd
-.expr_correction_label <- function(platform) {
+.expr_correction_label <- function(platform, dds = NULL) {
+    if (!is.null(dds) && .is_expr_dds(dds)) return("combat_log2expr")
     if (identical(platform, "microarray")) "combat_vst" else "combat_seq_vst"
 }
 
 #' Name the batch-correction method behind an expression matrix
 #'
 #' Both of these turn the `expr_correction` tag carried by module outputs
-#' (`"vst"`, `"combat_seq_vst"`, `"combat_vst"`, or `NA`) into prose, so the
+#' (`"vst"`, `"combat_seq_vst"`, `"combat_vst"`, the limma `"log2expr"` /
+#' `"combat_log2expr"`, or `NA`) into prose, so the
 #' HTML report can describe what a module actually scored without
 #' re-deriving it from `platform` and `batch`.
 #'
@@ -507,6 +511,7 @@ batch_correction_label <- function(expr_correction) {
     switch(
         as.character(expr_correction)[1L],
         combat_vst = "ComBat",
+        combat_log2expr = "ComBat",
         combat_seq_vst = "ComBat-seq",
         "none"
     )
@@ -518,7 +523,9 @@ expr_correction_label <- function(expr_correction) {
     switch(
         as.character(expr_correction)[1L],
         combat_vst = "ComBat on VST",
+        combat_log2expr = "ComBat on log2 expression",
         combat_seq_vst = "ComBat-seq then VST",
+        log2expr = "log2 expression (limma)",
         "blind VST"
     )
 }

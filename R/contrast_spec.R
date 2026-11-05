@@ -381,7 +381,7 @@ as_contrast_specs <- function(x, var = NA_character_, class = "single") {
 #'   test_var = "group",
 #'   comparison = "BM.KO_vs_SP.WT"
 #' ))
-#' run_deseq2_wald(dds, var = c("tissue", "genotype"), comparisons = grid)
+#' run_deseq2(dds, var = c("tissue", "genotype"), comparisons = grid)
 #' }
 #' @seealso [contrast_spec()], [contrast_spec_from_coefs()]
 #' @export

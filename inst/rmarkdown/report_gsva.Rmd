@@ -1,5 +1,5 @@
 ---
-title: "DESeq2Reports -- GSVA"
+title: "DEGreports -- GSVA"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -44,7 +44,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align 
 ```
 
 ```{r nav, results='asis'}
-cat(deseq2reports::report_nav_links(
+cat(DEGreports::report_nav_links(
   params$current_page,
   disabled = params$disabled_labels,
   hrefs = params$page_hrefs
@@ -55,8 +55,8 @@ cat(deseq2reports::report_nav_links(
 
 ```{r gsva-intro, results='asis', eval=!is.null(params$gsva_out)}
 cat("\n\nSample-level [GSVA](https://doi.org/10.1186/1471-2105-14-7) on ",
-    if (deseq2reports::batch_correction_label(params$gsva_out$expr_correction) != "none") {
-      paste0("**", deseq2reports::expr_correction_label(params$gsva_out$expr_correction),
+    if (DEGreports::batch_correction_label(params$gsva_out$expr_correction) != "none") {
+      paste0("**", DEGreports::expr_correction_label(params$gsva_out$expr_correction),
              "** (protecting the grouping variable; DESeq2 still uses raw counts with batch in the design)")
     } else {
       "blind VST expression"
@@ -73,7 +73,7 @@ cat("\n\nSample-level [GSVA](https://doi.org/10.1186/1471-2105-14-7) on ",
     "** pathways whose sample scores differ most across `",
     params$gsva_out$var, "` (Kruskal–Wallis; variance if the test is undefined). ",
     "Change the number with `gsva_n_heatmap`.\n\n", sep = "")
-deseq2reports::emit_code_block(
+DEGreports::emit_code_block(
   caption = "Reproduce GSVA with this package module:",
   "gsva_out <- run_gsva_pipeline(dds_qc, var = \"condition\")"
 )
@@ -88,10 +88,10 @@ colls <- params$gsva_out$collections
 if (!length(colls)) {
   cat("\n\nNo GSVA collections were scored.\n\n")
 } else {
-  pane_ids <- deseq2reports::bs_tabset_start("gsva-collections", colls)
+  pane_ids <- DEGreports::bs_tabset_start("gsva-collections", colls)
   for (i in seq_along(colls)) {
     coll <- colls[i]
-    deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+    DEGreports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
     hm <- params$gsva_out$heatmaps[[coll]]
     st <- params$gsva_out$stats[[coll]]
     cat("<p>", if (identical(coll, "HALLMARK")) {
@@ -104,9 +104,9 @@ if (!length(colls)) {
              params$gsva_out$var, "</code> (table below is the same ranking).")
     }, "</p>\n", sep = "")
     if (!is.null(hm)) {
-      deseq2reports::emit_heatmap_with_download(
+      DEGreports::emit_heatmap_with_download(
         hm, filename = paste0("gsva_", coll, "_heatmap"),
-        buttons = list(deseq2reports::link_output_file(
+        buttons = list(DEGreports::link_output_file(
           file.path(coll, "gsva_scores.csv"), label = "Download scores CSV"
         ))
       )
@@ -115,16 +115,16 @@ if (!length(colls)) {
     }
     if (!is.null(st) && nrow(st)) {
       show <- utils::head(st, 25L)
-      btn <- deseq2reports::link_output_file(
+      btn <- DEGreports::link_output_file(
         file.path(coll, "gsva_pathway_stats.csv"),
         label = "Download pathway stats CSV"
       )
-      deseq2reports::emit_widget_with_download(
-        deseq2reports::make_gsea_datatable(show, page_length = 15), btn
+      DEGreports::emit_widget_with_download(
+        DEGreports::make_gsea_datatable(show, page_length = 15), btn
       )
     }
-    deseq2reports::bs_tab_pane_end()
+    DEGreports::bs_tab_pane_end()
   }
-  deseq2reports::bs_tabset_end()
+  DEGreports::bs_tabset_end()
 }
 ```

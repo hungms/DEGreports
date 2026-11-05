@@ -25,7 +25,7 @@ run_gsea_pipeline(
 \item{collections}{Character vector of MSigDB collection aliases:
 \code{"HALLMARK"}, \code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"}, \code{"KEGG"},
 \code{"REACTOME"}, \code{"PID"}. Default \code{"HALLMARK"} only when calling
-this function directly (\code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}} passes its own
+this function directly (\code{\link[=run_deseq2]{run_deseq2()}} passes its own
 6-collection default -- see its \code{collections} argument). Organism
 (human/mouse) is auto-detected from the gene symbols in
 \code{diffexp_results[[gene_col]]} via \code{\link[=detect_organism]{detect_organism()}} -- there is no

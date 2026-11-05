@@ -1,7 +1,7 @@
 #' Fixed analysis settings for the pipeline entry points
 #'
-#' These used to be arguments of [run_deseq2_wald()], [run_deseq2_lrt()], and
-#' [run_deseq2_deg()]. They are now fixed so that every run is comparable and
+#' These used to be arguments of [run_deseq2()], [`run_deseq2(mode = "lrt")`][run_deseq2], and
+#' [run_deg()]. They are now fixed so that every run is comparable and
 #' the "Pipeline arguments" table stays about study design rather than
 #' tuning knobs. The underlying module functions
 #' ([run_diffexp_pipeline()], [run_wgcna_pipeline()], ...) still expose them,

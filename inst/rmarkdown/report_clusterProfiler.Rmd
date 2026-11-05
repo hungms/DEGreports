@@ -1,5 +1,5 @@
 ---
-title: "DESeq2Reports -- clusterProfiler"
+title: "DEGreports -- clusterProfiler"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -48,7 +48,7 @@ is_lrt <- isTRUE(params$run_args$analysis_mode == "lrt") ||
 ```
 
 ```{r nav, results='asis'}
-cat(deseq2reports::report_nav_links(
+cat(DEGreports::report_nav_links(
   params$current_page,
   disabled = params$disabled_labels,
   hrefs = params$page_hrefs
@@ -62,14 +62,14 @@ if (is_lrt) {
   cat("\n\nOver-representation analysis (ORA) of **degPatterns** gene clusters ",
       "from each LRT, against every requested MSigDB collection ",
       "(top pathways by adjusted p-value).\n\n", sep = "")
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce cluster ORA with:",
     "ora <- run_cluster_ora_pipeline(degpatterns_out, universe = rownames(dds_qc))"
   )
 } else {
   cat("\n\nGene-set enrichment on the DESeq2 ranked gene list for each contrast, ",
       "run independently against every requested MSigDB collection.\n\n", sep = "")
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce pathway enrichment with this package module:",
     "gsea_out <- run_gsea_pipeline(",
     "  diffexp_out$results,",
@@ -82,19 +82,19 @@ if (is_lrt) {
 ```{r gsea-helpers, include=FALSE}
 emit_gsea_collection_body <- function(comp, coll, gsea_df, by_coll_cp = NULL,
                                       from_contrast_dir = FALSE) {
-  stem <- deseq2reports::contrast_file_stem(comp)
+  stem <- DEGreports::contrast_file_stem(comp)
   ranks <- params$gsea_out$ranks_by_comparison[[comp]]
   gene_sets_all <- params$gsea_out$gene_sets
   if (is.null(gsea_df) || nrow(gsea_df) == 0) {
     cat("\n\nNo pathways returned.\n\n")
     return(invisible(NULL))
   }
-  p <- tryCatch(deseq2reports::plot_gsea_barplot(gsea_df, top_n = 10, title = stem),
+  p <- tryCatch(DEGreports::plot_gsea_barplot(gsea_df, top_n = 10, title = stem),
                 error = function(e) NULL)
   if (!is.null(p)) {
     sz <- attr(p, "plot_size")
     if (is.null(sz)) sz <- list(width = 6.5, height = 5)
-    deseq2reports::emit_plot_with_download(
+    DEGreports::emit_plot_with_download(
       p, filename = paste(stem, coll, "gsea_barplot", sep = "_"),
       width = sz$width, height = sz$height, dpi = 120
     )
@@ -106,7 +106,7 @@ emit_gsea_collection_body <- function(comp, coll, gsea_df, by_coll_cp = NULL,
         "red = pathway NES > 0, blue = NES < 0; padj and NES on the right):\n\n",
         sep = "")
     p_bc <- tryCatch(
-      deseq2reports::plot_gsea_barcode_panel(
+      DEGreports::plot_gsea_barcode_panel(
         gsea_df, ranks = ranks, gene_sets = gene_sets_all[[coll]],
         top_n = 10, title = stem
       ),
@@ -115,7 +115,7 @@ emit_gsea_collection_body <- function(comp, coll, gsea_df, by_coll_cp = NULL,
     if (!is.null(p_bc)) {
       sz_bc <- attr(p_bc, "plot_size")
       if (is.null(sz_bc)) sz_bc <- list(width = 4.25, height = 2.25)
-      deseq2reports::emit_plot_with_download(
+      DEGreports::emit_plot_with_download(
         p_bc, filename = paste(stem, coll, "gsea_barcode", sep = "_"),
         width = sz_bc$width, height = sz_bc$height, dpi = 120
       )
@@ -127,15 +127,15 @@ emit_gsea_collection_body <- function(comp, coll, gsea_df, by_coll_cp = NULL,
       "significance stars: `*` padj < 0.05, `**` < 0.01, `***` < 0.001. ",
       "`leadingEdge` lists the driving genes for each pathway. Sort by any column or search ",
       "by pathway using the box below. The full GSEA CSV is linked beside the table.\n\n", sep = "")
-  top_bottom_gsea <- deseq2reports::gsea_top_bottom_table(gsea_df, top_n = 10)
+  top_bottom_gsea <- DEGreports::gsea_top_bottom_table(gsea_df, top_n = 10)
   coll_label <- gsub("[^A-Za-z0-9]+", "_", coll)
   gsea_csv <- if (from_contrast_dir) {
     file.path("gsea", paste0(coll_label, "_gsea.csv"))
   } else {
     file.path(comp, "gsea", paste0(coll_label, "_gsea.csv"))
   }
-  gsea_btn <- deseq2reports::link_output_file(gsea_csv, label = "Download full CSV")
-  deseq2reports::emit_widget_with_download(deseq2reports::make_gsea_datatable(top_bottom_gsea), gsea_btn)
+  gsea_btn <- DEGreports::link_output_file(gsea_csv, label = "Download full CSV")
+  DEGreports::emit_widget_with_download(DEGreports::make_gsea_datatable(top_bottom_gsea), gsea_btn)
 
   if (!is.null(by_coll_cp) && !is.null(by_coll_cp[[coll]])) {
     cat("\n\nA parallel `clusterProfiler::GSEA()` run against the same ranked gene list ",
@@ -155,20 +155,20 @@ emit_gsea_contrast <- function(comp, by_coll, by_coll_cp = NULL,
   # Bootstrap collection tabs (HALLMARK / GOBP / …). Prefer bs_tabset over
   # rmarkdown `{.tabset}` — the latter often fails on large pages.
   coll_names <- names(by_coll)
-  pane_ids <- deseq2reports::bs_tabset_start(
+  pane_ids <- DEGreports::bs_tabset_start(
     paste0("gsea-coll-", gsub("[^A-Za-z0-9]+", "-", comp)),
     coll_names
   )
   for (i in seq_along(coll_names)) {
     coll <- coll_names[i]
-    deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+    DEGreports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
     emit_gsea_collection_body(
       comp, coll, by_coll[[coll]], by_coll_cp = by_coll_cp,
       from_contrast_dir = from_contrast_dir
     )
-    deseq2reports::bs_tab_pane_end()
+    DEGreports::bs_tab_pane_end()
   }
-  deseq2reports::bs_tabset_end()
+  DEGreports::bs_tabset_end()
   cat("<script>$(document).on('shown.bs.tab', 'a[data-toggle=\"tab\"]', function () { if (window.HTMLWidgets) HTMLWidgets.staticRender(); if (window.jQuery && $.fn.dataTable) { $($.fn.dataTable.tables(true)).DataTable().columns.adjust(); } });</script>\n")
 }
 
@@ -185,31 +185,31 @@ emit_ora_lrt <- function(lrt_label, from_contrast_dir = FALSE) {
   ora_w <- 9 * 0.65
   ora_h <- 4.8 * 0.65
   cl_labels <- paste0("Cluster ", names(ora_by_cl))
-  cl_panes <- deseq2reports::bs_tabset_start(
+  cl_panes <- DEGreports::bs_tabset_start(
     paste0("ora-clusters-", gsub("[^A-Za-z0-9]+", "-", lrt_label)),
     cl_labels
   )
   for (i in seq_along(names(ora_by_cl))) {
     cl <- names(ora_by_cl)[i]
-    deseq2reports::bs_tab_pane_start(cl_panes[i], active = (i == 1L))
+    DEGreports::bs_tab_pane_start(cl_panes[i], active = (i == 1L))
 
     coll_names <- names(ora_by_cl[[cl]])
     if (!length(coll_names)) {
       cat("<p>No collections for this cluster.</p>\n")
-      deseq2reports::bs_tab_pane_end()
+      DEGreports::bs_tab_pane_end()
       next
     }
-    coll_panes <- deseq2reports::bs_tabset_start(
+    coll_panes <- DEGreports::bs_tabset_start(
       paste0("ora-coll-", gsub("[^A-Za-z0-9]+", "-", lrt_label), "-c", cl),
       coll_names
     )
     for (j in seq_along(coll_names)) {
       coll <- coll_names[j]
-      deseq2reports::bs_tab_pane_start(coll_panes[j], active = (j == 1L))
+      DEGreports::bs_tab_pane_start(coll_panes[j], active = (j == 1L))
       res <- ora_by_cl[[cl]][[coll]]
       p <- if (!is.null(plots_by_cl)) plots_by_cl[[cl]][[coll]] else NULL
       if (!is.null(p)) {
-        deseq2reports::emit_plot_with_download(
+        DEGreports::emit_plot_with_download(
           p, filename = paste(lrt_label, "cluster", cl, coll, "ora", sep = "_"),
           width = ora_w, height = ora_h, dpi = 120
         )
@@ -223,17 +223,17 @@ emit_ora_lrt <- function(lrt_label, from_contrast_dir = FALSE) {
         } else {
           file.path(lrt_label, paste0("cluster_", cl), paste0("ora_", coll, ".csv"))
         }
-        btn <- deseq2reports::link_output_file(ora_csv, label = "Download full CSV")
-        deseq2reports::emit_widget_with_download(
-          deseq2reports::make_gsea_datatable(show, page_length = 10), btn
+        btn <- DEGreports::link_output_file(ora_csv, label = "Download full CSV")
+        DEGreports::emit_widget_with_download(
+          DEGreports::make_gsea_datatable(show, page_length = 10), btn
         )
       }
-      deseq2reports::bs_tab_pane_end()
+      DEGreports::bs_tab_pane_end()
     }
-    deseq2reports::bs_tabset_end()
-    deseq2reports::bs_tab_pane_end()
+    DEGreports::bs_tabset_end()
+    DEGreports::bs_tab_pane_end()
   }
-  deseq2reports::bs_tabset_end()
+  DEGreports::bs_tabset_end()
   cat("<script>$(document).on('shown.bs.tab', 'a[data-toggle=\"tab\"]', function () { if (window.HTMLWidgets) HTMLWidgets.staticRender(); if (window.jQuery && $.fn.dataTable) { $($.fn.dataTable.tables(true)).DataTable().columns.adjust(); } });</script>\n")
 }
 
@@ -251,7 +251,7 @@ if (is_lrt) {
     specs <- data.frame(
       label = comps,
       class = "single",
-      type = deseq2reports::classify_comparison_type(comps),
+      type = DEGreports::classify_comparison_type(comps),
       stratum_var = NA_character_,
       stratum_level = NA_character_,
       stringsAsFactors = FALSE
@@ -267,7 +267,7 @@ if (!is_lrt) {
   cat("Per contrast (all MSigDB collections pooled): number and percent of ",
       "significant pathways (`padj < ", params$alpha, "`) among tested pathways. ",
       "Up / down follow the sign of NES.\n\n", sep = "")
-  gsea_sum <- deseq2reports::summarize_gsea_contrasts(params$gsea_out, alpha = params$alpha)
+  gsea_sum <- DEGreports::summarize_gsea_contrasts(params$gsea_out, alpha = params$alpha)
   if (nrow(gsea_sum)) {
     show <- gsea_sum
     show$pct_up <- ifelse(is.na(show$pct_up), "—", paste0(formatC(show$pct_up, format = "f", digits = 2), "%"))
@@ -289,7 +289,7 @@ cat("Each ", if (is_lrt) "LRT" else "contrast",
 if (!nrow(specs)) {
   cat("\n\nNo enrichment results available.\n\n")
 } else {
-  deseq2reports::emit_contrast_nav(specs, params$var)
+  DEGreports::emit_contrast_nav(specs, params$var)
 }
 cat("\n")
 if (!is_lrt && !is.null(params$gsea_overlap_out)) {
@@ -323,7 +323,7 @@ emit_ora_lrt(contrast_page, from_contrast_dir = TRUE)
 
 ```{r overlap-contrast, results='asis', eval=!is_hub && !is_lrt && !is.null(params$gsea_overlap_out)}
 comp <- contrast_page
-stem <- deseq2reports::contrast_file_stem(comp)
+stem <- DEGreports::contrast_file_stem(comp)
 overlap_item <- params$gsea_overlap_out$by_comparison[[comp]]
 cat("\n\n### Leading-edge overlap\n\n")
 cat("Per contrast, pathways with **padj < ", params$alpha,
@@ -368,8 +368,8 @@ if (is.null(overlap_item)) {
     dpi <- 120
     px_w <- as.integer(round(device_w * dpi))
     px_h <- as.integer(round(device_h * dpi))
-    img_tag <- deseq2reports::figure_img_tag(
-      function() deseq2reports::draw_pathway_jaccard_heatmap(heat),
+    img_tag <- DEGreports::figure_img_tag(
+      function() DEGreports::draw_pathway_jaccard_heatmap(heat),
       px_w, px_h, pixelratio = 2, alt = paste0("jaccard_", stem),
       attribs = list(
         width = px_w, height = px_h,
@@ -377,16 +377,16 @@ if (is.null(overlap_item)) {
       )
     )
     buttons <- list(
-      deseq2reports::download_grid_plot_button(
-        function() deseq2reports::draw_pathway_jaccard_heatmap(heat),
+      DEGreports::download_grid_plot_button(
+        function() DEGreports::draw_pathway_jaccard_heatmap(heat),
         filename = paste0(stem, "_pathway_jaccard_heatmap"),
         width = device_w, height = device_h, dpi = dpi
       ),
-      deseq2reports::link_output_file(
+      DEGreports::link_output_file(
         file.path(ov_prefix, paste0(stem, "_pathway_jaccard.csv")),
         label = "Download full Jaccard CSV"
       ),
-      deseq2reports::link_output_file(
+      DEGreports::link_output_file(
         file.path(ov_prefix, paste0(stem, "_sig_pathways.csv")),
         label = "Download sig pathways CSV"
       )
@@ -394,14 +394,14 @@ if (is.null(overlap_item)) {
     cl_csv <- file.path(ov_prefix, paste0(stem, "_pathway_clusters.csv"))
     if (file.exists(cl_csv)) {
       buttons <- c(buttons, list(
-        deseq2reports::link_output_file(cl_csv, label = "Download clusters CSV")
+        DEGreports::link_output_file(cl_csv, label = "Download clusters CSV")
       ))
     }
-    deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(img_tag, buttons))
+    DEGreports::emit_widget(DEGreports::wrap_with_corner_button(img_tag, buttons))
   } else {
     cat("\n\nFewer than 2 significant pathways — Jaccard heatmap omitted.\n\n")
-    deseq2reports::emit_widget(
-      deseq2reports::link_output_file(
+    DEGreports::emit_widget(
+      DEGreports::link_output_file(
         file.path(ov_prefix, paste0(stem, "_sig_pathways.csv")),
         label = "Download sig pathways CSV"
       )

@@ -18,7 +18,8 @@ run_diffexp_pipeline(
   gene_col = "gene",
   top_label_n = 10,
   save_dir = getwd(),
-  save_plot = TRUE
+  save_plot = TRUE,
+  engine = "deseq2"
 )
 }
 \arguments{
@@ -39,7 +40,7 @@ difference-of-differences interaction contrasts to the main effects.
 Default \code{FALSE}. Passed to \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
 
 \item{stratified}{Logical. Add the within-stratum contrasts, fitted on
-each subset alone. Default \code{FALSE}; not exposed by \code{\link[=run_deseq2_wald]{run_deseq2_wald()}}.
+each subset alone. Default \code{FALSE}; not exposed by \code{\link[=run_deseq2]{run_deseq2()}}.
 Passed to \code{\link[=expand_contrast_specs]{expand_contrast_specs()}}.}
 
 \item{shrinkage}{LFC shrinkage method: one of \code{"ashr"} (default; the only
@@ -68,6 +69,10 @@ volcano plot. Default \code{10}.}
 
 \item{save_plot}{Logical. If \code{TRUE}, saves MA and volcano plots per
 comparison. Default \code{TRUE}.}
+
+\item{engine}{\code{"deseq2"} (default) or \code{"limma"} (limma-trend). \code{"limma"}
+needs a TPM / FPKM carrier from \code{\link[=expr_to_dds]{expr_to_dds()}} and is chosen
+automatically for one. Results have the same columns either way.}
 }
 \value{
 A list with elements \code{results} (combined data frame across all

@@ -16,15 +16,15 @@
 #' @noRd
 .extdata_github_raw_base <- function() {
     Sys.getenv(
-        "DESEQ2REPORTS_GITHUB_RAW",
-        unset = "https://raw.githubusercontent.com/hungms/deseq2reports/main"
+        "DEGREPORTS_GITHUB_RAW",
+        unset = "https://raw.githubusercontent.com/hungms/DEGreports/main"
     )
 }
 
 #' User cache directory for downloaded extdata
 #' @noRd
 .extdata_cache_dir <- function() {
-    path <- tools::R_user_dir("deseq2reports", which = "data")
+    path <- tools::R_user_dir("DEGreports", which = "data")
     dir.create(path, recursive = TRUE, showWarnings = FALSE)
     path
 }
@@ -32,9 +32,9 @@
 #' Candidate directories that may contain `inst/extdata` files
 #' @noRd
 .extdata_search_dirs <- function() {
-    pkg_path <- tryCatch(find.package("deseq2reports"), error = function(e) "")
+    pkg_path <- tryCatch(find.package("DEGreports"), error = function(e) "")
     unique(c(
-        system.file("extdata", package = "deseq2reports"),
+        system.file("extdata", package = "DEGreports"),
         if (nzchar(pkg_path)) {
             c(
                 file.path(pkg_path, "extdata"),
@@ -52,7 +52,7 @@
 #'
 #' Search order: installed package `extdata/` → source-tree
 #' `inst/extdata/` → user cache → download from
-#' `https://raw.githubusercontent.com/hungms/deseq2reports/main/inst/extdata/`
+#' `https://raw.githubusercontent.com/hungms/DEGreports/main/inst/extdata/`
 #' into the user cache.
 #'
 #' @param filename Basename under `inst/extdata/` (e.g. dated CollecTRI CSV).
@@ -75,7 +75,7 @@
 
     if (!isTRUE(download)) {
         stop("Bundled file \"", filename, "\" not found locally. ",
-             "Install deseq2reports from GitHub or place the file under ",
+             "Install DEGreports from GitHub or place the file under ",
              "inst/extdata/.", call. = FALSE)
     }
 
@@ -94,8 +94,8 @@
             file.info(dest)$size < 10) {
         if (file.exists(dest)) unlink(dest)
         stop("Failed to download \"", filename, "\" from ", url, ". ",
-             "Install deseq2reports from GitHub ",
-             "(devtools::install_github(\"hungms/deseq2reports\")) ",
+             "Install DEGreports from GitHub ",
+             "(devtools::install_github(\"hungms/DEGreports\")) ",
              "or pass an explicit local file path.",
              if (inherits(status, "error")) {
                  paste0(" Error: ", conditionMessage(status))

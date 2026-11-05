@@ -1,5 +1,5 @@
 ---
-title: "DESeq2Reports -- DESeq2"
+title: "DEGreports -- DESeq2"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -48,7 +48,7 @@ is_lrt <- isTRUE(params$run_args$analysis_mode == "lrt") ||
 ```
 
 ```{r nav, results='asis'}
-cat(deseq2reports::report_nav_links(
+cat(DEGreports::report_nav_links(
   params$current_page,
   disabled = params$disabled_labels,
   hrefs = params$page_hrefs
@@ -62,36 +62,49 @@ if (is_lrt) {
   cat("\n\nLikelihood-ratio tests (LRT) across nested full/reduced designs. ",
       "Significant genes (`padj < alpha`) are clustered with ",
       "`DEGreport::degPatterns()` (x = time; colour = grouping factor when present).\n\n", sep = "")
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce LRT differential testing with:",
     "diffexp_out <- run_diffexp_lrt_pipeline(dds_qc, var = \"genotype\", time = \"time\")",
     "degpatterns_out <- run_degpatterns_pipeline(dds_qc, diffexp_out, time = \"time\", var = \"genotype\")"
   )
+} else if (identical(params$run_args$analysis_mode, "limma")) {
+  cat("\n\nDifferential expression was tested with **limma-trend** on ",
+      "log2(expression + ", params$run_args$prior_count, ") (`lmFit()`, ",
+      "`contrasts.fit()`, `eBayes(trend = TRUE, robust = TRUE)`). Tables keep ",
+      "the DESeq2 column layout: `stat` is the moderated t, `padj` the BH FDR, ",
+      "and `log2FoldChange` is ashr-shrunk (`log2FoldChange_unshrunken` is ",
+      "limma's `logFC`). Sample-level plots use the same log2 expression in ",
+      "place of VST.\n\n", sep = "")
+  DEGreports::emit_code_block(
+    caption = "Reproduce differential expression with this package module:",
+    "dds_qc <- readRDS(\"dds.rds\")  # TPM / FPKM carrier written by run_limma()",
+    "diffexp_out <- run_diffexp_pipeline(dds_qc, var = \"condition\")"
+  )
 } else {
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce differential expression with this package module:",
     "diffexp_out <- run_diffexp_pipeline(dds_qc, var = \"condition\")"
   )
 }
 if (!is.null(params$ppi_out)) {
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce PPI connectivity (embedded below per contrast) with:",
     "ppi_out <- run_ppi_pipeline(diffexp_out = diffexp_out)"
   )
 }
 if (!is.null(params$cspa_out)) {
   if (identical(params$cspa_out$source, "lrt_clusters")) {
-    deseq2reports::emit_code_block(
+    DEGreports::emit_code_block(
       caption = "Reproduce CSPA surface-marker heatmaps with:",
       "cspa_out <- run_lrt_cspa_heatmap(dds_qc, degpatterns_out)"
     )
   } else if (identical(params$cspa_out$source, "deg_table")) {
-    deseq2reports::emit_code_block(
+    DEGreports::emit_code_block(
       caption = "CSPA markers were selected from the DEG table (no VST heatmap):",
-      "out <- run_deseq2_deg(deg_table)"
+      "out <- run_deg(deg_table)"
     )
   } else {
-    deseq2reports::emit_code_block(
+    DEGreports::emit_code_block(
       caption = "Reproduce CSPA surface-marker heatmaps with:",
       "cspa_out <- run_cspa_marker_pipeline(dds_qc, diffexp_out, var = \"condition\")"
     )
@@ -113,7 +126,7 @@ if (!is.null(params$cspa_out)) {
 
 .cspa_expr_label <- function() {
   paste0("**row-scaled ",
-         deseq2reports::expr_correction_label(params$cspa_out$expr_correction),
+         DEGreports::expr_correction_label(params$cspa_out$expr_correction),
          "**")
 }
 
@@ -123,14 +136,14 @@ emit_ppi_block <- function(ppi, label, from_contrast_dir = FALSE) {
   cat("\n\nSTRING subgraph among seed genes. Top hubs stay labelled; ",
       "degree-capped at ", if (!is.null(ppi$max_plot_nodes)) ppi$max_plot_nodes else 50,
       " nodes. CSVs live under `deseq2/", label, "/ppi/`.\n\n", sep = "")
-  ppi_int <- deseq2reports::make_interactive_ppi(ppi$plot)
+  ppi_int <- DEGreports::make_interactive_ppi(ppi$plot)
   ppi_btn <- if (!is.null(ppi_int)) {
-    deseq2reports::download_plot_button(
+    DEGreports::download_plot_button(
       ppi$plot, filename = paste0(gsub("[^A-Za-z0-9_]+", "_", label), "_ppi"),
       widget = ppi_int
     )
   } else {
-    deseq2reports::download_plot_button(
+    DEGreports::download_plot_button(
       ppi$plot, filename = paste0(gsub("[^A-Za-z0-9_]+", "_", label), "_ppi"),
       width = 6.5, height = 5.5, dpi = 150
     )
@@ -140,15 +153,15 @@ emit_ppi_block <- function(ppi, label, from_contrast_dir = FALSE) {
   } else {
     file.path(label, "ppi", "ppi_hubs.csv")
   }
-  hub_btn <- deseq2reports::link_output_file(ppi_csv, label = "Download hubs CSV")
-  deseq2reports::emit_widget_with_download(
+  hub_btn <- DEGreports::link_output_file(ppi_csv, label = "Download hubs CSV")
+  DEGreports::emit_widget_with_download(
     ppi_int,
     list(ppi_btn, hub_btn), center = TRUE
   )
 }
 
 emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
-  stem <- deseq2reports::contrast_file_stem(comp)
+  stem <- DEGreports::contrast_file_stem(comp)
   n_sig <- sum(res_df$sig, na.rm = TRUE)
   cat("\n\n**", n_sig, "significant genes** (padj <", alpha,
       "). LRT has no single fold-change; `stat` is the likelihood-ratio chi-square.\n\n")
@@ -157,7 +170,7 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
   if (is.null(specs)) specs <- params$diffexp_out$contrast_specs
   if (!is.null(specs) && comp %in% specs$label) {
     row <- specs[specs$label == comp, , drop = FALSE][1, ]
-    deseq2reports::emit_code_block(
+    DEGreports::emit_code_block(
       caption = "Full vs reduced design for this LRT:",
       paste0("full    <- ", row$full),
       paste0("reduced <- ", row$reduced),
@@ -173,9 +186,9 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
   } else {
     file.path(comp, paste0(stem, "_lrt.csv"))
   }
-  deg_btn <- deseq2reports::link_output_file(deg_csv, label = "Download full CSV")
-  deseq2reports::emit_widget_with_download(
-    deseq2reports::make_deg_datatable(show), deg_btn
+  deg_btn <- DEGreports::link_output_file(deg_csv, label = "Download full CSV")
+  DEGreports::emit_widget_with_download(
+    DEGreports::make_deg_datatable(show), deg_btn
   )
 
   dp <- params$degpatterns_out[[comp]]
@@ -189,14 +202,14 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
       file.path(comp, "degpatterns_clusters.pdf")
     }
     if (inherits(dp$plot, "ggplot")) {
-      deseq2reports::emit_plot_with_download(
+      DEGreports::emit_plot_with_download(
         dp$plot,
         filename = paste0(stem, "_degpatterns"),
         width = 8, height = 6
       )
     } else {
-      deseq2reports::emit_widget(
-        deseq2reports::link_output_file(dp_pdf, label = "Download degPatterns PDF")
+      DEGreports::emit_widget(
+        DEGreports::link_output_file(dp_pdf, label = "Download degPatterns PDF")
       )
     }
     if (!is.null(dp$df) && nrow(dp$df)) {
@@ -206,9 +219,9 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
       } else {
         file.path(comp, "degpatterns_clusters.csv")
       }
-      cl_btn <- deseq2reports::link_output_file(cl_csv, label = "Download clusters CSV")
-      deseq2reports::emit_widget_with_download(
-        deseq2reports::make_gsea_datatable(utils::head(dp$df, 100L), page_length = 10),
+      cl_btn <- DEGreports::link_output_file(cl_csv, label = "Download clusters CSV")
+      DEGreports::emit_widget_with_download(
+        DEGreports::make_gsea_datatable(utils::head(dp$df, 100L), page_length = 10),
         cl_btn
       )
     }
@@ -234,10 +247,10 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
         short_labs <- hit
       }
       tab_id <- paste0("lrt-ppi-", gsub("[^A-Za-z0-9]+", "-", comp))
-      pane_ids <- deseq2reports::bs_tabset_start(tab_id, short_labs)
+      pane_ids <- DEGreports::bs_tabset_start(tab_id, short_labs)
       for (i in seq_along(hit)) {
         m <- hit[i]
-        deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+        DEGreports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
         ppi <- params$ppi_out$by_module[[m]]
         n_mapped <- if (!is.null(ppi$n_mapped)) ppi$n_mapped else NA_integer_
         cat("<p><strong>Gene filter funnel:</strong> ",
@@ -255,14 +268,14 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
             },
             ".</p>\n", sep = "")
         # Static embed (many interactive PPIs blow HTML memory).
-        deseq2reports::emit_plot_with_download(
+        DEGreports::emit_plot_with_download(
           ppi$plot,
           filename = paste0(gsub("[^A-Za-z0-9]+", "_", m), "_ppi"),
           width = 6.5, height = 5.5
         )
-        deseq2reports::bs_tab_pane_end()
+        DEGreports::bs_tab_pane_end()
       }
-      deseq2reports::bs_tabset_end()
+      DEGreports::bs_tabset_end()
     }
   }
 
@@ -289,23 +302,23 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
     } else {
       file.path(comp, "cspa", "cspa_cluster_genes.csv")
     }
-    csv_btn <- deseq2reports::link_output_file(cspa_csv, label = "Download genes CSV")
+    csv_btn <- DEGreports::link_output_file(cspa_csv, label = "Download genes CSV")
     if (!is.null(hm) && !is.na(n_m) && n_m >= 2L) {
       dims <- .cspa_plot_dims(params$n_samples, n_m)
-      content <- deseq2reports::capture_plot_tag(
+      content <- DEGreports::capture_plot_tag(
         hm, width = dims$width, height = dims$height,
         alt = paste0("cspa_lrt_", comp)
       )
       buttons <- list(
-        deseq2reports::download_grid_plot_button(
+        DEGreports::download_grid_plot_button(
           hm, filename = paste0(stem, "_cspa_cluster_heatmap"),
           width = dims$width, height = dims$height, dpi = 150
         ),
         csv_btn
       )
-      deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(content, buttons))
+      DEGreports::emit_widget(DEGreports::wrap_with_corner_button(content, buttons))
     } else {
-      deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(
+      DEGreports::emit_widget(DEGreports::wrap_with_corner_button(
         htmltools::tags$p("No CSPA heatmap available for this LRT."),
         csv_btn
       ))
@@ -317,49 +330,49 @@ emit_lrt_contrast <- function(comp, res_df, alpha, from_contrast_dir = FALSE) {
 emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold,
                              ppi_out = NULL, cspa_out = NULL,
                              from_contrast_dir = FALSE) {
-  stem <- deseq2reports::contrast_file_stem(comp)
+  stem <- DEGreports::contrast_file_stem(comp)
   n_sig <- sum(res_df$sig, na.rm = TRUE)
   cat("\n\n**", n_sig, "significant genes** (padj <", alpha,
       "& |log2FC| >", lfc_threshold, ")\n\n")
 
   cat("\n\n##### MA plot\n\nHover over a point to see its gene name, log2 fold-change, and adjusted p-value.\n\n")
-  ma_plot <- deseq2reports::plot_ma(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
+  ma_plot <- DEGreports::plot_ma(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
   # A NULL interactive means plotly could not convert the plot; show the static
   # figure rather than an empty section (see make_interactive()).
-  ma_int <- deseq2reports::make_interactive(ma_plot)
+  ma_int <- DEGreports::make_interactive(ma_plot)
   if (is.null(ma_int)) {
-    deseq2reports::emit_plot_with_download(ma_plot, filename = paste0(stem, "_MA_plot"))
+    DEGreports::emit_plot_with_download(ma_plot, filename = paste0(stem, "_MA_plot"))
   } else {
-    ma_btn <- deseq2reports::download_plot_button(ma_plot, filename = paste0(stem, "_MA_plot"), widget = ma_int)
-    deseq2reports::emit_widget_with_download(ma_int, ma_btn, center = TRUE)
+    ma_btn <- DEGreports::download_plot_button(ma_plot, filename = paste0(stem, "_MA_plot"), widget = ma_int)
+    DEGreports::emit_widget_with_download(ma_int, ma_btn, center = TRUE)
   }
 
   cat("\n\n##### Volcano plot\n\nHover over a point to see its gene name, log2 fold-change, and adjusted p-value. ",
       "x-axis uses shrunken log2 fold-changes (only super-extreme outliers are clipped); ",
       "y-axis is -log10(padj). ",
       "Points are coloured up/down only when padj < alpha and |log2FC| > ", lfc_threshold, ".\n\n", sep = "")
-  volcano_plot <- deseq2reports::plot_volcano(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
-  volcano_int <- deseq2reports::make_interactive(volcano_plot)
+  volcano_plot <- DEGreports::plot_volcano(res_df, alpha = alpha, lfc_threshold = lfc_threshold)
+  volcano_int <- DEGreports::make_interactive(volcano_plot)
   if (is.null(volcano_int)) {
-    deseq2reports::emit_plot_with_download(volcano_plot, filename = paste0(stem, "_volcano_plot"))
+    DEGreports::emit_plot_with_download(volcano_plot, filename = paste0(stem, "_volcano_plot"))
   } else {
-    volcano_btn <- deseq2reports::download_plot_button(volcano_plot, filename = paste0(stem, "_volcano_plot"), widget = volcano_int)
-    deseq2reports::emit_widget_with_download(volcano_int, volcano_btn, center = TRUE)
+    volcano_btn <- DEGreports::download_plot_button(volcano_plot, filename = paste0(stem, "_volcano_plot"), widget = volcano_int)
+    DEGreports::emit_widget_with_download(volcano_int, volcano_btn, center = TRUE)
   }
 
   cat("\n\n##### DEG table\n\n")
   cat("\n\nTop ", 10, " up- and top ", 10,
       " down-ranked genes by `rank_score` are shown below (sort/search within this subset). ",
       "The full unfiltered results CSV is linked beside the table.\n\n", sep = "")
-  deg_show <- deseq2reports::diffexp_top_bottom_table(res_df, top_n = 10)
+  deg_show <- DEGreports::diffexp_top_bottom_table(res_df, top_n = 10)
   deg_csv <- if (from_contrast_dir) {
     paste0(stem, "_diffexp.csv")
   } else {
     file.path(comp, paste0(stem, "_diffexp.csv"))
   }
-  deg_btn <- deseq2reports::link_output_file(deg_csv, label = "Download full CSV")
-  deseq2reports::emit_widget_with_download(
-    deseq2reports::make_deg_datatable(deg_show), deg_btn
+  deg_btn <- DEGreports::link_output_file(deg_csv, label = "Download full CSV")
+  DEGreports::emit_widget_with_download(
+    DEGreports::make_deg_datatable(deg_show), deg_btn
   )
 
   ppi <- if (!is.null(ppi_out) && !is.null(ppi_out$by_comparison)) {
@@ -388,7 +401,7 @@ emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold,
           "Marker table CSV and PDF live under `deseq2/", comp, "/cspa/`.\n\n", sep = "")
       hm <- cspa_out$heatmaps[[comp]]
       dims <- .cspa_plot_dims(params$n_samples, n_m)
-      content <- deseq2reports::capture_plot_tag(
+      content <- DEGreports::capture_plot_tag(
         hm, width = dims$width, height = dims$height,
         alt = paste0("cspa_", comp)
       )
@@ -397,12 +410,12 @@ emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold,
       } else {
         file.path(comp, "cspa", "cspa_markers.csv")
       }
-      btn <- deseq2reports::download_grid_plot_button(
+      btn <- DEGreports::download_grid_plot_button(
         hm, filename = paste0(stem, "_cspa_marker_heatmap"),
         width = dims$width, height = dims$height, dpi = 150
       )
-      btn2 <- deseq2reports::link_output_file(cspa_csv, label = "Download markers CSV")
-      deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(content, list(btn, btn2)))
+      btn2 <- DEGreports::link_output_file(cspa_csv, label = "Download markers CSV")
+      DEGreports::emit_widget(DEGreports::wrap_with_corner_button(content, list(btn, btn2)))
     } else {
       cat("\n\nTop ", if (!is.na(n_m)) n_m else cspa_out$n_markers,
           " Cell Surface Protein Atlas (CSPA) genes among this contrast's DEGs ",
@@ -414,9 +427,9 @@ emit_de_contrast <- function(comp, res_df, alpha, lfc_threshold,
         file.path(comp, "cspa", "cspa_markers.csv")
       }
       mark_df <- cspa_out$markers_by_comparison[[comp]]
-      btn2 <- deseq2reports::link_output_file(cspa_csv, label = "Download markers CSV")
-      deseq2reports::emit_widget_with_download(
-        deseq2reports::make_deg_datatable(mark_df), btn2
+      btn2 <- DEGreports::link_output_file(cspa_csv, label = "Download markers CSV")
+      DEGreports::emit_widget_with_download(
+        DEGreports::make_deg_datatable(mark_df), btn2
       )
     }
   }
@@ -432,7 +445,7 @@ if (is.null(specs)) {
   specs <- data.frame(
     label = comps,
     class = if (is_lrt) "lrt" else "single",
-    type = if (is_lrt) "lrt" else deseq2reports::classify_comparison_type(comps),
+    type = if (is_lrt) "lrt" else DEGreports::classify_comparison_type(comps),
     stratum_var = NA_character_,
     stratum_level = NA_character_,
     stringsAsFactors = FALSE
@@ -445,7 +458,7 @@ if (is.null(specs)) {
 # samples -- before any results, so the numbers below are read in context.
 manifest <- params$diffexp_out$manifest
 if (is.null(manifest) && !is.null(specs)) {
-  manifest <- try(deseq2reports::contrast_manifest(specs, var = params$var),
+  manifest <- try(DEGreports::contrast_manifest(specs, var = params$var),
                   silent = TRUE)
   if (inherits(manifest, "try-error")) manifest <- NULL
 }
@@ -479,7 +492,7 @@ if (is_lrt) {
       "`) among genes with non-`NA` padj. Up / down follow the sign of ",
       "`log2FoldChange`.\n\n", sep = "")
 }
-deg_sum <- deseq2reports::summarize_deg_contrasts(
+deg_sum <- DEGreports::summarize_deg_contrasts(
   params$diffexp_out, alpha = params$alpha, lfc_threshold = params$lfc_threshold
 )
 if (nrow(deg_sum)) {
@@ -501,9 +514,9 @@ if (nrow(deg_sum)) {
 cat("\n\n### ", if (is_lrt) "LRT tests" else "Contrasts", "\n\n", sep = "")
 cat("Each ", if (is_lrt) "LRT" else "contrast",
     " has its own page to keep HTML size manageable:\n\n", sep = "")
-deseq2reports::emit_contrast_nav(specs, params$var)
+DEGreports::emit_contrast_nav(specs, params$var)
 
-ix_questions <- deseq2reports::interaction_question_table(specs)
+ix_questions <- DEGreports::interaction_question_table(specs)
 if (nrow(ix_questions)) {
   cat("\n\n#### What each interaction asks\n\n")
   cat("An interaction contrast compares two *differences*, so its genes are ",
@@ -552,16 +565,16 @@ cat("\n\nUnion of per-contrast top Cell Surface Protein Atlas (CSPA) markers ",
 hm <- params$cspa_out$heatmaps$combined
 n_m <- nrow(params$cspa_out$combined_markers)
 dims <- .cspa_plot_dims(params$n_samples, n_m, combined = TRUE)
-content <- deseq2reports::capture_plot_tag(
+content <- DEGreports::capture_plot_tag(
   hm, width = dims$width, height = dims$height, alt = "cspa_combined"
 )
-btn <- deseq2reports::download_grid_plot_button(
+btn <- DEGreports::download_grid_plot_button(
   hm, filename = "cspa_marker_heatmap_combined",
   width = dims$width, height = dims$height, dpi = 150
 )
-btn2 <- deseq2reports::link_output_file(
+btn2 <- DEGreports::link_output_file(
   "cspa_markers_combined.csv",
   label = "Download markers CSV"
 )
-deseq2reports::emit_widget(deseq2reports::wrap_with_corner_button(content, list(btn, btn2)))
+DEGreports::emit_widget(DEGreports::wrap_with_corner_button(content, list(btn, btn2)))
 ```

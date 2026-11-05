@@ -31,12 +31,12 @@ pre.mermaid {
 
 ## Purpose
 
-This vignette walks through **each analysis section** in `deseq2reports` and
+This vignette walks through **each analysis section** in `DEGreports` and
 shows **how genes, pathways, modules, and TF activities are computed and
 linked**. Companion vignettes:
 
-- `vignette("deseq2reports")` — how to run the package  
-- `vignette("deseq2reports-modules")` — function arguments and defaults  
+- `vignette("DEGreports")` — how to run the package  
+- `vignette("DEGreports-modules")` — function arguments and defaults  
 
 Organism (human / mouse) is inferred from gene symbols via
 `detect_organism()`; row names should be HGNC / MGI symbols.
@@ -48,9 +48,9 @@ the knitted HTML.
 
 ## End-to-end pipeline flow
 
-`run_deseq2_wald()` runs stages in a fixed order. Optional modules are
+`run_deseq2()` runs stages in a fixed order. Optional modules are
 skipped when their `run_*` flag is `FALSE` (or when a stage errors and is
-caught). Use `run_deseq2_lrt()` for time-course designs (see LRT section
+caught). Use `run_deseq2(mode = "lrt")` for time-course designs (see LRT section
 below).
 
 ```{=html}
@@ -125,7 +125,7 @@ flowchart LR
 
 Defaults used by the orchestrator: `filter_method = "cpm"`,
 `cpm_percentile = 0.05`. Metadata is stored on
-`metadata(dds)$deseq2reports_qc` for the report (including
+`metadata(dds)$degreports_qc` for the report (including
 `sample_qc_table`).
 
 ---
@@ -410,7 +410,7 @@ figures live on **per-contrast HTML** under `deseq2/<contrast>/` and
 
 ---
 
-## LRT / time-course flow (`run_deseq2_lrt`)
+## LRT / time-course flow (`run_deseq2(mode = "lrt")`)
 
 ```{=html}
 <pre class="mermaid">
@@ -471,6 +471,6 @@ Key differences from Wald mode:
 
 ```{r}
 # See also:
-vignette("deseq2reports", package = "deseq2reports")
-vignette("deseq2reports-modules", package = "deseq2reports")
+vignette("DEGreports", package = "DEGreports")
+vignette("DEGreports-modules", package = "DEGreports")
 ```

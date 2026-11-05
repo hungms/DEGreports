@@ -844,8 +844,8 @@ run_ppi_pipeline <- function(
 
 #' Remove the top-level `ppi/` folder (LRT-cluster PPI + STRINGdb cache)
 #'
-#' Called automatically at the end of [run_deseq2_wald()] and
-#' [run_deseq2_lrt()] after HTML rendering. Contrast PPI under
+#' Called automatically at the end of [run_deseq2()] and
+#' [`run_deseq2(mode = "lrt")`][run_deseq2] after HTML rendering. Contrast PPI under
 #' `deseq2/<contrast>/ppi/` and WGCNA module PPI under
 #' `wgcna/<Module_N>/ppi/` are kept.
 #'

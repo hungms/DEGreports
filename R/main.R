@@ -1,12 +1,25 @@
-#' Run the complete RNA-seq DESeq2 Wald pipeline in one command
+#' Run the complete RNA-seq DESeq2 pipeline in one command
 #'
 #' Chains quality control ([run_qc()]), sample distance/PCA
-#' ([run_distance_pca()]), differential expression across all requested
-#' comparisons ([run_diffexp_pipeline()]), gene set enrichment analysis
-#' ([run_gsea_pipeline()]), and an HTML report ([render_report()]) into a
-#' single call. For time-course likelihood-ratio testing see
-#' [run_deseq2_lrt()]. The previous name [run_deseq2_pipeline()] is retained
-#' as a deprecated alias.
+#' ([run_distance_pca()]), differential expression, gene set enrichment, the
+#' optional modules and an HTML report ([render_report()]) into a single call,
+#' in one of two modes:
+#'
+#' \describe{
+#'   \item{`mode = "wald"` (default)}{Wald tests for every contrast in the grid
+#'     built from `var` ([run_diffexp_pipeline()]), ranked GSEA
+#'     ([run_gsea_pipeline()]).}
+#'   \item{`mode = "lrt"`}{Likelihood-ratio tests of `time` and/or `var`
+#'     over the nested full/reduced grid from [expand_lrt_specs()]
+#'     ([run_diffexp_lrt_pipeline()]). Significant genes (`padj < alpha`) are
+#'     clustered with `DEGreport::degPatterns()` (x = `time`, colour = first
+#'     of `var`); the clusters drive per-cluster ORA
+#'     ([run_cluster_ora_pipeline()]), STRING PPI, CSPA heatmaps and the
+#'     per-cluster decoupleR / VIPER signatures, scored by the LRT statistic.}
+#' }
+#'
+#' For TPM / FPKM data use [run_limma()]; for a pre-computed DEG table use
+#' [run_deg()].
 #'
 #' Optional modules (default off): `run_gsva`, `run_wgcna`, `run_decoupler_tf`,
 #' `run_decoupler_ccc`, `run_viper`. Other stages always run: GSEA / cluster
@@ -21,7 +34,10 @@
 #' ([run_diffexp_pipeline()], [run_wgcna_pipeline()], ...) to change them.
 #'
 #' @param dds A `DESeqDataSet` object containing raw counts.
-#' @param var Column name(s) in `colData(dds)` used for grouping. Length 1
+#' @param mode `"wald"` (default) or `"lrt"`; see Description.
+#' @param var Column name(s) in `colData(dds)` used for grouping. In LRT mode
+#'   these are the non-time factors, and `NULL` gives a time-only design.
+#'   Length 1
 #'   = single-factor mode; length 2 = two-factor mode; length 3 = three-factor
 #'   mode (e.g. `celltype * C_mutation * K_mutation`). Every factor's main
 #'   effect is always tested across all levels of the others;
@@ -29,12 +45,16 @@
 #'   factors and adds the difference-of-differences interaction contrasts.
 #'   Comparisons / the design formula are auto-built from these columns unless
 #'   overridden.
-#' @param design Design formula (or character string) for the DESeq2 model,
+#' @param time LRT mode only (required there): `colData` column holding the
+#'   time / ordered trajectory factor (discrete levels).
+#' @param degpatterns_minc LRT mode only: minimum genes per degPatterns
+#'   cluster (passed to [DEGreport::degPatterns()]). Default `15`.
+#' @param design Wald mode only. Design formula (or character string) for the DESeq2 model,
 #'   or `NULL` (default) to auto-build via [resolve_design()] from `var`,
 #'   `batch`, and `include_interactions` (`~ var`, `~ batch + var`,
 #'   additive `~ A + B` / `~ A + B + C`, or `~ A * B` / `~ A * B * C` when
 #'   interactions are requested).
-#' @param comparisons Character vector of comparisons / contrast labels to
+#' @param comparisons Wald mode only. Character vector of comparisons / contrast labels to
 #'   run (`"A_vs_B"` / `"A_vs_B+C"`, or multi-factor labels like
 #'   `"C_vs_noC_x_K_vs_noK_in_CB"`), or `NULL` (default) to auto-generate
 #'   the full grid via [expand_contrast_specs()].
@@ -50,7 +70,7 @@
 #'   weight per level. Default `FALSE`: additive design, main effects only.
 #'   Ignored for single-factor `var`. When `design` is supplied explicitly,
 #'   only the contrast grid is affected.
-#' @param stratified Logical. Also expand the within-stratum contrasts --
+#' @param stratified Wald mode only. Logical. Also expand the within-stratum contrasts --
 #'   each factor compared inside one fixed level combination of the others,
 #'   fitted on that subset alone (`CB__K_vs_noK` for two factors,
 #'   `K_vs_noK/CB__C` for three). Default `FALSE`: an interaction contrast
@@ -83,8 +103,9 @@
 #' @param min_count,min_samples_per_group Used when `filter_method =
 #'   "count"`. See [run_qc()].
 #' @param remove_mt,remove_xy,mt_pattern,gene_chr,remove_vdj See [run_qc()].
-#' @param ranking DEG/GSEA ranking metric: `"log2FoldChange"` (default), `"padj"`,
-#'   `"pxfc"`, or `"stat"`.
+#' @param ranking DEG/GSEA ranking metric: `"log2FoldChange"`, `"padj"`,
+#'   `"pxfc"`, or `"stat"`. Default `NULL`: `"log2FoldChange"` in Wald mode,
+#'   `"stat"` in LRT mode.
 #' @param collections MSigDB collections for GSEA: one or more of
 #'   `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`, `"KEGG"`,
 #'   `"REACTOME"`, `"PID"`. Default `c("GOBP", "GOCC",
@@ -152,11 +173,11 @@
 #' @param use_targets If `TRUE`, render HTML via [render_report_targets()]
 #'   (requires Suggested package `targets`) instead of [render_report()].
 #'   Default `FALSE`.
-#' @param opts Analysis settings from [deseq2reports_opts()] -- LFC
+#' @param opts Analysis settings from [degreports_opts()] -- LFC
 #'   shrinkage, `alpha`, the LFC cutoff, and the per-module top-N budgets.
 #'   The defaults reproduce the values these entry points used to hard-code,
 #'   and only settings that differ from them are listed in the report's
-#'   "Pipeline arguments" table. Default `deseq2reports_opts()`.
+#'   "Pipeline arguments" table. Default `degreports_opts()`.
 #' @param save_dir Directory where all outputs will be written. Default
 #'   `getwd()`.
 #' @return Invisibly, a list with elements `dds` (the QC-filtered object),
@@ -179,18 +200,107 @@
 #'   `deseq2/<contrast>/ppi/`; LRT-cluster PPI under `ppi/<cluster>/ppi/`;
 #'   GSEA overlap under `clusterprofiler/<contrast>/gsea_overlap/`) with
 #'   `index.html` and the QC-filtered `dds.rds` at the root of `save_dir`.
+#'   LRT mode also returns `degpatterns` and `cluster_ora`, with `gsea` `NULL`
+#'   (cluster ORA replaces ranked GSEA).
 #' @examples
 #' \dontrun{
-#' out <- run_deseq2_wald(
-#'   dds, var = "condition",
-#'   save_dir = "results")
+#' out <- run_deseq2(dds, var = "condition", save_dir = "results")
 #'
-#' out2 <- run_deseq2_wald(
-#'   dds, var = c("Tissue", "Isotype"),
-#'   save_dir = "results_2factor")
+#' out2 <- run_deseq2(dds, var = c("Tissue", "Isotype"),
+#'                    save_dir = "results_2factor")
+#'
+#' out3 <- run_deseq2(dds, mode = "lrt", var = "genotype", time = "day",
+#'                    include_interactions = TRUE, save_dir = "results_lrt")
 #' }
 #' @export
-run_deseq2_wald <- function(
+run_deseq2 <- function(
+    dds,
+    var = NULL,
+    mode = "wald",
+    time = NULL,
+    design = NULL,
+    comparisons = NULL,
+    include_interactions = FALSE,
+    stratified = FALSE,
+    batch = NULL,
+    platform = "rnaseq",
+    export_counts = TRUE,
+    filter_method = "cpm",
+    cpm_percentile = 0.05,
+    min_count = 10,
+    min_samples_per_group = NULL,
+    remove_mt = FALSE,
+    remove_xy = FALSE,
+    mt_pattern = "^MT-|^mt-",
+    gene_chr = NULL,
+    remove_vdj = NULL,
+    ranking = NULL,
+    collections = c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID"),
+    pals = NULL,
+    shape_var = NULL,
+    n_scree_pcs = 10,
+    n_loading_pcs = 6,
+    n_top_genes = 10,
+    top_label_n = 5,
+    top_n_plot = 10,
+    run_clusterprofiler = FALSE,
+    run_gsva = FALSE,
+    run_wgcna = FALSE,
+    run_decoupler_tf = FALSE,
+    run_decoupler_ccc = FALSE,
+    run_viper = FALSE,
+    run_cspa = TRUE,
+    degpatterns_minc = 15,
+    render_html = TRUE,
+    parallel_render = FALSE,
+    render_workers = NULL,
+    use_targets = FALSE,
+    opts = degreports_opts(),
+    save_dir = getwd()) {
+
+    call <- match.call()
+    mode <- validate_choice(mode, c("wald", "lrt"), "mode")
+    # Arguments that belong to the other mode are an error, not silently dropped.
+    only <- list(wald = c("design", "comparisons", "stratified"),
+                 lrt = c("time", "degpatterns_minc"))
+    other <- setdiff(names(only), mode)
+    wrong <- intersect(names(as.list(call)), only[[other]])
+    if (length(wrong)) {
+        stop("`", paste(wrong, collapse = "`, `"), "` only appl",
+             if (length(wrong) == 1L) "ies" else "y", " to mode = \"", other, "\".",
+             call. = FALSE)
+    }
+    if (mode == "lrt" && is.null(time)) {
+        stop("`time` is required when mode = \"lrt\".", call. = FALSE)
+    }
+    if (is.null(ranking)) ranking <- if (mode == "lrt") "stat" else "log2FoldChange"
+
+    args <- mget(names(formals()), envir = environment())
+    .write_repro_script(
+        "run_deseq2", data_arg = "dds", data_var = "dds",
+        data_comment = "# The DESeqDataSet passed to run_deseq2(), before QC",
+        args = args, call = call, save_dir = save_dir,
+        run_comment = if (mode == "lrt") {
+            "Run QC, PCA, DESeq2 LRT, degPatterns clustering and the enabled modules, then render the HTML report"
+        } else {
+            "Run QC, PCA, DESeq2, GSEA and the enabled modules, then render the HTML report"
+        })
+    engine <- if (mode == "lrt") .run_lrt_engine else .run_wald_engine
+    engine_args <- args[setdiff(names(args), c("mode", only[[other]]))]
+    do.call(engine, c(engine_args, list(call = call)), quote = TRUE)
+}
+
+#' The Wald-style pipeline shared by [run_deseq2()] and [run_limma()]
+#'
+#' `engine = "limma"` expects the carrier from [expr_to_dds()]: the DE stage
+#' becomes limma-trend, and every VST / rlog / ComBat-seq step uses log2
+#' expression / ComBat instead (see R/limma.R). Everything else -- stages,
+#' files, report -- is identical.
+#' @param engine `"deseq2"` or `"limma"`.
+#' @param call The user's call, for the run log.
+#' @param engine_params Extra settings to list in the report's argument table.
+#' @noRd
+.run_wald_engine <- function(
     dds,
     var,
     design = NULL,
@@ -229,10 +339,12 @@ run_deseq2_wald <- function(
     parallel_render = FALSE,
     render_workers = NULL,
     use_targets = FALSE,
-    opts = deseq2reports_opts(),
-    save_dir = getwd()) {
+    opts = degreports_opts(),
+    save_dir = getwd(),
+    engine = "deseq2",
+    call = NULL,
+    engine_params = NULL) {
 
-    call <- match.call()
     save_dir <- validate_save_dir(save_dir)
     platform <- validate_platform(platform)
     opts <- .as_opts(opts)
@@ -267,10 +379,16 @@ run_deseq2_wald <- function(
         use_targets = use_targets
     )
     params <- c(params, .opts_diff(opts))
+    is_limma <- identical(engine, "limma")
+    if (is_limma) {
+        params$platform <- NULL
+        params <- c(list(analysis_mode = "limma"), params, engine_params)
+    }
 
     log_output(call, save_dir, params = params, expr = quote({
 
-        message("Running deseq2reports Wald pipeline v", utils::packageVersion("deseq2reports"), "...")
+        message("Running DEGreports ", if (is_limma) "limma-trend" else "Wald",
+                " pipeline v", utils::packageVersion("DEGreports"), "...")
 
         .warn_if_no_pandoc(render_html)
 
@@ -316,7 +434,7 @@ run_deseq2_wald <- function(
             .stage(NULL, paste0(
                 "Exporting count tables (raw / VST / rlog / CPM",
                 if (!is.null(batch)) {
-                    paste0(" / ", batch_correction_label(.expr_correction_label(platform)))
+                    paste0(" / ", batch_correction_label(.expr_correction_label(platform, dds)))
                 } else "", ")"),
                 enabled = isTRUE(export_counts), run = function(st) {
                 run_counts_export(
@@ -333,7 +451,8 @@ run_deseq2_wald <- function(
                     assoc_vars = unique(c(var, batch)),
                     save_dir = file.path(save_dir, "qc", "distance"))
             }),
-            .stage("diffexp", paste0("DESeq2 analysis (", n_contrasts, " contrast(s))"),
+            .stage("diffexp", paste0(if (is_limma) "limma-trend" else "DESeq2",
+                                     " analysis (", n_contrasts, " contrast(s))"),
                    optional = FALSE, run = function(st) {
                 run_diffexp_pipeline(
                     dds = st$dds, var = var, comparisons = contrast_specs, batch = batch,
@@ -341,7 +460,8 @@ run_deseq2_wald <- function(
                     shrinkage = opts$shrinkage,
                     alpha = alpha, lfc_threshold = lfc_threshold,
                     ranking = ranking, top_label_n = top_label_n,
-                    save_dir = file.path(save_dir, "deseq2"))
+                    save_dir = file.path(save_dir, "deseq2"),
+                    engine = engine)
             }),
             .stage("cspa", "CSPA surface-marker heatmaps", enabled = isTRUE(run_cspa),
                    run = function(st) {
@@ -474,65 +594,15 @@ run_deseq2_wald <- function(
     }))
 }
 
-#' @rdname run_deseq2_wald
-#' @export
-run_deseq2_pipeline <- function(...) {
-    .Deprecated("run_deseq2_wald")
-    run_deseq2_wald(...)
-}
-
-#' Run the complete RNA-seq DESeq2 LRT (time-course) pipeline in one command
+#' The LRT (time-course) pipeline behind `run_deseq2(mode = "lrt")`
 #'
-#' Parallel entry point to [run_deseq2_wald()] for likelihood-ratio testing of
-#' time and/or grouping factors. Shares QC, counts export, PCA, WGCNA, and
-#' sample-level TF modules with the Wald pipeline, but replaces pairwise
-#' Wald contrasts with the nested full/reduced grid from
-#' [expand_lrt_specs()] / [run_diffexp_lrt_pipeline()].
-#'
-#' Significant LRT genes (`padj < alpha`) are clustered with
-#' `DEGreport::degPatterns()` (x = `time`, colour = first of `var` when
-#' present). Those clusters drive STRING PPI (top 50 nodes), CSPA heatmaps
-#' with cluster row annotation, per-cluster ORA
-#' ([run_cluster_ora_pipeline()]), and the per-cluster decoupleR / VIPER
-#' signatures ([lrt_clusters_diffexp_for_tf()]), each scored by the unsigned
-#' LRT statistic of its member genes; directional patterns are read from
-#' degPatterns. Ligand–receptor ULM is scored twice: once per test over all
-#' LRT-significant genes, and once per cluster — where a pair only survives
-#' when both its ligand and its receptor belong to that cluster.
-#'
-#' @param dds A `DESeqDataSet` of raw counts.
-#' @param var Non-time biological factor column(s) in `colData(dds)` (e.g.
-#'   `"genotype"`), or `NULL` / `character(0)` for a time-only design.
-#' @param time Required `colData` column for the time / ordered trajectory
-#'   factor (discrete levels).
-#' @param design,comparisons Unused for LRT (grid is auto-built). Passing
-#'   non-`NULL` values raises an error.
-#' @param include_interactions If `TRUE` and `var` is non-empty, also test
-#'   the `var * time` full model against nested reduced models. Default
-#'   `FALSE`.
-#' @param batch Optional covariate column name(s). Prefixed onto every LRT
-#'   model and never tested.
-#' @inheritParams run_deseq2_wald
-#' @param degpatterns_minc Minimum genes per degPatterns cluster (passed to
-#'   [DEGreport::degPatterns()]). Default `15`.
-#' @return Invisibly, a list with `dds`, `dds_path`, `distance`, `diffexp`
-#'   (LRT results), `degpatterns`, `cluster_ora`, `gsea` (`NULL`; ORA
-#'   replaces ranked GSEA), `wgcna`, `decoupler`, `viper`, `ppi`, `cspa`,
-#'   and `report_path`.
-#' @examples
-#' \dontrun{
-#' out <- run_deseq2_lrt(
-#'   dds, var = "genotype", time = "day",
-#'   include_interactions = TRUE,
-#'   save_dir = "results_lrt")
-#' }
-#' @export
-run_deseq2_lrt <- function(
+#' Arguments as documented for [run_deseq2()].
+#' @param call The user's call, for the run log.
+#' @noRd
+.run_lrt_engine <- function(
     dds,
     var = NULL,
     time,
-    design = NULL,
-    comparisons = NULL,
     include_interactions = FALSE,
     batch = NULL,
     platform = "rnaseq",
@@ -567,24 +637,16 @@ run_deseq2_lrt <- function(
     parallel_render = FALSE,
     render_workers = NULL,
     use_targets = FALSE,
-    opts = deseq2reports_opts(),
-    save_dir = getwd()) {
+    opts = degreports_opts(),
+    save_dir = getwd(),
+    call = NULL) {
 
-    call <- match.call()
     save_dir <- validate_save_dir(save_dir)
     platform <- validate_platform(platform)
     opts <- .as_opts(opts)
     alpha <- opts$alpha
     lfc_threshold <- opts$lfc_threshold
 
-    if (!is.null(design)) {
-        stop("`design` is unused in run_deseq2_lrt(); LRT models are built from ",
-             "`var`, `time`, `batch`, and `include_interactions`.", call. = FALSE)
-    }
-    if (!is.null(comparisons)) {
-        stop("`comparisons` is unused in run_deseq2_lrt(); the LRT grid is ",
-             "auto-built by expand_lrt_specs().", call. = FALSE)
-    }
     if (is.null(var)) var <- character(0)
     if (!is.character(time) || length(time) != 1L || is.na(time) || !nzchar(time)) {
         stop("`time` must be a single non-empty character string.", call. = FALSE)
@@ -618,8 +680,8 @@ run_deseq2_lrt <- function(
 
     log_output(call, save_dir, params = params, expr = quote({
 
-        message("Running deseq2reports LRT pipeline v",
-                utils::packageVersion("deseq2reports"), "...")
+        message("Running DEGreports LRT pipeline v",
+                utils::packageVersion("DEGreports"), "...")
 
         .warn_if_no_pandoc(render_html)
 

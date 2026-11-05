@@ -194,7 +194,7 @@ test_that("render_report() writes cross-linked, self-contained HTML files in per
                            paste0(contrast_file_stem(gsea_comp), ".html"))
     expect_true(file.exists(gsea_page))
     gsea_html <- paste(readLines(gsea_page, warn = FALSE), collapse = "\n")
-    expect_true(grepl("deseq2reports-bs-tabset", gsea_html, fixed = TRUE))
+    expect_true(grepl("degreports-bs-tabset", gsea_html, fixed = TRUE))
     expect_true(grepl(">HALLMARK<", gsea_html, fixed = TRUE))
     expect_false(grepl("Collection: HALLMARK", gsea_html, fixed = TRUE))
 })
@@ -284,7 +284,7 @@ test_that("a contrast page that only fails inside a worker is retried in-session
     # Stand in for whatever kills pandoc when several forks run it at once:
     # fail in any child process, succeed when the parent retries alone.
     parent_pid <- Sys.getpid()
-    real_page <- deseq2reports:::.render_contrast_report_page
+    real_page <- DEGreports:::.render_contrast_report_page
     local_mocked_bindings(
         .render_contrast_report_page = function(...) {
             if (!identical(Sys.getpid(), parent_pid)) {
@@ -319,7 +319,7 @@ test_that("a contrast page that fails everywhere warns and leaves the rest of th
     comps <- names(diffexp_out$by_comparison)
     doomed <- comps[[1]]
 
-    real_page <- deseq2reports:::.render_contrast_report_page
+    real_page <- DEGreports:::.render_contrast_report_page
     local_mocked_bindings(
         .render_contrast_report_page = function(module_key, contrast, ...) {
             if (identical(contrast, doomed)) {
@@ -386,7 +386,7 @@ test_that("render_report(parallel_render = TRUE) writes one distinct page per co
     }, character(1))
     expect_equal(length(unique(digests)), length(comps))
 
-    template_dir <- dirname(deseq2reports:::.report_template_path("report_deseq2.Rmd"))
+    template_dir <- dirname(DEGreports:::.report_template_path("report_deseq2.Rmd"))
     expect_length(list.files(template_dir, pattern = "\\.(knit|utf8)\\.md$"), 0L)
 })
 

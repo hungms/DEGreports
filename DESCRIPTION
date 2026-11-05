@@ -1,4 +1,4 @@
-Package: deseq2reports
+Package: DEGreports
 Title: Modular DESeq2 Pipeline with Automated HTML Reports
 Version: 0.4.0
 Authors@R: 
@@ -48,6 +48,7 @@ Imports:
     htmltools,
     igraph,
     jsonlite,
+    limma (>= 3.56.0),
     MatrixGenerics,
     methods,
     msigdbr,

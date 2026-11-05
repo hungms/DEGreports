@@ -13,8 +13,11 @@ plot_multihit_upset(sets, title = NULL)
 }
 \value{
 A \code{ggplot} wrapping the drawn ComplexHeatmap UpSet, with
-\code{attr(, "plot_size")} (inches) -- or \code{NULL} when no method has hits.
+\code{attr(, "plot_size")} (inches) -- or \code{NULL} when no gene is a hit in
+more than one method.
 }
 \description{
-UpSet plot of how many genes each combination of methods shares
+Only genes shared by two or more methods are shown: single-method
+combinations are dropped. Columns run left to right from the most methods
+intersected to the fewest, with ties broken by gene count.
 }

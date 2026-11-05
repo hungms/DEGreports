@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(deseq2reports)
+library(DEGreports)
 
-test_check("deseq2reports")
+test_check("DEGreports")

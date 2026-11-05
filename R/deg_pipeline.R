@@ -342,7 +342,7 @@ prepare_diffexp_from_deg <- function(
 #'   (optional module).
 #' @param run_cspa Logical; CSPA **marker tables** only. Default `TRUE`.
 #' @param render_html Logical; knit the multi-page HTML report. Default `TRUE`.
-#' @param opts Analysis settings from [deseq2reports_opts()] -- `alpha`, the
+#' @param opts Analysis settings from [degreports_opts()] -- `alpha`, the
 #'   LFC cutoff, and the per-module top-N budgets. The defaults reproduce the
 #'   values this entry point used to hard-code, and only settings that differ
 #'   from them are listed in the report's "Pipeline arguments" table.
@@ -351,14 +351,14 @@ prepare_diffexp_from_deg <- function(
 #'   `cspa`, `decoupler`, `viper`, `ppi`, `multihit`, and `report_path`.
 #' @examples
 #' \dontrun{
-#' out <- run_deseq2_deg(
+#' out <- run_deg(
 #'   deg_table = "all_contrasts.csv",
 #'   collections = c("HALLMARK", "GOBP"),
 #'   save_dir = "results_from_deg"
 #' )
 #' }
 #' @export
-run_deseq2_deg <- function(
+run_deg <- function(
     deg_table,
     gene_col = NULL,
     comparison_col = NULL,
@@ -372,10 +372,16 @@ run_deseq2_deg <- function(
     run_viper = FALSE,
     run_cspa = TRUE,
     render_html = TRUE,
-    opts = deseq2reports_opts(),
+    opts = degreports_opts(),
     save_dir = getwd()) {
 
     call <- match.call()
+    .write_repro_script(
+        "run_deg", data_arg = "deg_table", data_var = "deg_table",
+        data_comment = "# The DEG table passed to run_deg()",
+        args = mget(names(formals()), envir = environment()), call = call,
+        save_dir = save_dir,
+        run_comment = "Run GSEA and the enabled modules on the DEG table, then render the HTML report")
     save_dir <- validate_save_dir(save_dir)
     opts <- .as_opts(opts)
     alpha <- opts$alpha

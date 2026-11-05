@@ -6,7 +6,7 @@ test_that(".build_ppi_subgraph ranks hubs by degree and caps plot size", {
         to   = c("B", "C", "D", "C", "D", "Y"),
         stringsAsFactors = FALSE
     )
-    sub <- deseq2reports:::.build_ppi_subgraph(
+    sub <- DEGreports:::.build_ppi_subgraph(
         genes = c("A", "B", "C", "D", "Z"),
         net = net,
         top_n_hubs = 2L,
@@ -23,7 +23,7 @@ test_that(".build_ppi_subgraph ranks hubs by degree and caps plot size", {
 
 test_that(".build_ppi_subgraph returns NULL when no edges overlap the gene set", {
     net <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_null(deseq2reports:::.build_ppi_subgraph(c("X", "Y"), net))
+    expect_null(DEGreports:::.build_ppi_subgraph(c("X", "Y"), net))
 })
 
 test_that(".ppi_seed_genes_de prefers significant genes", {
@@ -33,7 +33,7 @@ test_that(".ppi_seed_genes_de prefers significant genes", {
         rank_score = c(1, 2, 10, 9, 8, 7),
         stringsAsFactors = FALSE
     )
-    seeds <- deseq2reports:::.ppi_seed_genes_de(res, max_genes = 10L)
+    seeds <- DEGreports:::.ppi_seed_genes_de(res, max_genes = 10L)
     expect_setequal(seeds, c("g1", "g2"))
 })
 
@@ -66,6 +66,6 @@ test_that(".ppi_seed_genes_de keeps all significant genes when max_genes is Inf"
         rank_score = 5:1,
         stringsAsFactors = FALSE
     )
-    expect_equal(deseq2reports:::.ppi_seed_genes_de(res, max_genes = Inf), paste0("g", 1:5))
-    expect_equal(deseq2reports:::.ppi_seed_genes_de(res, max_genes = 2L), c("g1", "g2"))
+    expect_equal(DEGreports:::.ppi_seed_genes_de(res, max_genes = Inf), paste0("g", 1:5))
+    expect_equal(DEGreports:::.ppi_seed_genes_de(res, max_genes = 2L), c("g1", "g2"))
 })

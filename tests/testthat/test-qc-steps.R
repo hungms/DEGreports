@@ -22,7 +22,7 @@ test_that("run_qc() tracks genes removed at each step and adds up correctly", {
                       remove_xy = TRUE, gene_chr = gene_chr,
                       save_plot = FALSE, save_dir = save_dir)
 
-    qc_meta <- S4Vectors::metadata(dds_qc)$deseq2reports_qc
+    qc_meta <- S4Vectors::metadata(dds_qc)$degreports_qc
     expect_false(is.null(qc_meta))
     steps <- qc_meta$steps_summary
 
@@ -63,7 +63,7 @@ test_that("run_qc() steps_summary has one row when only the expression filter ru
                       remove_mt = FALSE, remove_xy = FALSE,
                       save_plot = FALSE, save_dir = save_dir)
 
-    steps <- S4Vectors::metadata(dds_qc)$deseq2reports_qc$steps_summary
+    steps <- S4Vectors::metadata(dds_qc)$degreports_qc$steps_summary
     expect_identical(steps$step, c("Input", "Low-expression gene removal (raw count, per-group)"))
     expect_equal(nrow(steps), 2)
 })
@@ -76,7 +76,7 @@ test_that("run_qc(filter_method = NULL) applies no expression filtering", {
                       save_plot = FALSE, save_dir = save_dir)
 
     expect_equal(nrow(dds_qc), 25)
-    qc_meta <- S4Vectors::metadata(dds_qc)$deseq2reports_qc
+    qc_meta <- S4Vectors::metadata(dds_qc)$degreports_qc
     expect_null(qc_meta$filter_method)
     # no expression-filtering step recorded when filter_method = NULL
     expect_identical(qc_meta$steps_summary$step, "Input")
@@ -90,7 +90,7 @@ test_that("run_qc() metadata records filter_method/cpm_percentile for the CPM pe
                       remove_mt = FALSE, remove_xy = FALSE,
                       save_plot = FALSE, save_dir = save_dir)
 
-    qc_meta <- S4Vectors::metadata(dds_qc)$deseq2reports_qc
+    qc_meta <- S4Vectors::metadata(dds_qc)$degreports_qc
     expect_identical(qc_meta$filter_method, "cpm")
     expect_equal(qc_meta$cpm_percentile, 0.1)
     expect_s3_class(qc_meta$count_dist_plot, "ggplot")
@@ -104,7 +104,7 @@ test_that("run_qc() metadata records filter_method/cpm_percentile for the CPM pe
 # A percentile taken over the raw mean-CPM distribution silently removes
 # *nothing* on real bulk RNA-seq: a full annotation leaves half the genes zero
 # in every sample, the quantile lands inside that tie at zero, and every gene
-# satisfies log2(mean CPM + 1) >= 0. GSE224465 lost 0 of 54,860 genes this way.
+# satisfies log2(mean CPM + 1) >= 0.
 
 test_that("run_qc() CPM filter removes unexpressed genes even when they outnumber cpm_percentile", {
     dds <- simulate_dds(n_genes = 100, group_levels = c("A", "B"), n_per_group = 3)
@@ -121,7 +121,7 @@ test_that("run_qc() CPM filter removes unexpressed genes even when they outnumbe
     expect_false(any(rownames(dds_qc) %in% rownames(dds)[1:60]))
     # all 60 unexpressed, plus 5% of the 40 that are left
     expect_equal(nrow(dds_qc), 38, tolerance = 0.1)
-    steps <- S4Vectors::metadata(dds_qc)$deseq2reports_qc$steps_summary
+    steps <- S4Vectors::metadata(dds_qc)$degreports_qc$steps_summary
     expect_gte(steps$n_removed[steps$step == "Low-expression gene removal (CPM percentile)"], 60)
 })
 
@@ -142,5 +142,5 @@ test_that("run_qc() CPM filter with cpm_percentile = 0 removes only the unexpres
 test_that("run_qc() metadata is NULL-safe: render_report() tolerates a dds without it", {
     # Simulate a dds that was never passed through run_qc() (metadata absent).
     dds <- simulate_dds(n_genes = 20, group_levels = c("A", "B"), n_per_group = 3)
-    expect_null(S4Vectors::metadata(dds)$deseq2reports_qc)
+    expect_null(S4Vectors::metadata(dds)$degreports_qc)
 })

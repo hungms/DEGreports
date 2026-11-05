@@ -62,29 +62,11 @@ run_diffexp <- function(
              "(\"", comparison, "\"); use \"ashr\", \"normal\", or \"none\" instead.", call. = FALSE)
     }
 
-    if (pooled) {
-        merged <- merge_comparison_levels(dds, var, comparison)
-        fit_dds <- merged$dds
-        fit_var <- merged$merged_var
-        test_level <- merged$test
-        ref_level <- merged$ref
-        # rebuild the design formula, substituting the original grouping
-        # term for the merged one -- done on the parsed formula terms
-        # (not string substring replacement) to avoid mismatches when `var`
-        # is itself a substring of another design term.
-        orig_design <- DESeq2::design(fit_dds)
-        design_terms <- all.vars(orig_design)
-        new_terms <- ifelse(design_terms == var, fit_var, design_terms)
-        rhs <- paste(new_terms, collapse = " + ")
-        new_design <- stats::as.formula(paste("~", rhs))
-        DESeq2::design(fit_dds) <- new_design
-    } else {
-        parts <- strsplit(comparison, "_vs_", fixed = TRUE)[[1]]
-        test_level <- parts[1]
-        ref_level <- parts[2]
-        fit_dds <- dds
-        fit_var <- var
-    }
+    setup <- .comparison_fit_dds(dds, var, comparison)
+    fit_dds <- setup$dds
+    fit_var <- setup$var
+    test_level <- setup$test
+    ref_level <- setup$ref
 
     assert_full_rank_model_matrix(fit_dds, comparison, var)
 
@@ -131,15 +113,34 @@ run_diffexp <- function(
     # `baseMean` (the mean of size-factor-normalised counts, which is
     # comparison-specific for pooled contrasts since `fit_dds`'s size
     # factors are re-estimated on the merged grouping).
-    raw_counts <- DESeq2::counts(dds)
-    lib_sizes <- colSums(raw_counts)
-    cpm_mat <- sweep(raw_counts, 2, lib_sizes, "/") * 1e6
-    mean_cpm <- rowMeans(cpm_mat)
-    res_df$mean_cpm <- mean_cpm[res_df[[gene_col]]]
+    res_df$mean_cpm <- .mean_cpm(dds)[res_df[[gene_col]]]
 
     res_df[, c(gene_col, "comparison", "baseMean", "mean_cpm", "log2FoldChange",
                "log2FoldChange_unshrunken", "lfcSE", "stat",
                "pvalue", "padj", "rank_score", "sig")]
+}
+
+#' The object and grouping column one level comparison is fitted on
+#'
+#' A plain `"A_vs_B"` uses `dds` as is. A pooled `"A_vs_B+C"` merges levels on
+#' a copy ([merge_comparison_levels()]) and swaps the merged column into the
+#' design -- on the parsed formula terms, not by string substitution, so a
+#' `var` that is a substring of another term is never mangled.
+#' @return List with `dds`, `var` (column to test), `test`, `ref`.
+#' @noRd
+.comparison_fit_dds <- function(dds, var, comparison) {
+    if (!grepl("+", comparison, fixed = TRUE)) {
+        parts <- strsplit(comparison, "_vs_", fixed = TRUE)[[1]]
+        return(list(dds = dds, var = var, test = parts[1], ref = parts[2]))
+    }
+    merged <- merge_comparison_levels(dds, var, comparison)
+    fit_dds <- merged$dds
+    design_terms <- all.vars(DESeq2::design(fit_dds))
+    new_terms <- ifelse(design_terms == var, merged$merged_var, design_terms)
+    DESeq2::design(fit_dds) <- stats::as.formula(
+        paste("~", paste(new_terms, collapse = " + "))
+    )
+    list(dds = fit_dds, var = merged$merged_var, test = merged$test, ref = merged$ref)
 }
 
 #' Stop early when a cell of the `var` factorial has no samples
@@ -320,10 +321,7 @@ run_diffexp_coef <- function(
     res_df$rank_score <- compute_ranking_score(res_df, ranking)
     res_df$sig <- !is.na(res_df$padj) & res_df$padj < alpha & abs(res_df$log2FoldChange) > lfc_threshold
 
-    raw_counts <- DESeq2::counts(dds)
-    lib_sizes <- colSums(raw_counts)
-    cpm_mat <- sweep(raw_counts, 2, lib_sizes, "/") * 1e6
-    res_df$mean_cpm <- rowMeans(cpm_mat)[res_df[[gene_col]]]
+    res_df$mean_cpm <- .mean_cpm(dds)[res_df[[gene_col]]]
 
     res_df[, c(gene_col, "comparison", "baseMean", "mean_cpm", "log2FoldChange",
                "log2FoldChange_unshrunken", "lfcSE", "stat",
@@ -368,7 +366,7 @@ run_diffexp_coef <- function(
 #'   difference-of-differences interaction contrasts to the main effects.
 #'   Default `FALSE`. Passed to [expand_contrast_specs()].
 #' @param stratified Logical. Add the within-stratum contrasts, fitted on
-#'   each subset alone. Default `FALSE`; not exposed by [run_deseq2_wald()].
+#'   each subset alone. Default `FALSE`; not exposed by [run_deseq2()].
 #'   Passed to [expand_contrast_specs()].
 #' @param top_label_n Number of top genes (by `rank_score`) to label on the
 #'   volcano plot. Default `10`.
@@ -376,6 +374,9 @@ run_diffexp_coef <- function(
 #'   `getwd()`.
 #' @param save_plot Logical. If `TRUE`, saves MA and volcano plots per
 #'   comparison. Default `TRUE`.
+#' @param engine `"deseq2"` (default) or `"limma"` (limma-trend). `"limma"`
+#'   needs a TPM / FPKM carrier from [expr_to_dds()] and is chosen
+#'   automatically for one. Results have the same columns either way.
 #' @return A list with elements `results` (combined data frame across all
 #'   comparisons, with a `comparison` column), `by_comparison` (a named
 #'   list of per-comparison result data frames), `contrast_specs` (the
@@ -401,10 +402,16 @@ run_diffexp_pipeline <- function(
     gene_col = "gene",
     top_label_n = 10,
     save_dir = getwd(),
-    save_plot = TRUE) {
+    save_plot = TRUE,
+    engine = "deseq2") {
 
     dds <- validate_dds(dds)
     dds <- validate_var(dds, var)
+    engine <- validate_choice(engine, c("deseq2", "limma"), "engine")
+    if (.is_expr_dds(dds)) engine <- "limma"
+    limma <- identical(engine, "limma")
+    de_levels <- if (limma) run_limma_diffexp else run_diffexp
+    de_coefs <- if (limma) run_limma_diffexp_coef else run_diffexp_coef
     comparisons <- validate_comparisons(
         dds, var, comparisons,
         include_interactions = include_interactions,
@@ -445,7 +452,7 @@ run_diffexp_pipeline <- function(
                                       paste(var, collapse = " * "))
         message("Fitting the interaction model (", deparse1(DESeq2::design(dds_ix)),
                 ") ...")
-        ix_fit <- DESeq2::DESeq(dds_ix, quiet = TRUE)
+        ix_fit <- if (limma) .limma_fit(dds_ix) else DESeq2::DESeq(dds_ix, quiet = TRUE)
     }
 
     # Say what is about to be compared, and leave the same statement on disk
@@ -465,7 +472,7 @@ run_diffexp_pipeline <- function(
             # only the weight vector can express; the rest sum them.
             coefs <- contrast_coefs(spec)
             weighted <- length(coefs$weights) > 0L
-            res_df <- run_diffexp_coef(
+            res_df <- de_coefs(
                 dds = dds,
                 coef = if (weighted) NULL else coefs$pos,
                 coef_subtract = if (weighted) NULL else coefs$neg,
@@ -483,7 +490,7 @@ run_diffexp_pipeline <- function(
                 c(setdiff(var, tv), tv), batch = batch, design = NULL,
                 include_interactions = FALSE
             )
-            res_df <- run_diffexp(
+            res_df <- de_levels(
                 dds = dds_main, var = tv, comparison = spec$comparison[[1]],
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
                 ranking = ranking, gene_col = gene_col
@@ -503,7 +510,7 @@ run_diffexp_pipeline <- function(
             }
             dds_sub <- dds[, keep]
             DESeq2::design(dds_sub) <- resolve_design(tv, batch = batch, design = NULL)
-            res_df <- run_diffexp(
+            res_df <- de_levels(
                 dds = dds_sub, var = tv, comparison = spec$comparison[[1]],
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
                 ranking = ranking, gene_col = gene_col
@@ -512,7 +519,7 @@ run_diffexp_pipeline <- function(
         } else {
             tv <- contrast_test_vars(spec)
             tv <- if (length(tv)) tv[[1]] else var[1]
-            res_df <- run_diffexp(
+            res_df <- de_levels(
                 dds = dds, var = tv, comparison = spec$comparison[[1]],
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,
                 ranking = ranking, gene_col = gene_col

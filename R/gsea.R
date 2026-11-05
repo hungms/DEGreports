@@ -276,7 +276,7 @@ run_gsea <- function(ranks, gene_sets, min_size = 15, max_size = 500, eps = 1e-1
 #' @param collections Character vector of MSigDB collection aliases:
 #'   `"HALLMARK"`, `"GOBP"`, `"GOCC"`, `"GOMF"`, `"KEGG"`,
 #'   `"REACTOME"`, `"PID"`. Default `"HALLMARK"` only when calling
-#'   this function directly ([run_deseq2_pipeline()] passes its own
+#'   this function directly ([run_deseq2()] passes its own
 #'   6-collection default -- see its `collections` argument). Organism
 #'   (human/mouse) is auto-detected from the gene symbols in
 #'   `diffexp_results[[gene_col]]` via [detect_organism()] -- there is no

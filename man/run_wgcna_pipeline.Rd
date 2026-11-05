@@ -74,7 +74,7 @@ one or more of \code{"HALLMARK"}, \code{"GOBP"}, \code{"GOCC"}, \code{"GOMF"},
 \code{"KEGG"}, \code{"REACTOME"}, \code{"PID"}. Default
 matches the GSEA default
 (\code{c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID")}).
-\code{\link[=run_deseq2_pipeline]{run_deseq2_pipeline()}} passes its \code{collections} argument through so
+\code{\link[=run_deseq2]{run_deseq2()}} passes its \code{collections} argument through so
 WGCNA ORA and GSEA use the same set. The leftover/unassigned "grey"
 module (renamed "Unassigned") is always excluded (see \code{ora_by_module}
 below and the package vignette).}

@@ -1,5 +1,5 @@
 ---
-title: "DESeq2Reports -- Multihit"
+title: "DEGreports -- Multihit"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -50,7 +50,7 @@ has_wald_mh <- !is_lrt_mh && !is.null(params$multihit_out$by_comparison) &&
 ```
 
 ```{r nav, results='asis'}
-cat(deseq2reports::report_nav_links(
+cat(DEGreports::report_nav_links(
   params$current_page,
   disabled = params$disabled_labels,
   hrefs = params$page_hrefs
@@ -69,7 +69,7 @@ if (has_lrt_mh) {
       "VIPER / decoupleR-TF = significant TF; decoupleR-CCC = gene in a ",
       "significant ligand–receptor pair; alpha = ", mh$alpha, "). ",
       "Tables only (no directional barplots in LRT mode).\n\n", sep = "")
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce LRT multi-hit ranking with this package module:",
     "multihit_out <- run_multihit_lrt_pipeline(",
     "  degpatterns_out, diffexp_out,",
@@ -95,7 +95,7 @@ if (has_lrt_mh) {
       "shares; **Top genes** shows the top ", mh$top_n, " up and ", mh$top_n,
       " down genes per contrast (direction from DEG log2FoldChange), ranked by ",
       "hit count.\n\n", sep = "")
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce multi-hit ranking with this package module:",
     "multihit_out <- run_multihit_pipeline(",
     "  diffexp_out, gsea_out = gsea_out,",
@@ -115,10 +115,10 @@ short_labs <- sub("^.* cluster ", "cluster ", mods)
 if (anyDuplicated(short_labs) || any(!nzchar(short_labs))) {
   short_labs <- mods
 }
-pane_ids <- deseq2reports::bs_tabset_start("multihit-lrt-tabs", short_labs)
+pane_ids <- DEGreports::bs_tabset_start("multihit-lrt-tabs", short_labs)
 for (i in seq_along(mods)) {
   mod <- mods[i]
-  deseq2reports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
+  DEGreports::bs_tab_pane_start(pane_ids[i], active = (i == 1L))
   ranked <- by_mod[[mod]]
   if (is.null(ranked) || !nrow(ranked)) {
     cat("\n\nNo genes scored for this cluster.\n\n")
@@ -129,21 +129,21 @@ for (i in seq_along(mods)) {
     }
     print(knitr::kable(show, row.names = FALSE))
     safe <- gsub("[^A-Za-z0-9]+", "_", mod)
-    deseq2reports::emit_widget(
-      deseq2reports::link_output_file(
+    DEGreports::emit_widget(
+      DEGreports::link_output_file(
         file.path(safe, paste0(safe, "_top_genes.csv")),
         label = "Download top genes CSV"
       )
     )
   }
-  deseq2reports::bs_tab_pane_end()
+  DEGreports::bs_tab_pane_end()
 }
-deseq2reports::bs_tabset_end()
+DEGreports::bs_tabset_end()
 ```
 
 ```{r multihit-helpers, include=FALSE}
 emit_multihit_contrast <- function(comp, ranked, plot) {
-  stem <- deseq2reports::contrast_file_stem(comp)
+  stem <- DEGreports::contrast_file_stem(comp)
   if (is.null(ranked) || !nrow(ranked)) {
     cat("\n\nNo genes scored for this contrast.\n\n")
     return(invisible(NULL))
@@ -152,13 +152,13 @@ emit_multihit_contrast <- function(comp, ranked, plot) {
     sz <- attr(plot, "plot_size")
     w <- if (!is.null(sz)) sz$width else 4.9
     h <- if (!is.null(sz)) sz$height else max(2.8, 0.2 * nrow(ranked) + 1.5)
-    deseq2reports::emit_plot_with_download(
+    DEGreports::emit_plot_with_download(
       plot, filename = paste0(stem, "_multihit_barplot"),
       width = w, height = h, dpi = 150
     )
   }
-  deseq2reports::emit_widget(
-    deseq2reports::link_output_file(
+  DEGreports::emit_widget(
+    DEGreports::link_output_file(
       file.path(comp, paste0(stem, "_top_genes.csv")),
       label = "Download top genes CSV"
     )
@@ -169,17 +169,17 @@ emit_multihit_contrast <- function(comp, ranked, plot) {
 emit_multihit_upset <- function(comp, ...) {
   up <- params$multihit_out$upsets[[comp]]
   if (is.null(up)) {
-    cat("\n\nNo method hits for this contrast.\n\n")
+    cat("\n\nNo gene is a hit in more than one method for this contrast.\n\n")
     return(invisible(NULL))
   }
-  stem <- deseq2reports::contrast_file_stem(comp)
+  stem <- DEGreports::contrast_file_stem(comp)
   sz <- attr(up, "plot_size")
-  deseq2reports::emit_plot_with_download(
+  DEGreports::emit_plot_with_download(
     up, filename = paste0(stem, "_upset"),
     width = sz$width, height = sz$height, dpi = 150
   )
-  deseq2reports::emit_widget(
-    deseq2reports::link_output_file(
+  DEGreports::emit_widget(
+    DEGreports::link_output_file(
       file.path(comp, paste0(stem, "_hit_sets.csv")),
       label = "Download hit sets CSV"
     )
@@ -192,7 +192,7 @@ if (is.null(specs_mh) && has_wald_mh) {
   labs <- names(params$multihit_out$by_comparison)
   specs_mh <- data.frame(
     label = labs, class = "single",
-    type = deseq2reports::classify_comparison_type(labs),
+    type = DEGreports::classify_comparison_type(labs),
     stratum_level = NA_character_,
     stringsAsFactors = FALSE
   )
@@ -236,7 +236,7 @@ emit_mh_sections <- function(emit) {
   for (cls in c("main", "within_A", "within_B", "within_C", "interaction")) {
     sub <- specs_mh[specs_mh$class == cls, , drop = FALSE]
     if (nrow(sub) == 0) next
-    title <- deseq2reports::contrast_class_title(cls, var)
+    title <- DEGreports::contrast_class_title(cls, var)
     cat("\n\n### ", title, " {.tabset}\n\n", sep = "")
 
     if (identical(cls, "main")) {
@@ -252,7 +252,7 @@ emit_mh_sections <- function(emit) {
     if (identical(cls, "interaction")) {
       # Interaction rows are grouped by the factor level they hold fixed;
       # three-way rows hold nothing fixed and sit at the top level.
-      held <- deseq2reports::contrast_stratum_labels(sub)
+      held <- DEGreports::contrast_stratum_labels(sub)
       for (comp in sub$label[is.na(held)]) {
         cat("\n\n#### ", comp, "\n\n", sep = "")
         emit(comp, by_mh[[comp]], plots_mh[[comp]])
@@ -284,6 +284,9 @@ emit_mh_sections <- function(emit) {
 
 ```{r multihit-upset, results='asis', eval=has_wald_mh}
 cat("\n\n## Method overlap (UpSet)\n\n")
+cat("Genes shared by two or more methods; single-method sets are not shown. ",
+    "Columns are ordered by the number of methods intersected (most first), ",
+    "then by gene count.\n\n", sep = "")
 emit_mh_sections(emit_multihit_upset)
 ```
 

@@ -145,8 +145,9 @@ test_that("run_multihit_pipeline writes outputs and plots", {
     expect_s3_class(out$plots$A_vs_B, "ggplot")
     expect_true(file.exists(file.path(save_dir, "A_vs_B", "A_vs_B_top_genes.csv")))
     expect_equal(out$hit_sets$A_vs_B$deg, c("G1", "G2", "G3"))
-    expect_s3_class(out$upsets$A_vs_B, "ggplot")
-    expect_true(file.exists(file.path(save_dir, "A_vs_B", "A_vs_B_upset.pdf")))
+    # One method only: no intersections, so no UpSet.
+    expect_null(out$upsets$A_vs_B)
+    expect_false(file.exists(file.path(save_dir, "A_vs_B", "A_vs_B_upset.pdf")))
     expect_true(file.exists(file.path(save_dir, "A_vs_B", "A_vs_B_hit_sets.csv")))
 })
 
@@ -172,4 +173,27 @@ test_that("multihit_hit_sets applies the documented thresholds", {
     expect_setequal(sets[["decoupler-ccc"]], c("A", "D"))
     expect_s3_class(plot_multihit_upset(sets, title = "X"), "ggplot")
     expect_null(plot_multihit_upset(lapply(sets, function(s) character(0))))
+})
+
+test_that("plot_multihit_upset drops single-method sets and orders by degree", {
+    sets <- list(deg = c("A", "B", "C", "D", "E", "F"),
+                 viper = c("A", "B", "G", "H", "I"),
+                 cspa = c("A", "J"))
+    captured <- NULL
+    testthat::local_mocked_bindings(
+        UpSet = function(m, comb_order, ...) {
+            captured <<- list(degree = ComplexHeatmap::comb_degree(m)[comb_order],
+                              size = ComplexHeatmap::comb_size(m)[comb_order])
+            ComplexHeatmap::Heatmap(matrix(1))
+        },
+        .package = "ComplexHeatmap"
+    )
+    p <- plot_multihit_upset(sets)
+    expect_s3_class(p, "ggplot")
+    expect_true(all(captured$degree >= 2L))
+    expect_equal(unname(captured$degree), c(3L, 2L))
+    expect_equal(unname(captured$size), c(1L, 1L))
+    # No gene shared between methods -> nothing to draw.
+    expect_null(plot_multihit_upset(list(deg = "A", viper = "B")))
+    expect_null(plot_multihit_upset(list(deg = c("A", "B"))))
 })

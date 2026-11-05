@@ -181,8 +181,8 @@
 #' Resolve the bundled Rmd template path for a report page
 #' @noRd
 .report_template_path <- function(template) {
-    template_path <- system.file("rmarkdown", template, package = "deseq2reports")
-    pkg_path <- tryCatch(find.package("deseq2reports"), error = function(e) "")
+    template_path <- system.file("rmarkdown", template, package = "DEGreports")
+    pkg_path <- tryCatch(find.package("DEGreports"), error = function(e) "")
     src_candidate <- file.path(pkg_path, "rmarkdown", template)
     inst_candidate <- file.path(pkg_path, "inst", "rmarkdown", template)
     if (file.exists(inst_candidate)) {
@@ -215,15 +215,15 @@
 #' replaces its figures instead of accumulating orphans.
 #' @noRd
 .render_page_rmd <- function(template, output_file, output_dir, page_params) {
-    scratch <- tempfile("deseq2reports-knit-")
+    scratch <- tempfile("degreports-knit-")
     dir.create(scratch, recursive = TRUE, showWarnings = FALSE)
     on.exit(unlink(scratch, recursive = TRUE, force = TRUE), add = TRUE)
 
     fig_href <- paste0(tools::file_path_sans_ext(basename(output_file)), "_figures")
     fig_dir <- file.path(output_dir, fig_href)
     unlink(fig_dir, recursive = TRUE, force = TRUE)
-    old_opts <- options(deseq2reports.figure_dir = fig_dir,
-                        deseq2reports.figure_href = fig_href)
+    old_opts <- options(degreports.figure_dir = fig_dir,
+                        degreports.figure_href = fig_href)
     on.exit(options(old_opts), add = TRUE)
 
     rmarkdown::render(
@@ -405,7 +405,7 @@ bs_tabset_start <- function(tabset_id, labels) {
     } else {
         function(x) gsub("&", "&amp;", gsub("<", "&lt;", gsub(">", "&gt;", x)))
     }
-    cat('<div id="', tabset_id, '" class="deseq2reports-bs-tabset" style="margin: 0.8em 0 1.2em 0;">\n', sep = "")
+    cat('<div id="', tabset_id, '" class="degreports-bs-tabset" style="margin: 0.8em 0 1.2em 0;">\n', sep = "")
     cat('<ul class="nav nav-tabs" role="tablist">\n')
     for (i in seq_along(labels)) {
         active <- if (i == 1L) ' class="active"' else ""
@@ -728,7 +728,7 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
         design_str <- paste(deparse(DESeq2::design(dds)), collapse = " ")
         n_samples <- ncol(dds)
         n_genes <- nrow(dds)
-        qc_out <- S4Vectors::metadata(dds)$deseq2reports_qc
+        qc_out <- S4Vectors::metadata(dds)$degreports_qc
     }
 
     list(
@@ -755,7 +755,7 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
         alpha = alpha,
         lfc_threshold = lfc_threshold,
         run_args = run_args,
-        package_version = as.character(utils::packageVersion("deseq2reports")),
+        package_version = as.character(utils::packageVersion("DEGreports")),
         disabled_labels = disabled_labels
     )
 }
@@ -954,6 +954,7 @@ emit_code_block <- function(..., lang = "r", caption = NULL) {
             contrast = NULL
         )
     )
+    if (identical(label, "Index")) page_params$repro <- .repro_for_report(save_dir)
     # Folder-bundled delivery: each HTML lives next to its own `lib/` so
     # rmarkdown 2.x `relativeTo(output_dir, lib_dir)` stays valid (a parent
     # shared lib, or a symlink into it, is normalized to a non-descendant
@@ -1214,13 +1215,13 @@ render_multihit_page <- function(
 #'
 #' @param dds The (QC-filtered) `DESeqDataSet`, used to report sample/gene
 #'   counts and the design formula in the report header. If it carries
-#'   `S4Vectors::metadata(dds)$deseq2reports_qc` (attached automatically by
+#'   `S4Vectors::metadata(dds)$degreports_qc` (attached automatically by
 #'   [run_qc()]), a QC section is also included showing the number/percent
 #'   of genes removed at each filtering step, the library-size plot, and
 #'   the count-distribution diagnostic plot (with the expression cutoff
 #'   marked) -- omitted if that metadata is absent, e.g. when `dds` was
 #'   QC-filtered manually rather than via [run_qc()]. Pass `NULL` for
-#'   DEG-table-only reports ([run_deseq2_deg()]): the QC page is skipped
+#'   DEG-table-only reports ([run_deg()]): the QC page is skipped
 #'   and greyed out in the nav.
 #' @param var Column name in `colData(dds)` used for grouping (or a label
 #'   such as `"comparison"` when `dds = NULL`).
@@ -1253,7 +1254,7 @@ render_multihit_page <- function(
 #' @param lfc_threshold Log2 fold-change threshold used for up/down
 #'   colouring on MA/volcano plots. Default `0.5`.
 #' @param run_args Optional named list of pipeline arguments (as built by
-#'   [run_deseq2_wald()] / [run_deseq2_deg()]) to display on the index page.
+#'   [run_deseq2()] / [run_deg()]) to display on the index page.
 #'   Default `NULL`.
 #' @param save_dir Pipeline root directory. Section pages are written into
 #'   per-module subfolders under this path. Default `getwd()`.

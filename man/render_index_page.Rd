@@ -25,13 +25,13 @@ render_index_page(
 \arguments{
 \item{dds}{The (QC-filtered) \code{DESeqDataSet}, used to report sample/gene
 counts and the design formula in the report header. If it carries
-\code{S4Vectors::metadata(dds)$deseq2reports_qc} (attached automatically by
+\code{S4Vectors::metadata(dds)$degreports_qc} (attached automatically by
 \code{\link[=run_qc]{run_qc()}}), a QC section is also included showing the number/percent
 of genes removed at each filtering step, the library-size plot, and
 the count-distribution diagnostic plot (with the expression cutoff
 marked) -- omitted if that metadata is absent, e.g. when \code{dds} was
 QC-filtered manually rather than via \code{\link[=run_qc]{run_qc()}}. Pass \code{NULL} for
-DEG-table-only reports (\code{\link[=run_deseq2_deg]{run_deseq2_deg()}}): the QC page is skipped
+DEG-table-only reports (\code{\link[=run_deg]{run_deg()}}): the QC page is skipped
 and greyed out in the nav.}
 
 \item{var}{Column name in \code{colData(dds)} used for grouping (or a label
@@ -67,7 +67,7 @@ Default \code{0.05}.}
 colouring on MA/volcano plots. Default \code{0.5}.}
 
 \item{run_args}{Optional named list of pipeline arguments (as built by
-\code{\link[=run_deseq2_wald]{run_deseq2_wald()}} / \code{\link[=run_deseq2_deg]{run_deseq2_deg()}}) to display on the index page.
+\code{\link[=run_deseq2]{run_deseq2()}} / \code{\link[=run_deg]{run_deg()}}) to display on the index page.
 Default \code{NULL}.}
 
 \item{disabled_labels}{Page labels to grey out in the nav bar.}

@@ -3,11 +3,11 @@
 # Single-factor mode on isotype (this matrix is BM-only). Replicate number is
 # used as batch (IgA/IgG/IgM from the same rep share one batch).
 #
-# Usage (Slurm, all three examples): sbatch run_examples.sbatch
-# Single run:  <conda seurat5>/bin/Rscript run_gse189410_wald.R
+# Usage (Slurm, all examples): sbatch run_examples.sbatch
+# Single run:  <conda seurat5>/bin/Rscript run_gse189410_deseq2_wald.R
 
 # Project root on NEMO: outputs go to <root>/example_run_*/.
-root <- "/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DESeq2Reports"
+root <- "/nemo/lab/caladod/working/Matthew/git-repos/r-dev/DEGreports"
 setwd(root)
 # Use the project renv (a snapshot of the seurat5 conda library).
 if (!nzchar(Sys.getenv("RENV_PROJECT"))) source(file.path(root, "renv", "activate.R"))
@@ -24,11 +24,11 @@ options(error = function() {
 suppressPackageStartupMessages({
   library(DESeq2)
 })
-try(unloadNamespace("deseq2reports"), silent = TRUE)
+try(unloadNamespace("DEGreports"), silent = TRUE)
 pkgload::load_all(root, export_all = FALSE, quiet = TRUE)
 
 counts_path <- file.path(root, "example_data", "GSE189410_counts.txt")
-out_dir <- file.path(root, "example_run_GSE189410_wald")
+out_dir <- file.path(root, "example_run_GSE189410_deseq2_wald")
 dir.create(file.path(out_dir, "logs"), recursive = TRUE, showWarnings = FALSE)
 
 # Read counts; rownames are gene symbols.
@@ -97,7 +97,7 @@ dds <- DESeqDataSetFromMatrix(
 SummarizedExperiment::rowData(dds)$gene_name <- gene_names
 dds <- summarize_genes_dds(dds, gene_sym_col = "gene_name")
 
-out <- run_deseq2_wald(
+out <- run_deseq2(
   dds = dds,
   var = "isotype",
   batch = "batch",

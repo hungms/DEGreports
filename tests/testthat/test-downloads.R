@@ -39,11 +39,11 @@ test_that("download_table_button accepts a custom button label", {
 
 test_that("HTML display inches convert to PDF inches at 96 CSS pixels per inch", {
     expect_equal(
-        deseq2reports:::.html_display_to_pdf_in(4, 3, dpi = 96),
+        DEGreports:::.html_display_to_pdf_in(4, 3, dpi = 96),
         list(width = 4, height = 3)
     )
     expect_equal(
-        deseq2reports:::.html_display_to_pdf_in(2, 1, dpi = 192),
+        DEGreports:::.html_display_to_pdf_in(2, 1, dpi = 192),
         list(width = 4, height = 2)
     )
 })
@@ -68,8 +68,8 @@ test_that("ggplot download PDF page matches the HTML CSS box and is not a tiny i
     p <- ggplot2::ggplot(data.frame(x = 1:3, y = 1:3), ggplot2::aes(x, y)) + ggplot2::geom_point()
     tmp <- tempfile(fileext = ".pdf")
     on.exit(unlink(tmp), add = TRUE)
-    pdf_sz <- deseq2reports:::.html_display_to_pdf_in(4, 3, dpi = 150)
-    deseq2reports:::.save_ggplot_html_matched(p, tmp, 4, 3, pdf_sz$width, pdf_sz$height)
+    pdf_sz <- DEGreports:::.html_display_to_pdf_in(4, 3, dpi = 150)
+    DEGreports:::.save_ggplot_html_matched(p, tmp, 4, 3, pdf_sz$width, pdf_sz$height)
     box <- .pdf_mediabox_inches(tmp)
     skip_if(is.null(box), "could not parse PDF MediaBox")
     expect_equal(box$width, pdf_sz$width, tolerance = 0.05)
@@ -88,9 +88,9 @@ test_that("ggplot download PDF succeeds for ggrepel / coord_equal plots", {
         ggplot2::theme_void()
     tmp <- tempfile(fileext = ".pdf")
     on.exit(unlink(tmp), add = TRUE)
-    pdf_sz <- deseq2reports:::.html_display_to_pdf_in(6.5, 5.5, dpi = 150)
+    pdf_sz <- DEGreports:::.html_display_to_pdf_in(6.5, 5.5, dpi = 150)
     expect_error(
-        deseq2reports:::.save_ggplot_html_matched(p, tmp, 6.5, 5.5, pdf_sz$width, pdf_sz$height),
+        DEGreports:::.save_ggplot_html_matched(p, tmp, 6.5, 5.5, pdf_sz$width, pdf_sz$height),
         NA
     )
     expect_true(file.exists(tmp) && file.info(tmp)$size > 1000)
@@ -101,7 +101,7 @@ test_that("pheatmap download PDF fits a smaller page without relying on native c
                              cellwidth = 20, cellheight = 20)
     tmp <- tempfile(fileext = ".pdf")
     on.exit(unlink(tmp), add = TRUE)
-    deseq2reports:::.save_gtable_html_matched(hm, tmp, pdf_w = 3, pdf_h = 3)
+    DEGreports:::.save_gtable_html_matched(hm, tmp, pdf_w = 3, pdf_h = 3)
     box <- .pdf_mediabox_inches(tmp)
     skip_if(is.null(box), "could not parse PDF MediaBox")
     expect_equal(box$width, 3, tolerance = 0.05)
@@ -190,7 +190,7 @@ test_that("wrap_with_corner_button aligns PDF and CSV buttons on the same baseli
     btn_csv <- link_output_file("scores.csv", label = "Download scores CSV")
     wrapped <- wrap_with_corner_button(htmltools::tags$div("content"), list(btn_pdf, btn_csv))
     html_txt <- as.character(htmltools::as.tags(wrapped))
-    expect_true(grepl("deseq2reports-dl-btn-wrap", html_txt))
+    expect_true(grepl("degreports-dl-btn-wrap", html_txt))
     expect_true(grepl("align-items: center", html_txt))
     expect_true(grepl("Download PDF", html_txt))
     expect_true(grepl("Download scores CSV", html_txt))
@@ -205,7 +205,7 @@ test_that("wrap_with_corner_button places multiple buttons side by side in the r
     expect_true(grepl("First button", html_txt))
     expect_true(grepl("Second button", html_txt))
     expect_true(grepl("flex-direction: row", html_txt))
-    expect_true(grepl("deseq2reports-dl-row", html_txt))
+    expect_true(grepl("degreports-dl-row", html_txt))
     expect_true(grepl("height: 28px", html_txt))
 })
 
@@ -291,7 +291,7 @@ test_that("emit_widget output survives a real Pandoc Markdown round-trip without
         "## Section",
         "",
         "```{r plot1, results='asis'}",
-        "deseq2reports:::emit_widget(wrapped)",
+        "DEGreports:::emit_widget(wrapped)",
         "```"
     )
     tmp_rmd <- tempfile(fileext = ".Rmd")
@@ -315,8 +315,8 @@ test_that("emit_widget output survives a real Pandoc Markdown round-trip without
 test_that("figure_img_tag inlines base64 when no report figure directory is configured", {
     skip_if_not_installed("ggplot2")
     p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) + ggplot2::geom_point()
-    withr::local_options(list(deseq2reports.figure_dir = NULL,
-                              deseq2reports.figure_href = NULL))
+    withr::local_options(list(degreports.figure_dir = NULL,
+                              degreports.figure_href = NULL))
     html_txt <- as.character(htmltools::as.tags(capture_plot_tag(p, width = 2, height = 2)))
     expect_true(grepl("src=\"data:image/png;base64,", html_txt, fixed = TRUE))
 })
@@ -326,8 +326,8 @@ test_that("figure_img_tag writes a PNG beside the page and references it by rela
     p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) + ggplot2::geom_point()
     page_dir <- withr::local_tempdir()
     withr::local_options(list(
-        deseq2reports.figure_dir = file.path(page_dir, "qc_figures"),
-        deseq2reports.figure_href = "qc_figures"
+        degreports.figure_dir = file.path(page_dir, "qc_figures"),
+        degreports.figure_href = "qc_figures"
     ))
     html_txt <- as.character(htmltools::as.tags(capture_plot_tag(p, width = 2, height = 2)))
 
@@ -345,8 +345,8 @@ test_that("a PDF download button writes the PDF beside the page and links it", {
     p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) + ggplot2::geom_point()
     page_dir <- withr::local_tempdir()
     withr::local_options(list(
-        deseq2reports.figure_dir = file.path(page_dir, "qc_figures"),
-        deseq2reports.figure_href = "qc_figures"
+        degreports.figure_dir = file.path(page_dir, "qc_figures"),
+        degreports.figure_href = "qc_figures"
     ))
     html_txt <- as.character(htmltools::as.tags(
         download_plot_button(p, filename = "pca_plot", width = 3, height = 2)
@@ -365,8 +365,8 @@ test_that("two download buttons on one page cannot claim the same file name", {
     p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) + ggplot2::geom_point()
     page_dir <- withr::local_tempdir()
     withr::local_options(list(
-        deseq2reports.figure_dir = file.path(page_dir, "figs"),
-        deseq2reports.figure_href = "figs"
+        degreports.figure_dir = file.path(page_dir, "figs"),
+        degreports.figure_href = "figs"
     ))
     href <- function() {
         txt <- as.character(htmltools::as.tags(download_plot_button(p, filename = "plot")))
@@ -380,8 +380,8 @@ test_that("two download buttons on one page cannot claim the same file name", {
 test_that("a PDF download button still embeds itself outside a report render", {
     skip_if_not_installed("ggplot2")
     p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) + ggplot2::geom_point()
-    withr::local_options(list(deseq2reports.figure_dir = NULL,
-                              deseq2reports.figure_href = NULL))
+    withr::local_options(list(degreports.figure_dir = NULL,
+                              degreports.figure_href = NULL))
     html_txt <- as.character(htmltools::as.tags(
         download_plot_button(p, filename = "pca_plot")
     ))
@@ -393,8 +393,8 @@ test_that("figure_img_tag keeps the CSS box pinned to the requested display size
     p <- ggplot2::ggplot(mtcars, ggplot2::aes(wt, mpg)) + ggplot2::geom_point()
     page_dir <- withr::local_tempdir()
     withr::local_options(list(
-        deseq2reports.figure_dir = file.path(page_dir, "figs"),
-        deseq2reports.figure_href = "figs"
+        degreports.figure_dir = file.path(page_dir, "figs"),
+        degreports.figure_href = "figs"
     ))
     html_txt <- as.character(htmltools::as.tags(
         capture_plot_tag(p, width = 3, height = 2, dpi = 100)
@@ -489,8 +489,8 @@ test_that("emit_heatmap_with_download emits the figure plus its download buttons
     hm <- pheatmap_fixture(n_row = 10L, n_col = 4L)
     page_dir <- withr::local_tempdir()
     withr::local_options(list(
-        deseq2reports.figure_dir = file.path(page_dir, "figs"),
-        deseq2reports.figure_href = "figs"
+        degreports.figure_dir = file.path(page_dir, "figs"),
+        degreports.figure_href = "figs"
     ))
     html_txt <- paste(capture.output(
         emit_heatmap_with_download(hm, filename = "fixture_heatmap",

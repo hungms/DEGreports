@@ -1,6 +1,6 @@
 # One driver for the three one-command entry points.
 #
-# `run_deseq2_wald()`, `run_deseq2_lrt()` and `run_deseq2_deg()` differ in how
+# `run_deseq2()`, `run_deseq2(mode = "lrt")` and `run_deg()` differ in how
 # they test for differential expression and in a handful of mode-specific
 # stages; everything else -- the order of the modules, the `[3/11] ...`
 # progress counter, what happens when a module fails -- was written out three

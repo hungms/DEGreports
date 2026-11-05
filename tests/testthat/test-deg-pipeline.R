@@ -1,4 +1,4 @@
-# Tests for prepare_diffexp_from_deg() / run_deseq2_deg() (DEG-table entry point).
+# Tests for prepare_diffexp_from_deg() / run_deg() (DEG-table entry point).
 
 .make_merged_deg <- function(n_genes = 40, seed = 1) {
     set.seed(seed)
@@ -63,7 +63,7 @@ test_that("prepare_diffexp_from_deg() errors clearly without comparison / padj",
     )
 })
 
-test_that("run_deseq2_deg() writes deseq2 CSVs and multihit without counts", {
+test_that("run_deg() writes deseq2 CSVs and multihit without counts", {
     skip_if_not_installed("msigdbr")
     skip_if_not_installed("fgsea")
 
@@ -76,7 +76,7 @@ test_that("run_deseq2_deg() writes deseq2 CSVs and multihit without counts", {
     # PPI always runs in the pipeline now; stub it out so the test does not
     # reach for the STRING download.
     local_mocked_bindings(run_ppi_pipeline = function(...) NULL)
-    res <- suppressWarnings(run_deseq2_deg(
+    res <- suppressWarnings(run_deg(
         deg_table = deg,
         collections = "HALLMARK",
         run_gsea = TRUE,

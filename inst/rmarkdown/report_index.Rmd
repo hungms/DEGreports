@@ -1,5 +1,5 @@
 ---
-title: "DESeq2Reports"
+title: "DEGreports"
 date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output:
   html_document:
@@ -35,6 +35,7 @@ params:
   current_page: "Index"
   disabled_labels: !r character(0)
   page_hrefs: NULL
+  repro: NULL
 ---
 
 ```{r setup, include=FALSE}
@@ -42,7 +43,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align 
 ```
 
 ```{r nav, results='asis'}
-cat(deseq2reports::report_nav_links(
+cat(DEGreports::report_nav_links(
   params$current_page,
   disabled = params$disabled_labels,
   hrefs = params$page_hrefs
@@ -54,21 +55,32 @@ cat(deseq2reports::report_nav_links(
 ```{r index-methods, results='asis'}
 is_deg_table <- identical(params$run_args$analysis_mode, "deg_table") ||
   identical(params$diffexp_out$source, "deg_table")
-if (is_deg_table) {
-  deseq2reports::emit_code_block(
+if (!is.null(params$repro)) {
+  saved <- any(grepl("readRDS(", params$repro$code, fixed = TRUE))
+  cat("\n\nThe R script below reruns this analysis with the same input and ",
+      "settings",
+      if (saved) " (the input is saved beside it in `reproduce/inputs.rds`)" else "",
+      ". Run it from the folder that holds this page.\n\n", sep = "")
+  DEGreports::emit_widget(
+    DEGreports::link_output_file(params$repro$href,
+                                    label = "Download R script")
+  )
+  DEGreports::emit_code_block(params$repro$code)
+} else if (is_deg_table) {
+  DEGreports::emit_code_block(
     caption = "Reproduce this report from a merged DEG table:",
-    "library(deseq2reports)",
-    "out <- run_deseq2_deg(",
+    "library(DEGreports)",
+    "out <- run_deg(",
     "  deg_table = \"all_contrasts_deg.csv\",",
     "  collections = c(\"HALLMARK\", \"GOBP\"),",
     "  save_dir = \"results\"",
     ")"
   )
 } else {
-  deseq2reports::emit_code_block(
+  DEGreports::emit_code_block(
     caption = "Reproduce this report with the package entry point:",
-    "library(deseq2reports)",
-    "out <- run_deseq2_wald(",
+    "library(DEGreports)",
+    "out <- run_deseq2(",
     "  dds, var = \"condition\",",
     "  run_gsva = TRUE, run_wgcna = TRUE, run_decoupler_tf = TRUE,",
     "  run_decoupler_ccc = TRUE, run_viper = TRUE,",
@@ -97,7 +109,7 @@ summary_df <- data.frame(
             "Samples",
             if (is_deg_table) "Genes (in DEG table)" else "Genes (post-QC)",
             "Significance threshold (alpha)", "LFC threshold", "VDJ gene removal",
-            "deseq2reports version"),
+            "DEGreports version"),
   Value = c(paste(params$var, collapse = ", "), params$design_str, params$org,
             if (is_deg_table) "n/a (DEG table)" else as.character(params$n_samples),
             as.character(params$n_genes),
@@ -137,11 +149,13 @@ if (!is.null(params$run_args) && length(params$run_args)) {
   cat("\n\n## Pipeline arguments\n\n")
   entry <- if (identical(params$run_args$analysis_mode, "deg_table") ||
                identical(params$diffexp_out$source, "deg_table")) {
-    "`run_deseq2_deg()`"
+    "`run_deg()`"
   } else if (identical(params$run_args$analysis_mode, "lrt")) {
-    "`run_deseq2_lrt()`"
+    "`run_deseq2(mode = 'lrt')`"
+  } else if (identical(params$run_args$analysis_mode, "limma")) {
+    "`run_limma()`"
   } else {
-    "`run_deseq2_wald()`"
+    "`run_deseq2()`"
   }
   cat("Arguments passed to ", entry, " for this run:\n\n", sep = "")
   args <- params$run_args
@@ -166,7 +180,7 @@ if (!is.null(params$run_args) && length(params$run_args)) {
 
 ```{r section-links, results='asis'}
 hrefs <- params$page_hrefs
-if (is.null(hrefs)) hrefs <- deseq2reports::report_page_hrefs(params$current_page)
+if (is.null(hrefs)) hrefs <- DEGreports::report_page_hrefs(params$current_page)
 cat("\n\nThis report is split across the following linked pages (each module's HTML ",
     "lives in its own folder, alongside the figures and downloads it links to, ",
     "and is viewable offline):\n\n", sep = "")

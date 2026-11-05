@@ -1,4 +1,28 @@
-# deseq2reports 0.4.0
+# DEGreports (development version)
+
+## Breaking changes
+
+* **Entry points renamed.** `run_deseq2_wald()` and `run_deseq2_lrt()` are now
+  one function, `run_deseq2(dds, var, mode = c("wald", "lrt"), ...)`; LRT
+  runs pass `mode = "lrt"` with `time`. `run_deseq2_deg()` is now `run_deg()`.
+  The old names (and the deprecated `run_deseq2_pipeline()`) are removed.
+  Arguments that belong to the other mode (`design`, `comparisons`,
+  `stratified` for Wald; `time`, `degpatterns_minc` for LRT) now raise an
+  error, and `ranking` defaults to `"log2FoldChange"` (Wald) or `"stat"` (LRT).
+
+## New features
+
+* `run_limma()` runs the same pipeline and report on TPM / FPKM data with
+  limma-trend (`lmFit()`, `eBayes(trend = TRUE, robust = TRUE)`) on
+  log2(x + 1), which also stands in for VST in every sample-level module.
+  `expr_to_dds()` wraps a `SummarizedExperiment` or `DGEList` for it.
+* Every run writes `reproduce/reproduce_run.R`, a short commented script that
+  reruns it (only the arguments set, input saved in `reproduce/inputs.rds`),
+  shown with a download link on the index page.
+* Multi-hit UpSet plots show only genes shared by two or more methods,
+  ordered by the number of methods intersected.
+
+# DEGreports 0.4.0
 
 Nothing about an existing call changes: every exported function keeps its
 signature (the new arguments are appended), the automatic contrast grids are
@@ -99,12 +123,12 @@ files with the same numbers as 0.3.0 -- plus `deseq2/contrasts.csv`.
   entry point.** `.pipeline_const` froze the shrinkage estimator, `alpha`, the
   LFC cutoff and every per-module top-N so that runs stay comparable -- but
   changing one meant abandoning `run_deseq2_wald()` and wiring ten module
-  calls by hand. `deseq2reports_opts()` collects them with exactly those
+  calls by hand. `degreports_opts()` collects them with exactly those
   values as defaults, and the entry points take it as `opts`. The report's
   "Pipeline arguments" table lists only the settings a run actually changed,
   so a standard run still reads as a statement of study design.
 
-# deseq2reports 0.3.0
+# DEGreports 0.3.0
 
 * **Fix (no pandoc, no results):** `rmarkdown` finds pandoc on `PATH`, in
   `RSTUDIO_PANDOC`, and where RStudio and Quarto install it, so an HPC batch
@@ -408,7 +432,7 @@ files with the same numbers as 0.3.0 -- plus `deseq2/contrasts.csv`.
 * Top-level `ppi/` (LRT-cluster PPI + STRINGdb cache) is removed automatically
   at pipeline completion via `cleanup_ppi_dir()`; contrast PPI and WGCNA
   module PPI under `wgcna/<Module_N>/ppi/` are kept.
-* Download PDF / CSV button rows use shared flex alignment (`.deseq2reports-dl-btn-wrap`)
+* Download PDF / CSV button rows use shared flex alignment (`.degreports-dl-btn-wrap`)
   so mixed `downloadthis` and link buttons sit on the same baseline.
 * Optional parallel HTML rendering: `parallel_render = TRUE` on
   `render_report()` / `run_deseq2_wald()` (via **future.apply**). Optional
@@ -477,7 +501,7 @@ files with the same numbers as 0.3.0 -- plus `deseq2/contrasts.csv`.
   `render_report_targets()`), plus `liana` for the ligand–receptor resource
   when no OmniPath download is available and `pkgload` for the test helpers.
 
-# deseq2reports 0.2.0
+# DEGreports 0.2.0
 
 * Rename `run_deseq2_pipeline()` → `run_deseq2_wald()` (deprecated alias kept).
 * New `run_deseq2_lrt()` for time-course LRT analysis:
@@ -509,7 +533,7 @@ files with the same numbers as 0.3.0 -- plus `deseq2/contrasts.csv`.
   PCA association, Multihit page, hub DEG/pathway summaries, and
   required pipeline dependencies.
 
-# deseq2reports (development notes prior to 0.2.0)
+# DEGreports (development notes prior to 0.2.0)
 
 * CSPA runs immediately after DESeq2 and writes under `deseq2/cspa/`.
 * GSEA overlap writes under `clusterprofiler/<contrast>/gsea_overlap/`.
@@ -565,9 +589,9 @@ files with the same numbers as 0.3.0 -- plus `deseq2/contrasts.csv`.
 * Module output folders are lowercase (`clusterprofiler/`, `decoupler/`)
   while comparison subfolders keep their original labels (e.g.
   `IgA_vs_IgM`). Report page titles/nav labels are unchanged.
-* Report pages now show only the minimal `deseq2reports` module call needed
+* Report pages now show only the minimal `DEGreports` module call needed
   to reproduce each section (not upstream package internals). New vignette
-  `deseq2reports-modules` is a detailed HTML module reference; the intro
+  `degreports-modules` is a detailed HTML module reference; the intro
   vignette focuses on one-command vs modular usage.
 * GSEA barcode panels use a single track per pathway coloured by NES sign
   (red = NES > 0, blue = NES < 0), instead of splitting member genes into
@@ -656,7 +680,7 @@ files with the same numbers as 0.3.0 -- plus `deseq2/contrasts.csv`.
 * `render_report()` writes cross-linked HTML pages (index, QC, DESeq2,
   clusterProfiler, WGCNA, decoupleR, VIPER) with `report_nav_links()`.
 
-# deseq2reports 0.1.0
+# DEGreports 0.1.0
 
 * Initial release: modular RNA-seq DESeq2 pipeline with one-command wrapper
   (`run_deseq2_pipeline()`), standalone QC / distance-PCA / differential

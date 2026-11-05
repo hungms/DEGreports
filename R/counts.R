@@ -62,13 +62,13 @@ run_counts_export <- function(
         dds <- validate_var(dds, var)
     }
 
-    raw_counts <- DESeq2::counts(dds, normalized = FALSE)
+    raw_counts <- .raw_count_matrix(dds)
 
     message("Computing VST counts...")
     vst_mat <- SummarizedExperiment::assay(quiet(safe_vst(dds, blind = TRUE)))
 
     message("Computing rlog counts...")
-    rlog_mat <- SummarizedExperiment::assay(quiet(DESeq2::rlog(dds, blind = TRUE)))
+    rlog_mat <- SummarizedExperiment::assay(quiet(safe_rlog(dds, blind = TRUE)))
 
     message("Computing CPM...")
     lib_sizes <- colSums(raw_counts)
@@ -94,7 +94,15 @@ run_counts_export <- function(
     write_output(result$cpm,  file.path(save_dir, "counts_cpm.csv"))
 
     if (!is.null(batch)) {
-        if (identical(platform, "microarray")) {
+        if (.is_expr_dds(dds)) {
+            # TPM / FPKM: ComBat-seq needs integer counts, so correct the
+            # log2 expression matrix with ComBat instead.
+            message("Running ComBat batch correction on log2 expression (batch = \"", batch,
+                    "\", protecting \"", var, "\")...")
+            corrected <- combat_transformed_matrix(dds, batch = batch, var = var,
+                                                   transform = transform)
+            outfile <- "counts_combat_log2expr.csv"
+        } else if (identical(platform, "microarray")) {
             # ComBat works on the log-scale matrix, so this export is on the
             # VST scale rather than the count scale that ComBat-seq returns.
             message("Running ComBat batch correction (batch = \"", batch,

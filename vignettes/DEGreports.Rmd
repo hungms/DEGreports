@@ -1,8 +1,8 @@
 ---
-title: "Introduction to deseq2reports"
+title: "Introduction to DEGreports"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction to deseq2reports}
+  %\VignetteIndexEntry{Introduction to DEGreports}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE, purl = FALS
 
 ## Overview
 
-`deseq2reports` is a modular RNA-seq differential expression pipeline built on
+`DEGreports` is a modular RNA-seq differential expression pipeline built on
 DESeq2. You can run **everything in one call**, or call **each stage on its
 own** and assemble the HTML report at the end.
 
@@ -23,11 +23,11 @@ Two one-command entry points:
 
 | Function | When to use |
 |---|---|
-| `run_deseq2_wald()` | Group contrasts (1–3 factors; pairwise / main effects / interactions) |
-| `run_deseq2_lrt()` | Time-course / ordered trajectory (LRT + degPatterns clusters) |
-| `run_deseq2_deg()` | Precomputed **merged DEG table** (no counts); GSEA / TF / PPI / HTML |
+| `run_deseq2()` | Group contrasts (1–3 factors; pairwise / main effects / interactions) |
+| `run_deseq2(mode = "lrt")` | Time-course / ordered trajectory (LRT + degPatterns clusters) |
+| `run_deg()` | Precomputed **merged DEG table** (no counts); GSEA / TF / PPI / HTML |
 
-(`run_deseq2_pipeline()` remains as a **deprecated alias** of `run_deseq2_wald()`.)
+(`run_deseq2()` remains as a **deprecated alias** of `run_deseq2()`.)
 
 Modules cover quality control, sample distance/PCA, differential expression,
 GSEA (Wald / DEG-table) or cluster ORA (LRT), STRING PPI, CSPA surface
@@ -37,10 +37,10 @@ gene hits, and a multi-page HTML report.
 
 Companion vignettes:
 
-- **[Module reference](deseq2reports-modules.html)** —
-  `vignette("deseq2reports-modules", package = "deseq2reports")`
-- **[Analysis flow](deseq2reports-analysis-flow.html)** —
-  `vignette("deseq2reports-analysis-flow", package = "deseq2reports")`
+- **[Module reference](degreports-modules.html)** —
+  `vignette("DEGreports-modules", package = "DEGreports")`
+- **[Analysis flow](degreports-analysis-flow.html)** —
+  `vignette("DEGreports-analysis-flow", package = "DEGreports")`
 
 Organism (human/mouse) is auto-detected from gene symbols via
 `detect_organism()` -- there is no `org` argument. Row names should be
@@ -53,7 +53,7 @@ Ensembl-level counts.
 From a count matrix:
 
 ```{r}
-library(deseq2reports)
+library(DEGreports)
 library(DESeq2)
 
 dds <- DESeqDataSetFromMatrix(
@@ -83,7 +83,7 @@ dds <- summarize_genes_dds(dds, gene_sym_col = "gene")
 ## One-command Wald pipeline
 
 ```{r}
-out <- run_deseq2_wald(
+out <- run_deseq2(
   dds = dds,
   var = "condition",
   filter_method = "cpm",
@@ -122,10 +122,11 @@ are used automatically before OmniPath.
 
 ## One-command LRT pipeline
 
-For ordered time / trajectory designs, use `run_deseq2_lrt()`:
+For ordered time / trajectory designs, use `run_deseq2(mode = "lrt")`:
 
 ```{r}
-out <- run_deseq2_lrt(
+out <- run_deseq2(
+  mode = "lrt",
   dds = dds,
   var = "genotype",       # or NULL for time-only
   time = "day",
@@ -151,7 +152,7 @@ When you already have differential-expression results (no raw counts), pass a
 ```{r}
 # Required columns: gene, comparison, log2FoldChange, padj (or pvalue)
 # Example comparison labels: "groupA_vs_groupB", "groupA_vs_groupC"
-out <- run_deseq2_deg(
+out <- run_deg(
   deg_table = "all_contrasts_deg.csv",
   collections = c("HALLMARK", "GOBP"),
   run_decoupler_tf = TRUE,
@@ -233,7 +234,7 @@ test are adjusted for rather than left in the residual. The design is additive
 and the labels flat:
 
 ```{r}
-out <- run_deseq2_wald(
+out <- run_deseq2(
   dds,
   var = c("Tissue", "Isotype"),
   save_dir = "results_2factor"
@@ -271,7 +272,7 @@ answers and what a positive `log2FoldChange` means for it, since a difference
 of differences is easy to misread as a plain group comparison.
 
 ```{r}
-out <- run_deseq2_wald(
+out <- run_deseq2(
   dds,
   var = c("celltype", "C_mutation", "K_mutation"),
   include_interactions = TRUE,   # main effects + interaction contrasts
@@ -306,7 +307,7 @@ specs <- expand_contrast_specs(dds, var = c("Tissue", "Isotype"))
 contrast_manifest(specs, dds, var = c("Tissue", "Isotype"))
 
 # 2. a subset of the grid
-out <- run_deseq2_wald(dds, var = c("Tissue", "Isotype"),
+out <- run_deseq2(dds, var = c("Tissue", "Isotype"),
                        comparisons = c("SP_vs_BM", "IgG_vs_IgM"),
                        save_dir = "results_subset")
 
@@ -326,7 +327,7 @@ grid <- add_contrasts(
     question = "Does the IgG effect differ between SP and BM?"
   )
 )
-out <- run_deseq2_wald(dds, var = c("Tissue", "Isotype"), comparisons = grid,
+out <- run_deseq2(dds, var = c("Tissue", "Isotype"), comparisons = grid,
                        include_interactions = TRUE, save_dir = "results_custom")
 
 # 4. outside the pipeline entirely
@@ -349,16 +350,16 @@ dispersion.
 
 ### Settings
 
-`opts = deseq2reports_opts()` holds the statistical and per-module settings —
+`opts = degreports_opts()` holds the statistical and per-module settings —
 shrinkage estimator, `alpha`, the LFC cutoff, the per-module top-N budgets.
 The defaults are the values the entry points apply by default, so runs stay
 comparable; only settings you change are listed in the report's "Pipeline
 arguments" table.
 
 ```{r}
-out <- run_deseq2_wald(
+out <- run_deseq2(
   dds, var = "condition",
-  opts = deseq2reports_opts(alpha = 0.01, lfc_threshold = 1),
+  opts = degreports_opts(alpha = 0.01, lfc_threshold = 1),
   save_dir = "results_strict"
 )
 ```
@@ -368,9 +369,8 @@ out <- run_deseq2_wald(
 In the package source tree:
 
 ```bash
-Rscript --vanilla run_gse189410_wald.R    # single-factor isotype (Wald)
-Rscript --vanilla run_gse224465_wald.R    # celltype × C × K (Wald, nested folders)
-Rscript --vanilla run_gse189410_lrt.R     # isotype as time axis (LRT)
+Rscript --vanilla run_gse189410_deseq2_wald.R    # single-factor isotype (Wald)
+Rscript --vanilla run_gse189410_deseq2_lrt.R     # isotype as time axis (LRT)
 ```
 
 ## Reading the HTML report
@@ -397,7 +397,7 @@ that module's results.
 ## Next reading
 
 ```{r}
-vignette("deseq2reports-analysis-flow", package = "deseq2reports")
-vignette("deseq2reports-modules", package = "deseq2reports")
-browseVignettes("deseq2reports")
+vignette("DEGreports-analysis-flow", package = "DEGreports")
+vignette("DEGreports-modules", package = "DEGreports")
+browseVignettes("DEGreports")
 ```

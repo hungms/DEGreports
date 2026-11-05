@@ -30,7 +30,7 @@ log_output <- function(call, save_dir, expr, params = list(), envir = parent.fra
     con <- file(log_path, open = "wt")
     on.exit(close(con), add = TRUE)
 
-    writeLines(paste0("deseq2reports run log -- ", Sys.time()), con)
+    writeLines(paste0("DEGreports run log -- ", Sys.time()), con)
     writeLines(paste0("Call: ", paste(deparse(call), collapse = " ")), con)
     writeLines("", con)
 
@@ -62,7 +62,7 @@ log_output <- function(call, save_dir, expr, params = list(), envir = parent.fra
     manifest <- list(
         timestamp = timestamp,
         call = paste(deparse(call), collapse = " "),
-        package_version = as.character(utils::packageVersion("deseq2reports")),
+        package_version = as.character(utils::packageVersion("DEGreports")),
         r_version = as.character(getRversion()),
         params = params
     )

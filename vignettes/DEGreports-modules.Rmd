@@ -1,8 +1,8 @@
 ---
-title: "deseq2reports module reference"
+title: "DEGreports module reference"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{deseq2reports module reference}
+  %\VignetteIndexEntry{DEGreports module reference}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -14,17 +14,17 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE, purl = FALS
 
 ## Purpose of this vignette
 
-This HTML vignette explains **what each `deseq2reports` module does**, the
+This HTML vignette explains **what each `DEGreports` module does**, the
 functions used inside it, and their **main / default settings**. No figures --
 only code and narrative.
 
 For a short “how do I run it?” guide, see
-`vignette("deseq2reports", package = "deseq2reports")`.
+`vignette("DEGreports", package = "DEGreports")`.
 For calculation / dependency flow diagrams, see
-`vignette("deseq2reports-analysis-flow", package = "deseq2reports")`.
+`vignette("DEGreports-analysis-flow", package = "DEGreports")`.
 
 ```{r}
-library(deseq2reports)
+library(DEGreports)
 library(DESeq2)
 # Assume `dds` is a DESeqDataSet with gene-symbol rownames and a grouping
 # column such as `condition` in colData(dds).
@@ -32,16 +32,16 @@ library(DESeq2)
 
 ---
 
-## Pipeline orchestration: `run_deseq2_wald()` / `run_deseq2_lrt()` / `run_deseq2_deg()`
+## Pipeline orchestration: `run_deseq2()` / `run_deseq2(mode = "lrt")` / `run_deg()`
 
 **Role.** Chains every stage below into one call and (by default) renders the
-multi-page HTML report. Prefer `run_deseq2_wald()` for group contrasts,
-`run_deseq2_lrt()` for time / ordered trajectories, and `run_deseq2_deg()`
+multi-page HTML report. Prefer `run_deseq2()` for group contrasts,
+`run_deseq2(mode = "lrt")` for time / ordered trajectories, and `run_deg()`
 when starting from a merged DEG table (no `DESeqDataSet`).
-`run_deseq2_pipeline()` is a deprecated alias of `run_deseq2_wald()`.
+`run_deseq2()` is a deprecated alias of `run_deseq2()`.
 
 ```{r}
-out <- run_deseq2_wald(
+out <- run_deseq2(
   dds,
   var = "condition",          # length 1–3
   design = NULL,              # NULL → resolve_design(var, batch, include_interactions)
@@ -90,7 +90,8 @@ PPI and CSPA run by default.
 **LRT entry point.**
 
 ```{r}
-out <- run_deseq2_lrt(
+out <- run_deseq2(
+  mode = "lrt",
   dds,
   var = "genotype",             # or NULL for time-only
   time = "day",
@@ -174,7 +175,7 @@ dds_qc <- run_qc(
 | `detect_organism(genes, min_fraction = 0.5)` | `"human"` / `"mouse"` from symbols |
 
 **Return value.** Filtered `DESeqDataSet`; QC metadata in
-`S4Vectors::metadata(dds_qc)$deseq2reports_qc` (includes
+`S4Vectors::metadata(dds_qc)$degreports_qc` (includes
 `sample_qc_table`, `steps_summary`, and diagnostic plots).
 
 ---
@@ -243,7 +244,7 @@ diffexp_out <- run_diffexp_pipeline(
   lfc_threshold = 0.5,
   ranking = "log2FoldChange",           # "pxfc" | "padj" | "log2FoldChange" | "stat"
   gene_col = "gene",
-  top_label_n = 10,           # pipeline wrapper uses 5 when called via run_deseq2_wald()
+  top_label_n = 10,           # pipeline wrapper uses 5 when called via run_deseq2()
   save_dir = getwd(),
   save_plot = TRUE
 )
@@ -512,7 +513,7 @@ extra ULM per degPatterns cluster into `<lrt>/cluster_<n>/`. Because a cluster
 signature holds only that cluster's genes, `minsize = 2` means a pair surfaces
 for a cluster only when **both** partners are members of it -- which is the
 attribution the whole-test fit cannot make, and also why a cluster may
-legitimately score no pair at all. `run_deseq2_lrt()` passes it automatically,
+legitimately score no pair at all. `run_deseq2(mode = "lrt")` passes it automatically,
 and the report then shows one tab per cluster with the pooled whole-test table
 kept below.
 
@@ -702,7 +703,7 @@ Each report section shows the **minimal package module call** to reproduce it.
 ## Minimal modular script
 
 ```{r}
-library(deseq2reports)
+library(DEGreports)
 library(DESeq2)
 
 dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
@@ -729,5 +730,5 @@ render_report(
 Or:
 
 ```{r}
-out <- run_deseq2_wald(dds, var = "condition", save_dir = "results")
+out <- run_deseq2(dds, var = "condition", save_dir = "results")
 ```

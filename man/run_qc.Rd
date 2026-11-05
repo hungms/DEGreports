@@ -74,7 +74,7 @@ the count-distribution diagnostic plot as PDFs in \code{save_dir}. Default
 The filtered \code{DESeqDataSet} object. The number/percent of genes
 removed at each step, the count-distribution and library-size plots,
 and the filtering parameters used are attached as
-\code{S4Vectors::metadata(dds)$deseq2reports_qc} so that \code{\link[=render_report]{render_report()}}
+\code{S4Vectors::metadata(dds)$degreports_qc} so that \code{\link[=render_report]{render_report()}}
 can display them without recomputation; also written to
 \code{qc_steps_summary.csv} in \code{save_dir}.
 }

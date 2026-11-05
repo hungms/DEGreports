@@ -206,7 +206,7 @@ plot_soft_threshold <- function(fit_indices, power, rsq_cutoff = 0.85) {
 #'   `"KEGG"`, `"REACTOME"`, `"PID"`. Default
 #'   matches the GSEA default
 #'   (`c("GOBP", "GOCC", "GOMF", "KEGG", "REACTOME", "PID")`).
-#'   [run_deseq2_pipeline()] passes its `collections` argument through so
+#'   [run_deseq2()] passes its `collections` argument through so
 #'   WGCNA ORA and GSEA use the same set. The leftover/unassigned "grey"
 #'   module (renamed "Unassigned") is always excluded (see `ora_by_module`
 #'   below and the package vignette).
