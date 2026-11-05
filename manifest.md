@@ -30,6 +30,10 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
   minus `*.rds` and `logs/`, plus `.nojekyll`). README button links to
   https://hungms.github.io/DEGreports/. Re-run the example → rebuild and push the
   branch by hand.
+- **Branching (from 2026-11-05):** `main` = verified releases only; `devel` =
+  integration; new work on `feature/<topic>` / `fix/<topic>` off `devel`, merged
+  back with `--no-ff`. Merge `devel` → `main` (and tag `vX.Y.Z`) only after tests
+  pass, the example report renders, and NEWS + this file are updated. No force-push.
 - **Conventions skill:** `~/.claude/skills/r-pipeline-package/` (in
   `/nemo/lab/caladod/working/Matthew/.claude/`) records this package's layout,
   style, README/NEWS templates and release steps for future packages.
