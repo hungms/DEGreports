@@ -129,6 +129,45 @@ DEGreports::emit_plot_with_download(params$qc_out$library_size_plot, filename = 
                                        width = lib_w, height = 2.5, dpi = 150)
 ```
 
+## Sex imputation
+
+```{r qc-sex, results='asis', eval=!is.null(params$qc_out$sex)}
+sx <- params$qc_out$sex
+cat("\n\nEach sample's sex is imputed from expression on every run, after the low-expression ",
+    "filter and before any X/Y gene removal, with `biowrenchR::impute_sex()`: k-means ",
+    "(2 clusters) on log2(CPM + 1) of the female markers (X-inactivation escape genes, ",
+    length(sx$female_genes), " present) and male markers (Y-chromosome genes, ",
+    length(sx$male_genes), " present). The clusters are trusted only if they differ by ",
+    "\u2265 1 log2 unit on either marker set; otherwise the cohort is treated as single-sex ",
+    "and sex is left undetermined.\n\n", sep = "")
+cat("**", switch(sx$status, imputed = "Imputed.", undetermined = "Undetermined.",
+                 "Not imputed."), "** ", sx$message, "\n\n", sep = "")
+use <- params$run_args$imputed_sex
+if (!is.null(use)) {
+  cat("**In the differential-expression model:** ", use, ". Sex is added to every model ",
+      "(and removed with the batch correction) only when it is not confounded with the ",
+      "variables already in the design.\n\n", sep = "")
+}
+```
+
+```{r qc-sex-plot, results='asis', eval=!is.null(params$qc_out$sex_plot)}
+DEGreports::emit_plot_with_download(params$qc_out$sex_plot, filename = "imputed_sex_plot",
+                                    width = 4, height = 3.5, dpi = 150)
+```
+
+```{r qc-sex-table, results='asis', eval=!is.null(params$qc_out$sex)}
+tb <- params$qc_out$sex$table
+tb$imputed_sex[is.na(tb$imputed_sex)] <- "undetermined"
+tb$female_score <- round(tb$female_score, 2)
+tb$male_score <- round(tb$male_score, 2)
+print(knitr::kable(tb, row.names = FALSE,
+                   col.names = c("Sample", "Imputed sex", "Female markers", "Male markers")))
+cat("\n\n")
+DEGreports::emit_widget(
+  DEGreports::link_output_file("qc_imputed_sex.csv", label = "Download imputed sex CSV")
+)
+```
+
 ## PCA
 
 ```{r pca-methods, results='asis'}
@@ -157,65 +196,14 @@ before_tab <- "Before batch correction"
 loadings_size <- DEGreports::pca_loadings_figure_size()
 ```
 
-```{r pca-after-tab, results='asis'}
-cat("\n\n#### ", after_tab, "\n\n", sep = "")
-```
-
-```{r pca-after-heading, results='asis'}
-if (pca_has_batch) {
-  cat("\n\nHover over a point to see its sample name. PCA/scree/loadings below are all ",
-      "computed on the batch-corrected matrix; batch correction is for visualization only ",
-      "and does not alter the DESeq2 design or differential expression results.\n\n", sep = "")
-} else {
-  cat("\n\nNo batch correction was applied (`batch = NULL`); this is simply the PCA on the ",
-      "variance-stabilized matrix. See the \"", before_tab, "\" tab for the identical data.\n\n", sep = "")
-}
-```
-
-```{r pca-after-plot, results='asis'}
-if (!is.null(params$distance_out$pca_plot)) {
-  pca_int <- params$distance_out$pca_plot_interactive
-  if (is.null(pca_int)) {
-    DEGreports::emit_plot_with_download(params$distance_out$pca_plot,
-                                           filename = "pca_plot",
-                                           width = 5, height = 5)
-  } else {
-    btn <- DEGreports::download_plot_button(
-      params$distance_out$pca_plot, filename = "pca_plot", widget = pca_int
-    )
-    DEGreports::emit_widget_with_download(pca_int, btn, center = TRUE)
-  }
-}
-```
-
-```{r pca-after-scree-heading, results='asis', eval=!is.null(params$distance_out$scree_plot)}
-cat("\n\n##### Scree plot\n\n")
-```
-
-```{r pca-after-scree-plot, results='asis', eval=!is.null(params$distance_out$scree_plot)}
-DEGreports::emit_plot_with_download(params$distance_out$scree_plot, filename = "scree_plot",
-                                       width = 3, height = 2.25, dpi = 150)
-```
-
-```{r pca-after-loadings-heading, results='asis', eval=!is.null(params$distance_out$top_loadings_plot)}
-cat("\n\n##### Top PCA loadings\n\n")
-```
-
-```{r pca-after-loadings-plot, results='asis', eval=!is.null(params$distance_out$top_loadings_plot)}
-DEGreports::emit_plot_with_download(params$distance_out$top_loadings_plot, filename = "pca_loadings_plot",
-                                       width = loadings_size$width, height = loadings_size$height,
-                                       pdf_width = loadings_size$pdf_width,
-                                       pdf_height = loadings_size$pdf_height, dpi = 150)
-```
-
 ```{r pca-before-tab, results='asis'}
 cat("\n\n#### ", before_tab, "\n\n", sep = "")
 ```
 
 ```{r pca-before-heading, results='asis'}
 if (pca_has_batch) {
-  cat("\n\nShown for comparison against the batch-corrected PCA in the other tab. Hover over a ",
-      "point to see its sample name.\n\n", sep = "")
+  cat("\n\nPCA on the uncorrected variance-stabilized matrix, coloured by each variable ",
+      "in turn. Hover over a point to see its sample name.\n\n", sep = "")
 } else {
   cat("\n\nNo batch correction was applied; this tab is identical to \"", after_tab, "\".\n\n", sep = "")
 }
@@ -224,7 +212,10 @@ if (pca_has_batch) {
 ```{r pca-before-plot, results='asis'}
 pca_uncorr <- if (pca_has_batch) params$distance_out$pca_plot_uncorrected else params$distance_out$pca_plot
 pca_uncorr_interactive <- if (pca_has_batch) params$distance_out$pca_plot_uncorrected_interactive else params$distance_out$pca_plot_interactive
-if (!is.null(pca_uncorr)) {
+pca_by_before <- params$distance_out$pca_by_uncorrected
+if (length(pca_by_before)) {
+  DEGreports::emit_pca_tabs(pca_by_before, "pca-before", filename = "pca_plot_uncorrected")
+} else if (!is.null(pca_uncorr)) {
   if (is.null(pca_uncorr_interactive)) {
     DEGreports::emit_plot_with_download(pca_uncorr,
                                            filename = "pca_plot_uncorrected",
@@ -269,6 +260,62 @@ if (!is.null(loadings_uncorr)) {
                                          pdf_width = loadings_size$pdf_width,
                                          pdf_height = loadings_size$pdf_height, dpi = 150)
 }
+```
+
+```{r pca-after-tab, results='asis'}
+cat("\n\n#### ", after_tab, "\n\n", sep = "")
+```
+
+```{r pca-after-heading, results='asis'}
+if (pca_has_batch) {
+  cat("\n\nThe same PCA after removing the model covariates (batch, pair and, when used, ",
+      "imputed sex) with `limma::removeBatchEffect()`. PCA/scree/loadings here are all ",
+      "computed on the corrected matrix; the correction is for visualization only and does ",
+      "not alter the DESeq2 design or differential expression results.\n\n", sep = "")
+} else {
+  cat("\n\nNo batch correction was applied (`batch = NULL`); this is simply the PCA on the ",
+      "variance-stabilized matrix. See the \"", before_tab, "\" tab for the identical data.\n\n", sep = "")
+}
+```
+
+```{r pca-after-plot, results='asis'}
+pca_by_after <- params$distance_out$pca_by_corrected
+if (is.null(pca_by_after)) pca_by_after <- params$distance_out$pca_by_uncorrected
+if (length(pca_by_after)) {
+  DEGreports::emit_pca_tabs(pca_by_after, "pca-after", filename = "pca_plot")
+} else if (!is.null(params$distance_out$pca_plot)) {
+  pca_int <- params$distance_out$pca_plot_interactive
+  if (is.null(pca_int)) {
+    DEGreports::emit_plot_with_download(params$distance_out$pca_plot,
+                                           filename = "pca_plot",
+                                           width = 5, height = 5)
+  } else {
+    btn <- DEGreports::download_plot_button(
+      params$distance_out$pca_plot, filename = "pca_plot", widget = pca_int
+    )
+    DEGreports::emit_widget_with_download(pca_int, btn, center = TRUE)
+  }
+}
+```
+
+```{r pca-after-scree-heading, results='asis', eval=!is.null(params$distance_out$scree_plot)}
+cat("\n\n##### Scree plot\n\n")
+```
+
+```{r pca-after-scree-plot, results='asis', eval=!is.null(params$distance_out$scree_plot)}
+DEGreports::emit_plot_with_download(params$distance_out$scree_plot, filename = "scree_plot",
+                                       width = 3, height = 2.25, dpi = 150)
+```
+
+```{r pca-after-loadings-heading, results='asis', eval=!is.null(params$distance_out$top_loadings_plot)}
+cat("\n\n##### Top PCA loadings\n\n")
+```
+
+```{r pca-after-loadings-plot, results='asis', eval=!is.null(params$distance_out$top_loadings_plot)}
+DEGreports::emit_plot_with_download(params$distance_out$top_loadings_plot, filename = "pca_loadings_plot",
+                                       width = loadings_size$width, height = loadings_size$height,
+                                       pdf_width = loadings_size$pdf_width,
+                                       pdf_height = loadings_size$pdf_height, dpi = 150)
 ```
 
 ```{r pca-assoc-heading, results='asis', eval=!is.null(params$distance_out$pca_assoc_plot)}

@@ -30,8 +30,11 @@
 
 #' Run the quality-control stage of the pipeline
 #'
-#' Optionally filters lowly-expressed genes, optionally removes
-#' mitochondrial and/or sex-chromosome genes, and writes a library-size
+#' Filters lowly-expressed genes, imputes each sample's sex from the
+#' sex-chromosome marker genes ([impute_sample_sex()], stored as
+#' `colData(dds)$imputed_sex`), then optionally removes mitochondrial,
+#' sex-chromosome and VDJ genes -- in that order, so sex is imputed before
+#' its marker genes can be removed -- and writes a library-size
 #' distribution plot, a gene-filtering diagnostic plot, and a filtering
 #' summary CSV. Returns the filtered `dds` object so it can be fed into
 #' [run_distance_pca()] and [run_diffexp_pipeline()].
@@ -169,47 +172,6 @@ run_qc <- function(
         stringsAsFactors = FALSE
     )
 
-    if (remove_mt) {
-        n_before <- nrow(dds)
-        keep_mt <- !grepl(mt_pattern, rownames(dds))
-        message("Removing ", sum(!keep_mt), " mitochondrial gene(s) (pattern: \"", mt_pattern, "\")...")
-        dds <- dds[keep_mt, ]
-        step_names <- c(step_names, "Mitochondrial gene removal")
-        step_n_before <- c(step_n_before, n_before)
-        step_n_after <- c(step_n_after, nrow(dds))
-    }
-
-    if (remove_xy) {
-        if (is.null(gene_chr)) {
-            warning("`remove_xy = TRUE` but `gene_chr` was not supplied; skipping X/Y gene removal. ",
-                    "Provide a data.frame(gene, chr) via `gene_chr` to enable this step.", call. = FALSE)
-        } else {
-            if (!all(c("gene", "chr") %in% colnames(gene_chr))) {
-                stop("`gene_chr` must be a data.frame with columns `gene` and `chr`.", call. = FALSE)
-            }
-            n_before <- nrow(dds)
-            xy_genes <- gene_chr$gene[gene_chr$chr %in% c("X", "Y", "chrX", "chrY")]
-            keep_xy <- !rownames(dds) %in% xy_genes
-            message("Removing ", sum(!keep_xy), " X/Y chromosome gene(s)...")
-            dds <- dds[keep_xy, ]
-            step_names <- c(step_names, "X/Y chromosome gene removal")
-            step_n_before <- c(step_n_before, n_before)
-            step_n_after <- c(step_n_after, nrow(dds))
-        }
-    }
-
-    if (length(vdj_kinds) > 0) {
-        n_before <- nrow(dds)
-        vdj_pat <- .vdj_gene_pattern(vdj_kinds)
-        keep_vdj <- !grepl(vdj_pat, rownames(dds))
-        message("Removing ", sum(!keep_vdj), " VDJ gene(s) (",
-                paste(vdj_kinds, collapse = "+"), ")...")
-        dds <- dds[keep_vdj, ]
-        step_names <- c(step_names, paste0("VDJ gene removal (", paste(vdj_kinds, collapse = "+"), ")"))
-        step_n_before <- c(step_n_before, n_before)
-        step_n_after <- c(step_n_after, nrow(dds))
-    }
-
     raw_counts <- .raw_count_matrix(dds)
     n_before_expr_filter <- nrow(dds)
 
@@ -289,6 +251,60 @@ run_qc <- function(
         step_n_after <- c(step_n_after, nrow(dds))
     }
 
+    # Sex is imputed on every run: after the expression filter (so the marker
+    # genes are on the same footing as everything else) and before X/Y genes
+    # can be removed (the markers live there).
+    sex_out <- impute_sample_sex(dds)
+    message(sex_out$message)
+    SummarizedExperiment::colData(dds)[[.sex_col]] <- factor(
+        sex_out$table$imputed_sex, levels = c("female", "male"))
+    write_output(sex_out$table, file.path(save_dir, "qc_imputed_sex.csv"), format = "csv")
+    sex_plot <- plot_sex_markers(sex_out$table)
+    if (save_plot && !is.null(sex_plot)) {
+        save_ggplot(sex_plot, file.path(save_dir, "qc_imputed_sex.pdf"), width = 4, height = 3.5)
+    }
+
+    if (remove_mt) {
+        n_before <- nrow(dds)
+        keep_mt <- !grepl(mt_pattern, rownames(dds))
+        message("Removing ", sum(!keep_mt), " mitochondrial gene(s) (pattern: \"", mt_pattern, "\")...")
+        dds <- dds[keep_mt, ]
+        step_names <- c(step_names, "Mitochondrial gene removal")
+        step_n_before <- c(step_n_before, n_before)
+        step_n_after <- c(step_n_after, nrow(dds))
+    }
+
+    if (remove_xy) {
+        if (is.null(gene_chr)) {
+            warning("`remove_xy = TRUE` but `gene_chr` was not supplied; skipping X/Y gene removal. ",
+                    "Provide a data.frame(gene, chr) via `gene_chr` to enable this step.", call. = FALSE)
+        } else {
+            if (!all(c("gene", "chr") %in% colnames(gene_chr))) {
+                stop("`gene_chr` must be a data.frame with columns `gene` and `chr`.", call. = FALSE)
+            }
+            n_before <- nrow(dds)
+            xy_genes <- gene_chr$gene[gene_chr$chr %in% c("X", "Y", "chrX", "chrY")]
+            keep_xy <- !rownames(dds) %in% xy_genes
+            message("Removing ", sum(!keep_xy), " X/Y chromosome gene(s)...")
+            dds <- dds[keep_xy, ]
+            step_names <- c(step_names, "X/Y chromosome gene removal")
+            step_n_before <- c(step_n_before, n_before)
+            step_n_after <- c(step_n_after, nrow(dds))
+        }
+    }
+
+    if (length(vdj_kinds) > 0) {
+        n_before <- nrow(dds)
+        vdj_pat <- .vdj_gene_pattern(vdj_kinds)
+        keep_vdj <- !grepl(vdj_pat, rownames(dds))
+        message("Removing ", sum(!keep_vdj), " VDJ gene(s) (",
+                paste(vdj_kinds, collapse = "+"), ")...")
+        dds <- dds[keep_vdj, ]
+        step_names <- c(step_names, paste0("VDJ gene removal (", paste(vdj_kinds, collapse = "+"), ")"))
+        step_n_before <- c(step_n_before, n_before)
+        step_n_after <- c(step_n_after, nrow(dds))
+    }
+
     message(nrow(dds), " / ", n_genes_start, " genes retained after QC filtering.")
 
     step_n_removed <- step_n_before - step_n_after
@@ -333,7 +349,9 @@ run_qc <- function(
         remove_vdj = if (length(vdj_kinds)) vdj_kinds else NULL,
         n_samples = ncol(dds),
         count_dist_plot = count_dist_plot,
-        library_size_plot = p
+        library_size_plot = p,
+        sex = sex_out,
+        sex_plot = sex_plot
     )
     S4Vectors::metadata(dds)$degreports_qc <- qc_meta
 

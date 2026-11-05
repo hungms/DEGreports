@@ -15,6 +15,9 @@
   and likelihood-ratio tests for time courses.
 * **Input types:** raw counts (DESeq2), TPM/FPKM or microarray data
   (limma), or a precomputed DEG table.
+* **Sex-aware:** each sample's sex is imputed from expression
+  ([biowrenchR](https://github.com/hungms/biowrenchR)) and added to the
+  model whenever it is not confounded with the design.
 * **Reporting:** a self-contained, multi-page HTML report that can be viewed
   offline and shared with collaborators.
 * **Reproducibility:** each run generates a standalone script to re-run the
@@ -34,8 +37,8 @@
 
 | Report page | What it shows | Default thresholds |
 |---|---|---|
-| **QC** | Sample and library QC, PCA (with PC–covariate association), sample similarity | Genes with zero counts in every sample removed, then the bottom 5% by mean CPM. With `batch` / `pair`: `limma::removeBatchEffect()` on VST, for plots and sample-level modules only |
-| **DESeq2** | Up/down DEG summary; per-contrast MA plot, volcano plot and tables | Wald: `padj < 0.05` and \|log2FC\| > 0.5 (ashr-shrunken). LRT: `padj < 0.05`; degPatterns clusters ≥ 15 genes |
+| **QC** | Sample and library QC, imputed sex, PCA coloured by group / pair / sex / batch (before and after correction, with PC–covariate association), sample similarity | Genes with zero counts in every sample removed, then the bottom 5% by mean CPM. Sex: k-means on X-escape and Y genes, trusted only if both marker sets differ ≥ 2-fold between clusters. Batch, pair and sex removed with `limma::removeBatchEffect()` on VST, for plots and sample-level modules only |
+| **DESeq2** | Up/down DEG summary; per-contrast MA plot, volcano plot and tables | Design `~ [batch +] [pair +] [sex +] var`. Wald: `padj < 0.05` and \|log2FC\| > 0.5 (ashr-shrunken). LRT: `padj < 0.05`; degPatterns clusters ≥ 15 genes |
 | ↳ STRING PPI | Interaction networks of significant DEGs | STRING combined score ≥ 400; top 10 hubs labelled |
 | ↳ CSPA | Cell-surface proteins among the DEGs | Top 25 surface DEGs per contrast (10 per LRT cluster) |
 | **clusterProfiler** | Up/down pathway summary; per-contrast GSEA (cluster ORA in LRT mode) | fgsea on genes ranked by log2FC; gene sets of 15–500 genes; `padj < 0.05` (BH) |

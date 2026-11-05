@@ -2973,6 +2973,17 @@
       "Author": "Aaron Lun [aut, cre], Hervé Pagès [aut], Mike Smith [aut]",
       "Maintainer": "Aaron Lun <infinite.monkeys.with.keyboards@gmail.com>"
     },
+    "biowrenchR": {
+      "Package": "biowrenchR",
+      "Version": "0.1.1",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "hungms",
+      "RemoteRepo": "biowrenchR",
+      "RemoteRef": "a417e8feb3cad0e54a9f8db4f58a1933589061ec",
+      "RemoteSha": "a417e8feb3cad0e54a9f8db4f58a1933589061ec"
+    },
     "bit": {
       "Package": "bit",
       "Version": "4.6.0",

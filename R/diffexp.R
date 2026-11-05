@@ -509,7 +509,8 @@ run_diffexp_pipeline <- function(
                 keep <- keep & as.character(cd[[sv]]) == stratum[[sv]]
             }
             dds_sub <- dds[, keep]
-            DESeq2::design(dds_sub) <- resolve_design(tv, batch = batch, design = NULL)
+            DESeq2::design(dds_sub) <- resolve_design(
+                tv, batch = .estimable_covariates(dds_sub, batch, tv), design = NULL)
             res_df <- de_levels(
                 dds = dds_sub, var = tv, comparison = spec$comparison[[1]],
                 shrinkage = shrinkage, alpha = alpha, lfc_threshold = lfc_threshold,

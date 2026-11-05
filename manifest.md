@@ -40,6 +40,36 @@ Release-level detail lives in `NEWS.md`; this file records *state, decisions and
 
 ## Current version: 0.4.0
 
+### 2026-11-05 — imputed sex, per-variable PCA tabs, DESCRIPTION text (branch `feature/impute-sex`)
+
+- **Sex imputation** (R/sex.R): `impute_sample_sex()` wraps
+  `biowrenchR::impute_sex()` (k-means, 2 clusters, on log2 CPM of X-escape + Y
+  genes). Always run in `run_qc()`, which is **reordered**: expression filter →
+  sex → MT → X/Y → VDJ (user asked: after CPM filter, before remove_xy). Stored as
+  `colData(dds)$imputed_sex`; `qc_imputed_sex.csv/.pdf`; QC metadata `$sex`.
+  Split trusted only if *both* marker sets differ >= 1 log2 in the expected
+  direction (a one-set gap was fooled by noise in a single-sex simulation).
+  Fails softly (status `failed`) for non-symbol IDs; biowrenchR "markers disagree"
+  is reported as `undetermined`.
+- **GSE189410 is single-sex (female):** Xist ~5 log2CPM in every sample, only 2 Y
+  genes in the matrix -> `undetermined`, sex not modelled. Expected.
+- **Model:** silent stage `model` after QC calls `.model_covariates()`: adds
+  `imputed_sex` to `c(batch, pair)` only if the additive (and product, with
+  interactions) design stays full rank. Later stages use `st$model$covars`, so sex
+  is also removed by removeBatchEffect. Stratified subset fits drop covariates not
+  estimable in the subset (`.estimable_covariates()`). Decision shown in the report
+  args (`imputed_sex`) and the QC sex section.
+- **PCA:** `run_distance_pca(colour_vars=)` -> `pca_by_uncorrected` /
+  `pca_by_corrected`; QC page: Before tab then After tab, each a Bootstrap tabset
+  Group / Pair / Sex / Batch (`emit_pca_tabs()`).
+- **DESCRIPTION:** Title + Description rewritten to match README; `biowrenchR` in
+  Imports with `Remotes: hungms/biowrenchR` (breaks the "no Remotes" convention by
+  user request). Installed into renv with `remotes::install_github(dependencies =
+  FALSE)` (renv::install failed upgrading dbplyr); recorded in renv.lock.
+- Tests: new test-sex.R; qc-steps order test updated. Full suite 294 tests, same 7
+  pre-existing failures. E2E render on simulated paired two-sex data OK (sex
+  correctly not modelled: nested in donor).
+
 ### 2026-11-05 — `pair` argument + removeBatchEffect replaces ComBat (branch `feature/pair-design`)
 
 - **`pair`** on `run_deseq2()` (Wald + LRT) and `run_limma()`. Internally
