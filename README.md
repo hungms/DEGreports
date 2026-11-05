@@ -1,41 +1,12 @@
 # DEGreports
 
-**An R package for end-to-end bulk RNA-seq analysis that prioritises
-candidate genes for experimental validation by consensus across independent
-analytical methods.**
+**An R package for end-to-end bulk RNA-seq analysis that prioritises candidate genes by consensus across independent analytical methods.**
 
 ## Why DEGreports
 
-**Current limitations.** Gene prioritisation in bulk RNA-seq studies
-typically relies on differential expression alone. Downstream analyses, such
-as pathway enrichment, transcription-factor and regulator activity inference,
-and ligand–receptor analysis, are performed separately, each with its own
-scripts, thresholds, gene identifiers and output formats. This has two
-consequences:
+**Current limitations.** There is no established framework for selecting biological targets from bulk RNA-seq data.
 
-1. **Results are not directly comparable.** Individual analyses may be run
-   on slightly different contrasts or at different significance thresholds,
-   so concordance between methods is rarely assessed.
-2. **There is no established framework for integrating them.** Candidates
-   are usually selected from a single DEG list ranked by fold change or
-   p-value. Such lists include many genes that meet the significance
-   threshold but have no corroborating evidence from other analyses.
-
-**Approach.**
-
-1. **Consistent analysis.** Each contrast is defined once and applied to
-   every module, with statistical thresholds fixed at the pipeline level.
-   All results therefore refer to the same comparison under the same
-   criteria.
-2. **Consensus ranking.** For each contrast, every gene receives a
-   **multihit** score: the number of independent analyses in which it is
-   significant. These analyses are differential expression, GSEA leading
-   edge, decoupleR TF activity, VIPER regulator activity, ligand–receptor
-   activity (decoupleR-CCC) and CSPA cell-surface annotation. Genes are
-   ranked separately within up- and down-regulated sets, and an UpSet plot
-   shows the overlap between methods. The highest-ranked genes are those
-   with the strongest multi-method support, and so the most robust
-   candidates for validation.
+**Approach.** For each contrast, every gene receives a **multihit** score: the number of independent analyses in which it is significant. These analyses are differential expression, GSEA leading edge, decoupleR TF activity, VIPER regulator activity, ligand–receptor activity (decoupleR-CCC) and CSPA cell-surface annotation. Genes are ranked separately within up- and down-regulated sets, and an UpSet plot shows the overlap between methods. The highest-ranked genes are those with the strongest multi-method support, and so the most robust candidates for validation.
 
 **Additional features:**
 
@@ -61,18 +32,23 @@ consequences:
 
 ## Analyses
 
-| Report page | What it shows |
-|---|---|
-| **QC** | Sample and library QC, PCA (with PC–covariate association), sample similarity |
-| **DESeq2** | Up/down DEG summary; per-contrast MA plot, volcano plot, tables, STRING PPI, CSPA surface markers |
-| **clusterProfiler** | Up/down pathway summary; per-contrast GSEA (cluster ORA in LRT mode) |
-| **GSVA** | Sample-level pathway scores |
-| **WGCNA** | Co-expression modules, eigengenes, module ORA and PPI |
-| **decoupleR-TF** / **VIPER** | TF and regulator activity, per contrast or per LRT cluster |
-| **decoupleR-CCC** | Ligand–receptor activity |
-| **Multihit** | Consensus gene ranking across all analyses, with an UpSet plot of method overlap |
+| Report page | What it shows | Default thresholds |
+|---|---|---|
+| **QC** | Sample and library QC, PCA (with PC–covariate association), sample similarity | Genes with zero counts in every sample removed, then the bottom 5% by mean CPM. With `batch`: ComBat-seq (RNA-seq) or ComBat (microarray) |
+| **DESeq2** | Up/down DEG summary; per-contrast MA plot, volcano plot and tables | Wald: `padj < 0.05` and \|log2FC\| > 0.5 (ashr-shrunken). LRT: `padj < 0.05`; degPatterns clusters ≥ 15 genes |
+| ↳ STRING PPI | Interaction networks of significant DEGs | STRING combined score ≥ 400; top 10 hubs labelled |
+| ↳ CSPA | Cell-surface proteins among the DEGs | Top 25 surface DEGs per contrast (10 per LRT cluster) |
+| **clusterProfiler** | Up/down pathway summary; per-contrast GSEA (cluster ORA in LRT mode) | fgsea on genes ranked by log2FC; gene sets of 15–500 genes; `padj < 0.05` (BH) |
+| **GSVA** | Sample-level pathway scores | All pathways scored; heatmaps show the 50 most group-associated (Kruskal–Wallis); HALLMARK shown in full |
+| **WGCNA** | Co-expression modules, eigengenes, module ORA and PPI | Signed network; soft power = lowest with scale-free R² ≥ 0.85 (max 15); modules ≥ 100 genes; merge height 0.25 |
+| **decoupleR-TF** | TF activity (CollecTRI, ULM), per contrast or per LRT cluster | TFs with ≥ 5 targets; significant at `padj < 0.05` and \|score\| > 1 |
+| **VIPER** | Regulator activity (bcellViper regulon) | Regulons with ≥ 25 targets; significant at `padj < 0.05` and \|NES\| > 2 |
+| **decoupleR-CCC** | Ligand–receptor activity (ULM) | Ligand and receptor both measured; significant at `padj < 0.05` and \|score\| > 1 |
+| **Multihit** | Consensus gene ranking with an UpSet plot of method overlap | +1 per method in which a gene passes the thresholds above (GSEA: in the leading edge of any significant pathway); top 10 genes per direction |
 
-GSVA, WGCNA, decoupleR and VIPER are optional stages.
+GSVA, WGCNA, decoupleR and VIPER are optional stages. `alpha`, the log2FC
+cutoff, the shrinkage method and the top-N values can be changed with
+`opts = degreports_opts()`.
 
 ## Install
 
